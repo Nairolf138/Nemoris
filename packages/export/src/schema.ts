@@ -1,4 +1,4 @@
-import type { Belief, LegacyMessage, Lesson, Memory, ValueProfile } from '@capsule/core';
+import type { Beneficiary, Belief, LegacyMessage, Lesson, Memory, ValueProfile } from '@capsule/core';
 
 export type ExportSchemaVersion = '1.0.0';
 
@@ -17,9 +17,17 @@ export interface CapsuleExportPayloadV1 {
   lessons: Lesson[];
   value_profiles: ValueProfile[];
   legacy_messages: LegacyMessage[];
+  beneficiaries: Beneficiary[];
+  transmission_rules: ExportTransmissionRule[];
+}
+
+export interface ExportTransmissionRule {
+  legacy_message_id: string;
+  beneficiary_id: string;
 }
 
 export interface ExportBeneficiary {
-  recipient_id: string;
+  beneficiary_id: string;
+  identity: string;
   message_count: number;
 }

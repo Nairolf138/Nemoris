@@ -12,6 +12,7 @@ type DataResource =
   | 'lessons'
   | 'value_profiles'
   | 'legacy_messages'
+  | 'beneficiaries'
   | 'narrative_nodes'
   | 'narrative_edges';
 
@@ -57,12 +58,20 @@ const createPayloadByResource: Record<DataResource, Record<string, unknown>> = {
     evidence_memory_ids: [],
     narrative_node_ids: [],
   },
+  beneficiaries: {
+    visibility: 'private',
+    identity: 'Alice',
+    channel: 'email',
+    contact: 'alice@example.com',
+    verification_status: 'verified',
+    status: 'active',
+  },
   legacy_messages: {
     visibility: 'private',
     title: 'Final note',
     message: 'Be kind',
     trigger_type: 'manual',
-    recipient_ids: ['recipient-1'],
+    beneficiary_ids: ['__SETUP_BENEFICIARY__'],
     attachment_memory_ids: [],
     related_belief_ids: [],
     related_lesson_ids: [],
@@ -95,6 +104,7 @@ const patchPayloadByResource: Record<DataResource, Record<string, unknown>> = {
   beliefs: { statement: 'Learning deeply matters' },
   lessons: { lesson_text: 'Always verify and test' },
   value_profiles: { profile_label: 'Updated values' },
+  beneficiaries: { identity: 'Updated beneficiary' },
   legacy_messages: { title: 'Updated final note' },
   narrative_nodes: { label: 'Updated key event' },
   narrative_edges: { relation_type: 'supports' },
@@ -219,12 +229,28 @@ const runPaginationAndSortingTests = async (app: CapsuleApiApp, owner: { userId:
 
 
 const runLegacyMessageOrchestrationScenarios = async (app: CapsuleApiApp, owner: { userId: string; token: string }): Promise<void> => {
+  const beneficiaryResponse = await app.handle({
+    method: 'POST',
+    path: '/data/beneficiaries',
+    headers: { authorization: `Bearer ${owner.token}`, 'x-owner-id': owner.userId },
+    body: {
+      visibility: 'private',
+      identity: 'Scenario recipient',
+      channel: 'email',
+      contact: 'scenario@example.com',
+      verification_status: 'verified',
+      status: 'active',
+    },
+  });
+  assert(beneficiaryResponse.status === 201, 'legacy orchestration setup should create beneficiary');
+  const beneficiaryId = (beneficiaryResponse.body as { id: string }).id;
   const createResponse = await app.handle({
     method: 'POST',
     path: '/data/legacy_messages',
     headers: { authorization: `Bearer ${owner.token}`, 'x-owner-id': owner.userId },
     body: {
       ...createPayloadByResource.legacy_messages,
+      beneficiary_ids: [beneficiaryId],
       title: 'Scenario message',
       message: 'Ready to send',
       state: 'draft',
@@ -271,6 +297,7 @@ const runLegacyMessageOrchestrationScenarios = async (app: CapsuleApiApp, owner:
     headers: { authorization: `Bearer ${owner.token}`, 'x-owner-id': owner.userId },
     body: {
       ...createPayloadByResource.legacy_messages,
+      beneficiary_ids: [beneficiaryId],
       title: 'Failure message',
       message: '[FAIL_DELIVERY] force error',
       state: 'draft',
@@ -324,14 +351,33 @@ export const runDataIntegrationTests = async (): Promise<void> => {
   const owner = await registerAndLogin(app, 'data-owner@example.com', 'Secret123!', '203.0.113.21');
   const outsider = await registerAndLogin(app, 'data-outsider@example.com', 'Secret123!', '203.0.113.22');
 
-  const resources: DataResource[] = ['memories', 'beliefs', 'lessons', 'value_profiles', 'legacy_messages', 'narrative_nodes'];
+  const resources: DataResource[] = ['memories', 'beliefs', 'lessons', 'value_profiles', 'legacy_messages', 'beneficiaries', 'narrative_nodes'];
 
   for (const resource of resources) {
+    const body = JSON.parse(JSON.stringify(createPayloadByResource[resource])) as Record<string, unknown>;
+    if (resource === 'legacy_messages') {
+      const beneficiary = await app.handle({
+        method: 'POST',
+        path: '/data/beneficiaries',
+        headers: { authorization: `Bearer ${owner.token}`, 'x-owner-id': owner.userId },
+        body: {
+          visibility: 'private',
+          identity: 'Loop recipient',
+          channel: 'email',
+          contact: 'loop@example.com',
+          verification_status: 'verified',
+          status: 'active',
+        },
+      });
+      assert(beneficiary.status === 201, 'legacy setup should create a beneficiary');
+      body.beneficiary_ids = [(beneficiary.body as { id: string }).id];
+    }
+
     const createdResponse = await app.handle({
       method: 'POST',
       path: `/data/${resource}`,
       headers: { authorization: `Bearer ${owner.token}`, 'x-owner-id': owner.userId },
-      body: createPayloadByResource[resource],
+      body,
     });
 
     assert(createdResponse.status === 201, `${resource}: create should return 201`);

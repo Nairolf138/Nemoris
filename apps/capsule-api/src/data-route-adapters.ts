@@ -1,4 +1,5 @@
 import type {
+  Beneficiary,
   Belief,
   CreateBeliefInput,
   CreateLegacyMessageInput,
@@ -226,7 +227,7 @@ export const mapCreateLegacyMessageInput = (body: unknown, ownerId: string): Cre
     message: asString(payload, 'message', true) as string,
     trigger_type: asString(payload, 'trigger_type', true) as LegacyMessage['trigger_type'],
     trigger_at: asString(payload, 'trigger_at'),
-    recipient_ids: asStringArray(payload, 'recipient_ids'),
+    beneficiary_ids: payload.beneficiary_ids === undefined ? asStringArray(payload, 'recipient_ids') : asStringArray(payload, 'beneficiary_ids'),
     attachment_memory_ids: asStringArray(payload, 'attachment_memory_ids'),
     related_belief_ids: asStringArray(payload, 'related_belief_ids'),
     related_lesson_ids: asStringArray(payload, 'related_lesson_ids'),
@@ -244,7 +245,10 @@ export const mapUpdateLegacyMessageInput = (body: unknown): UpdateLegacyMessageI
     message: asString(payload, 'message'),
     trigger_type: asString(payload, 'trigger_type') as LegacyMessage['trigger_type'],
     trigger_at: asString(payload, 'trigger_at'),
-    recipient_ids: payload.recipient_ids === undefined ? undefined : asStringArray(payload, 'recipient_ids'),
+    beneficiary_ids:
+      payload.beneficiary_ids === undefined
+        ? (payload.recipient_ids === undefined ? undefined : asStringArray(payload, 'recipient_ids'))
+        : asStringArray(payload, 'beneficiary_ids'),
     attachment_memory_ids:
       payload.attachment_memory_ids === undefined ? undefined : asStringArray(payload, 'attachment_memory_ids'),
     related_belief_ids: payload.related_belief_ids === undefined ? undefined : asStringArray(payload, 'related_belief_ids'),
@@ -314,5 +318,31 @@ export const mapUpdateNarrativeEdgeInput = (body: unknown): Partial<Omit<Narrati
     evidence_memory_ids: payload.evidence_memory_ids === undefined ? undefined : asStringArray(payload, 'evidence_memory_ids'),
     belief_ids: payload.belief_ids === undefined ? undefined : asStringArray(payload, 'belief_ids'),
     lesson_ids: payload.lesson_ids === undefined ? undefined : asStringArray(payload, 'lesson_ids'),
+  };
+};
+
+
+export const mapCreateBeneficiaryInput = (body: unknown, ownerId: string): Omit<Beneficiary, 'id' | 'created_at' | 'updated_at'> => {
+  const payload = asRecord(body);
+  return {
+    owner_id: ownerId,
+    visibility: asVisibility(payload, true) as Beneficiary['visibility'],
+    identity: asString(payload, 'identity', true) as string,
+    channel: asString(payload, 'channel', true) as Beneficiary['channel'],
+    contact: asString(payload, 'contact', true) as string,
+    verification_status: asString(payload, 'verification_status', true) as Beneficiary['verification_status'],
+    status: asString(payload, 'status', true) as Beneficiary['status'],
+  };
+};
+
+export const mapUpdateBeneficiaryInput = (body: unknown): Partial<Omit<Beneficiary, 'id' | 'owner_id' | 'created_at' | 'updated_at'>> => {
+  const payload = asRecord(body);
+  return {
+    visibility: asVisibility(payload),
+    identity: asString(payload, 'identity'),
+    channel: asString(payload, 'channel') as Beneficiary['channel'],
+    contact: asString(payload, 'contact'),
+    verification_status: asString(payload, 'verification_status') as Beneficiary['verification_status'],
+    status: asString(payload, 'status') as Beneficiary['status'],
   };
 };

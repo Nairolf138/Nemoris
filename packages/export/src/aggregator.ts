@@ -1,4 +1,5 @@
 import type {
+  BeneficiaryRepository,
   BeliefRepository,
   LegacyMessageRepository,
   LessonRepository,
@@ -18,6 +19,7 @@ export interface ExportAggregatorDependencies {
   lessons: LessonRepository;
   valueProfiles: ValueProfileRepository;
   legacyMessages: LegacyMessageRepository;
+  beneficiaries: BeneficiaryRepository;
 }
 
 export type ExportFormat = 'json' | 'pdf';
@@ -52,12 +54,13 @@ export class ExportAggregator {
   public constructor(private readonly deps: ExportAggregatorDependencies) {}
 
   public async collectByOwner(ownerId: string, generatedByUserId: string): Promise<CapsuleExportPayloadV1> {
-    const [memories, beliefs, lessons, valueProfiles, legacyMessages] = await Promise.all([
+    const [memories, beliefs, lessons, valueProfiles, legacyMessages, beneficiaries] = await Promise.all([
       this.deps.memories.listByOwner(ownerId),
       this.deps.beliefs.listByOwner(ownerId),
       this.deps.lessons.listByOwner(ownerId),
       this.deps.valueProfiles.listByOwner(ownerId),
       this.deps.legacyMessages.listByOwner(ownerId),
+      this.deps.beneficiaries.listByOwner(ownerId),
     ]);
 
     return {
@@ -73,6 +76,11 @@ export class ExportAggregator {
       lessons,
       value_profiles: valueProfiles,
       legacy_messages: legacyMessages,
+      beneficiaries,
+      transmission_rules: legacyMessages.flatMap((message) => message.beneficiary_ids.map((beneficiaryId) => ({
+        legacy_message_id: message.id,
+        beneficiary_id: beneficiaryId,
+      }))),
     };
   }
 }

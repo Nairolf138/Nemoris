@@ -19,6 +19,7 @@ import {
   updateMemory,
   updateValueProfile,
   type CapsulePersistence,
+  type Beneficiary,
   type NarrativeEdge,
   type NarrativeNode,
   type Visibility,
@@ -28,6 +29,7 @@ import { ObservabilityService } from '@capsule/observability';
 import { AuthService } from './auth-service.js';
 import {
   mapCreateBeliefInput,
+  mapCreateBeneficiaryInput,
   mapCreateLegacyMessageInput,
   mapCreateLessonInput,
   mapCreateMemoryInput,
@@ -35,6 +37,7 @@ import {
   mapCreateNarrativeNodeInput,
   mapCreateValueProfileInput,
   mapUpdateBeliefInput,
+  mapUpdateBeneficiaryInput,
   mapUpdateLegacyMessageInput,
   mapUpdateLessonInput,
   mapUpdateMemoryInput,
@@ -120,6 +123,7 @@ const DATA_COLLECTIONS: readonly DataCollection[] = [
   'lessons',
   'value_profiles',
   'legacy_messages',
+  'beneficiaries',
   'narrative_nodes',
   'narrative_edges',
 ];
@@ -188,6 +192,7 @@ export class CapsuleApiApp {
       lessons: this.persistence.lessons,
       valueProfiles: this.persistence.valueProfiles,
       legacyMessages: this.persistence.legacyMessages,
+      beneficiaries: this.persistence.beneficiaries,
     });
     this.exportService = new ExportService(this.exportAggregator, dependencies.exportRepository ?? providers.exportRepository);
   }
@@ -369,6 +374,31 @@ export class CapsuleApiApp {
     await this.assertOwnedReferences(ownerId, 'lesson_ids', input.lesson_ids, this.persistence.lessons.getById);
   }
 
+  private async validateLegacyMessageBeneficiaries(ownerId: string, beneficiaryIds: string[]): Promise<string[]> {
+    const normalized = [...new Set(beneficiaryIds)];
+    if (normalized.length !== beneficiaryIds.length) {
+      throw new ValidationError('DOMAIN_VALIDATION_ERROR', { message: 'Field "beneficiary_ids" contains duplicated references.' });
+    }
+
+    for (const beneficiaryId of normalized) {
+      const beneficiary = await this.persistence.beneficiaries.getById(beneficiaryId);
+      if (!beneficiary) {
+        throw new ValidationError('DOMAIN_VALIDATION_ERROR', { message: 'Field "beneficiary_ids" contains unknown references.' });
+      }
+      if (beneficiary.owner_id !== ownerId) {
+        throw new ForbiddenError();
+      }
+      if (beneficiary.status !== 'active') {
+        throw new ValidationError('DOMAIN_VALIDATION_ERROR', { message: 'Field "beneficiary_ids" must reference active beneficiaries.' });
+      }
+      if (beneficiary.verification_status !== 'verified') {
+        throw new ValidationError('DOMAIN_VALIDATION_ERROR', { message: 'Field "beneficiary_ids" must reference verified beneficiaries.' });
+      }
+    }
+
+    return normalized;
+  }
+
   private parseLegacyMessageOrchestrationRoute(
     path: string,
   ): { id: string; action: 'arm' | 'trigger' | 'revoke' | 'deliver' | 'delivery-attempts' } | null {
@@ -482,6 +512,9 @@ export class CapsuleApiApp {
       if (route.collection === 'legacy_messages') {
         return { status: 200, body: await this.persistence.legacyMessages.listByOwnerPaginated(auth.user.id, { limit: query.limit, offset: query.offset, sortBy: sort, order: query.order }) };
       }
+      if (route.collection === 'beneficiaries') {
+        return { status: 200, body: await this.persistence.beneficiaries.listByOwnerPaginated(auth.user.id, { limit: query.limit, offset: query.offset, sortBy: sort, order: query.order }) };
+      }
       if (route.collection === 'narrative_nodes') {
         return { status: 200, body: await this.persistence.narrativeNodes.listByOwnerPaginated(auth.user.id, { limit: query.limit, offset: query.offset, sortBy: sort, order: query.order }) };
       }
@@ -507,8 +540,15 @@ export class CapsuleApiApp {
         return { status: 201, body: created };
       }
       if (route.collection === 'legacy_messages') {
-        const created = await createLegacyMessage({ legacyMessageRepository: this.persistence.legacyMessages, memoryRepository: this.persistence.memories, beliefRepository: this.persistence.beliefs, lessonRepository: this.persistence.lessons, valueProfileRepository: this.persistence.valueProfiles, narrativeNodeRepository: this.persistence.narrativeNodes, observer: { emitEvent: (event) => this.observability.emit(event) } }, mapCreateLegacyMessageInput(request.body, auth.user.id));
+        const input = mapCreateLegacyMessageInput(request.body, auth.user.id);
+        input.beneficiary_ids = await this.validateLegacyMessageBeneficiaries(auth.user.id, input.beneficiary_ids);
+        const created = await createLegacyMessage({ legacyMessageRepository: this.persistence.legacyMessages, memoryRepository: this.persistence.memories, beliefRepository: this.persistence.beliefs, lessonRepository: this.persistence.lessons, valueProfileRepository: this.persistence.valueProfiles, narrativeNodeRepository: this.persistence.narrativeNodes, beneficiaryRepository: this.persistence.beneficiaries, observer: { emitEvent: (event) => this.observability.emit(event) } }, input);
         return { status: 201, body: created };
+      }
+      if (route.collection === 'beneficiaries') {
+        const input = mapCreateBeneficiaryInput(request.body, auth.user.id);
+        const beneficiary: Beneficiary = { ...this.createEntityMetadata(auth.user.id, input.visibility), ...input };
+        return { status: 201, body: await this.persistence.beneficiaries.create(beneficiary) };
       }
       if (route.collection === 'narrative_nodes') {
         const input = mapCreateNarrativeNodeInput(request.body, auth.user.id);
@@ -549,9 +589,21 @@ export class CapsuleApiApp {
         return { status: 200, body: updated };
       }
       if (route.collection === 'legacy_messages') {
-        const updated = await updateLegacyMessage({ legacyMessageRepository: this.persistence.legacyMessages, memoryRepository: this.persistence.memories, beliefRepository: this.persistence.beliefs, lessonRepository: this.persistence.lessons, valueProfileRepository: this.persistence.valueProfiles, narrativeNodeRepository: this.persistence.narrativeNodes, observer: { emitEvent: (event) => this.observability.emit(event) } }, route.id, mapUpdateLegacyMessageInput(request.body));
+        const patch = mapUpdateLegacyMessageInput(request.body);
+        if (patch.beneficiary_ids !== undefined) {
+          patch.beneficiary_ids = await this.validateLegacyMessageBeneficiaries(auth.user.id, patch.beneficiary_ids);
+        }
+        const updated = await updateLegacyMessage({ legacyMessageRepository: this.persistence.legacyMessages, memoryRepository: this.persistence.memories, beliefRepository: this.persistence.beliefs, lessonRepository: this.persistence.lessons, valueProfileRepository: this.persistence.valueProfiles, narrativeNodeRepository: this.persistence.narrativeNodes, beneficiaryRepository: this.persistence.beneficiaries, observer: { emitEvent: (event) => this.observability.emit(event) } }, route.id, patch);
         if (!updated) throw new NotFoundError('RESOURCE_NOT_FOUND');
         if (updated.owner_id !== auth.user.id) throw new ForbiddenError();
+        return { status: 200, body: updated };
+      }
+      if (route.collection === 'beneficiaries') {
+        const existing = await this.persistence.beneficiaries.getById(route.id);
+        if (!existing) throw new NotFoundError('RESOURCE_NOT_FOUND');
+        if (existing.owner_id !== auth.user.id) throw new ForbiddenError();
+        const patch = mapUpdateBeneficiaryInput(request.body);
+        const updated = await this.persistence.beneficiaries.update(route.id, { ...patch, updated_at: new Date().toISOString() });
         return { status: 200, body: updated };
       }
       if (route.collection === 'narrative_nodes') {
@@ -615,7 +667,12 @@ export class CapsuleApiApp {
         const existing = await this.persistence.legacyMessages.getById(route.id);
         if (!existing) throw new NotFoundError('RESOURCE_NOT_FOUND');
         if (existing.owner_id !== auth.user.id) throw new ForbiddenError();
-        deleted = await deleteLegacyMessage({ legacyMessageRepository: this.persistence.legacyMessages, memoryRepository: this.persistence.memories, beliefRepository: this.persistence.beliefs, lessonRepository: this.persistence.lessons, valueProfileRepository: this.persistence.valueProfiles, narrativeNodeRepository: this.persistence.narrativeNodes, observer: { emitEvent: (event) => this.observability.emit(event) } }, route.id);
+        deleted = await deleteLegacyMessage({ legacyMessageRepository: this.persistence.legacyMessages, memoryRepository: this.persistence.memories, beliefRepository: this.persistence.beliefs, lessonRepository: this.persistence.lessons, valueProfileRepository: this.persistence.valueProfiles, narrativeNodeRepository: this.persistence.narrativeNodes, beneficiaryRepository: this.persistence.beneficiaries, observer: { emitEvent: (event) => this.observability.emit(event) } }, route.id);
+      } else if (route.collection === 'beneficiaries') {
+        const existing = await this.persistence.beneficiaries.getById(route.id);
+        if (!existing) throw new NotFoundError('RESOURCE_NOT_FOUND');
+        if (existing.owner_id !== auth.user.id) throw new ForbiddenError();
+        deleted = await this.persistence.beneficiaries.delete(route.id);
       } else if (route.collection === 'narrative_nodes') {
         const existing = await this.persistence.narrativeNodes.getById(route.id);
         if (!existing) throw new NotFoundError('RESOURCE_NOT_FOUND');

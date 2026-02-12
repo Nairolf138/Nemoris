@@ -40,9 +40,13 @@ const buildFixture = () => {
     legacyMessages: [
       {
         id: 'msg-1', owner_id: ownerId, visibility: 'posthumous', created_at: '2026-01-01T00:00:00.000Z', updated_at: '2026-01-01T00:00:00.000Z',
-        title: 'Message testamentaire', message: 'Prenez soin de vous.', trigger_type: 'manual', recipient_ids: ['benef-1', 'benef-2'], attachment_memory_ids: ['mem-1'],
+        title: 'Message testamentaire', message: 'Prenez soin de vous.', trigger_type: 'manual', beneficiary_ids: ['benef-1', 'benef-2'], attachment_memory_ids: ['mem-1'],
         related_belief_ids: ['belief-1'], related_lesson_ids: ['lesson-1'], related_value_profile_ids: ['vp-1'], related_narrative_node_ids: [], state: 'armed',
       },
+    ],
+    beneficiaries: [
+      { id: 'benef-1', owner_id: ownerId, visibility: 'private', created_at: '2026-01-01T00:00:00.000Z', updated_at: '2026-01-01T00:00:00.000Z', identity: 'Alex', channel: 'email', contact: 'alex@example.com', verification_status: 'verified', status: 'active' },
+      { id: 'benef-2', owner_id: ownerId, visibility: 'private', created_at: '2026-01-01T00:00:00.000Z', updated_at: '2026-01-01T00:00:00.000Z', identity: 'Sam', channel: 'sms', contact: '+33123456789', verification_status: 'verified', status: 'active' },
     ],
   };
 
@@ -52,6 +56,7 @@ const buildFixture = () => {
     lessons: { listByOwner: async (owner: string) => fixture.lessons.filter((x) => x.owner_id === owner) },
     valueProfiles: { listByOwner: async (owner: string) => fixture.valueProfiles.filter((x) => x.owner_id === owner) },
     legacyMessages: { listByOwner: async (owner: string) => fixture.legacyMessages.filter((x) => x.owner_id === owner) },
+    beneficiaries: { listByOwner: async (owner: string) => fixture.beneficiaries.filter((x) => x.owner_id === owner) },
   };
 };
 
@@ -69,11 +74,13 @@ export const runExportContractTests = async (): Promise<void> => {
       lessons: payload.lessons.length,
       value_profiles: payload.value_profiles.length,
       legacy_messages: payload.legacy_messages.length,
+      beneficiaries: payload.beneficiaries.length,
+      transmission_rules: payload.transmission_rules.length,
     },
   });
 
   assert(
-    snapshot === JSON.stringify({ schema_version: '1.0.0', owner_id: 'owner-1', counts: { memories: 1, beliefs: 1, lessons: 1, value_profiles: 1, legacy_messages: 1 } }),
+    snapshot === JSON.stringify({ schema_version: '1.0.0', owner_id: 'owner-1', counts: { memories: 1, beliefs: 1, lessons: 1, value_profiles: 1, legacy_messages: 1, beneficiaries: 2, transmission_rules: 2 } }),
     'JSON contract snapshot changed',
   );
 

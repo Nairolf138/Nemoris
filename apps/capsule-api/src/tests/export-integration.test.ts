@@ -48,6 +48,23 @@ export const runExportIntegrationTests = async (): Promise<void> => {
   });
   assert(createdMemory.status === 201, 'memory setup should return 201');
 
+
+  const createdBeneficiary = await app.handle({
+    method: 'POST',
+    path: '/data/beneficiaries',
+    headers: { authorization: `Bearer ${token}`, 'x-owner-id': ownerId },
+    body: {
+      visibility: 'private',
+      identity: 'Recipient exportable',
+      channel: 'email',
+      contact: 'recipient@example.com',
+      verification_status: 'verified',
+      status: 'active',
+    },
+  });
+  assert(createdBeneficiary.status === 201, 'beneficiary setup should return 201');
+  const beneficiaryId = (createdBeneficiary.body as { id: string }).id;
+
   const createdMessage = await app.handle({
     method: 'POST',
     path: '/data/legacy_messages',
@@ -57,7 +74,7 @@ export const runExportIntegrationTests = async (): Promise<void> => {
       title: messageTitle,
       message: 'Ce message doit apparaître dans l’export.',
       trigger_type: 'manual',
-      recipient_ids: ['recipient-1'],
+      beneficiary_ids: [beneficiaryId],
       attachment_memory_ids: [],
       related_belief_ids: [],
       related_lesson_ids: [],
@@ -116,6 +133,8 @@ export const runExportIntegrationTests = async (): Promise<void> => {
   const decoded = JSON.parse(Buffer.from(payload.content_base64, 'base64').toString('utf8')) as {
     memories: Array<{ title: string }>;
     legacy_messages: Array<{ title: string }>;
+    beneficiaries: Array<{ id: string }>;
+    transmission_rules: Array<{ beneficiary_id: string }>;
   };
 
   assert(decoded.memories.some((memory) => memory.title === memoryTitle), 'created memory should appear in export payload');
@@ -123,6 +142,8 @@ export const runExportIntegrationTests = async (): Promise<void> => {
     decoded.legacy_messages.some((message) => message.title === messageTitle),
     'created legacy message should appear in export payload',
   );
+  assert(decoded.beneficiaries.some((beneficiary) => beneficiary.id === beneficiaryId), 'created beneficiary should appear in export payload');
+  assert(decoded.transmission_rules.some((rule) => rule.beneficiary_id === beneficiaryId), 'transmission rules should include beneficiary links');
 
   const audit = await app.handle({
     method: 'GET',

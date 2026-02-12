@@ -1,5 +1,6 @@
 import type { LegacyMessage } from '../../domain/entities.js';
 import type {
+  BeneficiaryRepository,
   BeliefRepository,
   LegacyMessageRepository,
   LessonRepository,
@@ -7,7 +8,7 @@ import type {
   NarrativeNodeRepository,
   ValueProfileRepository,
 } from '../../repositories/contracts.js';
-import { VISIBILITIES, defaultedMetadata, ensureEnum, ensureRelatedIds, ensureRequiredString } from '../validation.js';
+import { VISIBILITIES, ValidationError, defaultedMetadata, ensureEnum, ensureRelatedIds, ensureRequiredString } from '../validation.js';
 import type { UseCaseObserver } from './observability.js';
 
 const TRIGGER_TYPES = ['manual', 'date', 'inactivity', 'verified_death'] as const;
@@ -23,7 +24,7 @@ export interface CreateLegacyMessageInput {
   message: string;
   trigger_type: LegacyMessage['trigger_type'];
   trigger_at?: string;
-  recipient_ids: string[];
+  beneficiary_ids: string[];
   attachment_memory_ids: string[];
   related_belief_ids: string[];
   related_lesson_ids: string[];
@@ -41,8 +42,39 @@ export interface LegacyMessageUseCaseDeps {
   lessonRepository: LessonRepository;
   valueProfileRepository: ValueProfileRepository;
   narrativeNodeRepository: NarrativeNodeRepository;
+  beneficiaryRepository: BeneficiaryRepository;
   observer?: UseCaseObserver;
 }
+
+
+const ensureTransmissionRules = async (
+  deps: LegacyMessageUseCaseDeps,
+  ownerId: string,
+  beneficiaryIds: string[],
+): Promise<string[]> => {
+  const normalized = [...new Set(beneficiaryIds)];
+  if (normalized.length !== beneficiaryIds.length) {
+    throw new ValidationError('Field "beneficiary_ids" contains duplicated references.');
+  }
+
+  for (const beneficiaryId of normalized) {
+    const beneficiary = await deps.beneficiaryRepository.getById(beneficiaryId);
+    if (!beneficiary) {
+      throw new ValidationError('Field "beneficiary_ids" contains unknown references.');
+    }
+    if (beneficiary.owner_id !== ownerId) {
+      throw new ValidationError('Field "beneficiary_ids" contains forbidden references.');
+    }
+    if (beneficiary.status !== 'active') {
+      throw new ValidationError('Field "beneficiary_ids" must reference only active beneficiaries.');
+    }
+    if (beneficiary.verification_status !== 'verified') {
+      throw new ValidationError('Field "beneficiary_ids" must reference only verified beneficiaries.');
+    }
+  }
+
+  return normalized;
+};
 
 const validateCreateLegacyMessage = async (deps: LegacyMessageUseCaseDeps, input: CreateLegacyMessageInput): Promise<LegacyMessage> => {
   const metadata = defaultedMetadata(input);
@@ -57,7 +89,7 @@ const validateCreateLegacyMessage = async (deps: LegacyMessageUseCaseDeps, input
     message: input.message,
     trigger_type: input.trigger_type,
     trigger_at: input.trigger_at,
-    recipient_ids: input.recipient_ids,
+    beneficiary_ids: await ensureTransmissionRules(deps, metadata.owner_id, input.beneficiary_ids),
     attachment_memory_ids: await ensureRelatedIds(input.attachment_memory_ids, 'attachment_memory_ids', deps.memoryRepository.existsByIds),
     related_belief_ids: await ensureRelatedIds(input.related_belief_ids, 'related_belief_ids', deps.beliefRepository.existsByIds),
     related_lesson_ids: await ensureRelatedIds(input.related_lesson_ids, 'related_lesson_ids', deps.lessonRepository.existsByIds),
@@ -73,6 +105,7 @@ const validateCreateLegacyMessage = async (deps: LegacyMessageUseCaseDeps, input
 
 const validateUpdateLegacyMessage = async (
   deps: LegacyMessageUseCaseDeps,
+  current: LegacyMessage,
   input: UpdateLegacyMessageInput,
 ): Promise<Partial<LegacyMessage>> => {
   const patch: Partial<LegacyMessage> = { updated_at: new Date().toISOString() };
@@ -82,7 +115,7 @@ const validateUpdateLegacyMessage = async (
   if (input.message !== undefined) patch.message = ensureRequiredString(input.message, 'message');
   if (input.trigger_type !== undefined) patch.trigger_type = ensureEnum(input.trigger_type, TRIGGER_TYPES, 'trigger_type');
   if (input.trigger_at !== undefined) patch.trigger_at = input.trigger_at;
-  if (input.recipient_ids !== undefined) patch.recipient_ids = input.recipient_ids;
+  if (input.beneficiary_ids !== undefined) patch.beneficiary_ids = await ensureTransmissionRules(deps, current.owner_id, input.beneficiary_ids);
   if (input.state !== undefined) patch.state = ensureEnum(input.state, LEGACY_MESSAGE_STATES, 'state');
   if (input.attachment_memory_ids !== undefined) {
     patch.attachment_memory_ids = await ensureRelatedIds(input.attachment_memory_ids, 'attachment_memory_ids', deps.memoryRepository.existsByIds);
@@ -123,7 +156,9 @@ export const updateLegacyMessage = async (
   id: string,
   input: UpdateLegacyMessageInput,
 ): Promise<LegacyMessage | null> => {
-  const updated = await deps.legacyMessageRepository.update(id, await validateUpdateLegacyMessage(deps, input));
+  const current = await deps.legacyMessageRepository.getById(id);
+  if (!current) return null;
+  const updated = await deps.legacyMessageRepository.update(id, await validateUpdateLegacyMessage(deps, current, input));
   if (!updated) return null;
 
   deps.observer?.emitEvent({
