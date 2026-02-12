@@ -1,4 +1,4 @@
-import { ObservabilityService } from '@capsule/observability';
+import { ObservabilityService } from '../../../packages/observability/dist/src/index.js';
 
 export class SecurityMonitor {
   private readonly anomalyCounters = new Map<string, number>();
