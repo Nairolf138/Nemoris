@@ -196,7 +196,17 @@ export const runExportIntegrationTests = async (): Promise<void> => {
   });
 
   assert(dashboard.status === 200, 'dashboard endpoint should return 200');
-  const body = dashboard.body as { json: { metrics: { export_total: number; export_rate: number } }; csv: string };
+  const body = dashboard.body as {
+    schema_version: number;
+    backward_compatible_with: number[];
+    dashboard: { alerts: Array<{ id: string; status: string }>; metrics: { export_failure_rate: number } };
+    json: { metrics: { export_total: number; export_rate: number } };
+    csv: string;
+  };
+  assert(body.schema_version === 2, 'dashboard endpoint should expose schema version');
+  assert(body.backward_compatible_with.includes(1), 'dashboard endpoint should expose backward compatibility');
+  assert(body.dashboard.metrics.export_failure_rate >= 0, 'dashboard v2 should expose export failure rate metric');
+  assert(body.dashboard.alerts.some((alert) => alert.id === 'export_failure_rate'), 'dashboard v2 should expose export failure alert');
   assert(body.json.metrics.export_total >= 1, 'dashboard should expose export total metric');
   assert(body.json.metrics.export_rate >= 0, 'dashboard should expose export rate metric');
   assert(body.csv.includes('export_total,'), 'dashboard csv should include export total metric');

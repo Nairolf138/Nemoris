@@ -1,8 +1,8 @@
 import { ImmutableAuditLog } from './audit-log.js';
-import { buildDashboardSnapshot, dashboardToCsv } from './dashboard.js';
+import { buildDashboardSnapshot, buildDashboardSnapshotV2, dashboardToCsv } from './dashboard.js';
 import { ObservabilityEventBus } from './event-bus.js';
 import { ProductMetrics } from './metrics.js';
-import type { DashboardSnapshot, StandardEvent } from './types.js';
+import type { DashboardSnapshot, DashboardSnapshotV2, StandardEvent } from './types.js';
 
 export interface EmitEventInput {
   event_name: string;
@@ -57,5 +57,9 @@ export class ObservabilityService {
 
   public dashboardCsv(): string {
     return dashboardToCsv(this.dashboardJson());
+  }
+
+  public dashboardJsonV2(): DashboardSnapshotV2 {
+    return buildDashboardSnapshotV2(this.metrics, this.eventBus.listEvents());
   }
 }

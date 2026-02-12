@@ -205,6 +205,12 @@ export class CapsuleApiApp {
       if (request.method === 'POST' && request.path === '/auth/register') {
         this.enforceAuthRateLimits(request);
         const creds = parseCredentials(request.body);
+        this.observability.emit({
+          event_name: 'onboarding.started',
+          user_id: creds.email,
+          entity_id: '/auth/register',
+          metadata: buildEventMetadata(request, 'success', Date.now() - requestStartMs),
+        });
         const auth = await this.authService.register(creds.email, creds.password);
         this.observability.emit({
           event_name: 'onboarding.completed',
@@ -857,7 +863,18 @@ export class CapsuleApiApp {
     this.enforceOwnerAccess(request, auth.user.id);
     await this.assertConsentScope(request, auth.user.id, 'data_export');
     const format = exportPayload.format ?? 'json';
-    const generated = await this.exportService.createExport(auth.user.id, auth.user.id, format);
+    let generated;
+    try {
+      generated = await this.exportService.createExport(auth.user.id, auth.user.id, format);
+    } catch (error) {
+      this.observability.emit({
+        event_name: 'export.failed',
+        user_id: auth.user.id,
+        entity_id: auth.user.id,
+        metadata: buildEventMetadata(request, 'failure', Date.now() - requestStartMs, { format }),
+      });
+      throw error;
+    }
     this.observability.emit({
       event_name: 'export.created',
       user_id: auth.user.id,
@@ -942,6 +959,9 @@ export class CapsuleApiApp {
     return {
       status: 200,
       body: {
+        schema_version: 2,
+        backward_compatible_with: [1],
+        dashboard: this.observability.dashboardJsonV2(),
         json: this.observability.dashboardJson(),
         csv: this.observability.dashboardCsv(),
       },

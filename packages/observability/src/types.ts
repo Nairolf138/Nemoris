@@ -16,6 +16,22 @@ export interface DashboardSnapshot {
   recent_events: StandardEvent[];
 }
 
+export interface DashboardAlert {
+  id: 'export_failure_rate' | 'auth_anomalies' | 'onboarding_drop';
+  status: 'ok' | 'triggered';
+  severity: 'warning' | 'critical';
+  message: string;
+}
+
+export interface DashboardSnapshotV2 {
+  schema_version: 2;
+  backward_compatible_with: [1];
+  generated_at: string;
+  metrics: MetricsSnapshotV2;
+  recent_events: StandardEvent[];
+  alerts: DashboardAlert[];
+}
+
 export interface MetricsSnapshot {
   schema_version: 1;
   onboarding_completed: number;
@@ -25,4 +41,13 @@ export interface MetricsSnapshot {
   auth_errors: number;
   security_alerts: number;
   weekly_active_users: number;
+}
+
+export interface MetricsSnapshotV2 extends MetricsSnapshot {
+  onboarding_started_total: number;
+  onboarding_completion_rate: number;
+  export_failure_total: number;
+  export_failure_rate: number;
+  link_created_total: number;
+  retention_weekly_total: number;
 }
