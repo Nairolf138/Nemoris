@@ -27,6 +27,12 @@
       ],
       "@capsule/export/*": [
         "packages/export/src/*"
+      ],
+      "@capsule/observability": [
+        "packages/observability/src/index.ts"
+      ],
+      "@capsule/observability/*": [
+        "packages/observability/src/*"
       ]
     }
   }

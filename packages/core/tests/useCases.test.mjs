@@ -10,6 +10,7 @@ import {
   createValueProfile,
   deleteMemory,
   listMemories,
+  updateLegacyMessage,
   updateMemory,
 } from '../dist/index.js';
 
@@ -143,4 +144,86 @@ test('other entities create successfully with consistent relations', async () =>
   assert.equal(lesson.title, 'Link belief and profile');
   assert.equal(valueProfile.profile_label, 'Mature values');
   assert.equal(legacyMessage.delivery_status, 'draft');
+});
+
+
+test('observability emits required sensitive CRUD and legacy message arm/revoke events', async () => {
+  const persistence = await makeDeps();
+  const events = [];
+  const observer = {
+    emitEvent: (event) => events.push(event),
+  };
+
+  const deps = {
+    memoryRepository: persistence.memories,
+    beliefRepository: persistence.beliefs,
+    lessonRepository: persistence.lessons,
+    valueProfileRepository: persistence.valueProfiles,
+    narrativeNodeRepository: persistence.narrativeNodes,
+    observer,
+  };
+
+  const memory = await createMemory(deps, {
+    owner_id,
+    visibility: 'private',
+    occurred_at: new Date().toISOString(),
+    title: 'Tracked memory',
+    memory_type: 'note',
+    related_belief_ids: ['belief-ref'],
+    related_lesson_ids: ['lesson-ref'],
+    related_value_profile_ids: ['vp-ref'],
+    related_narrative_node_ids: ['node-ref'],
+  });
+
+  await updateMemory(deps, memory.id, { title: 'Tracked memory v2' });
+  await deleteMemory(deps, memory.id);
+
+  const legacy = await createLegacyMessage({
+    legacyMessageRepository: persistence.legacyMessages,
+    memoryRepository: persistence.memories,
+    beliefRepository: persistence.beliefs,
+    lessonRepository: persistence.lessons,
+    valueProfileRepository: persistence.valueProfiles,
+    narrativeNodeRepository: persistence.narrativeNodes,
+    observer,
+  }, {
+    owner_id,
+    visibility: 'private',
+    title: 'Legacy tracked',
+    message: 'Message to arm and revoke.',
+    trigger_type: 'manual',
+    recipient_ids: ['recipient-1'],
+    attachment_memory_ids: ['mem-ref'],
+    related_belief_ids: ['belief-ref'],
+    related_lesson_ids: ['lesson-ref'],
+    related_value_profile_ids: ['vp-ref'],
+    related_narrative_node_ids: ['node-ref'],
+    delivery_status: 'draft',
+  });
+
+  await updateLegacyMessage({
+    legacyMessageRepository: persistence.legacyMessages,
+    memoryRepository: persistence.memories,
+    beliefRepository: persistence.beliefs,
+    lessonRepository: persistence.lessons,
+    valueProfileRepository: persistence.valueProfiles,
+    narrativeNodeRepository: persistence.narrativeNodes,
+    observer,
+  }, legacy.id, { delivery_status: 'armed' });
+
+  await updateLegacyMessage({
+    legacyMessageRepository: persistence.legacyMessages,
+    memoryRepository: persistence.memories,
+    beliefRepository: persistence.beliefs,
+    lessonRepository: persistence.lessons,
+    valueProfileRepository: persistence.valueProfiles,
+    narrativeNodeRepository: persistence.narrativeNodes,
+    observer,
+  }, legacy.id, { delivery_status: 'revoked' });
+
+  assert.ok(events.some((event) => event.event_name === 'capsule.created'));
+  assert.ok(events.some((event) => event.event_name === 'memory.updated'));
+  assert.ok(events.some((event) => event.event_name === 'memory.deleted'));
+  assert.ok(events.some((event) => event.event_name === 'legacy_message.armed'));
+  assert.ok(events.some((event) => event.event_name === 'legacy_message.revoked'));
 });

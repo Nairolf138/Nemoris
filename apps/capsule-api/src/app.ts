@@ -1,6 +1,7 @@
 import type { ResponseLike, RequestLike } from './types.js';
 import { AuthService } from './auth-service.js';
 import { ExportService, type ExportFormat } from './export-service.js';
+import { ObservabilityService } from '@capsule/observability';
 
 interface Credentials {
   email: string;
@@ -40,17 +41,32 @@ const parseExportFormat = (body: unknown): ExportFormat => {
 export class CapsuleApiApp {
   private authService = new AuthService();
   private exportService = new ExportService();
+  private observability = new ObservabilityService();
 
   public async handle(request: RequestLike): Promise<ResponseLike> {
     try {
       if (request.method === 'POST' && request.path === '/auth/register') {
         const creds = parseCredentials(request.body);
-        return { status: 201, body: await this.authService.register(creds.email, creds.password) };
+        const auth = await this.authService.register(creds.email, creds.password);
+        this.observability.emit({
+          event_name: 'onboarding.completed',
+          user_id: auth.user.id,
+          entity_id: auth.user.id,
+          metadata: { email: auth.user.email },
+        });
+        return { status: 201, body: auth };
       }
 
       if (request.method === 'POST' && request.path === '/auth/login') {
         const creds = parseCredentials(request.body);
-        return { status: 200, body: await this.authService.login(creds.email, creds.password) };
+        const auth = await this.authService.login(creds.email, creds.password);
+        this.observability.emit({
+          event_name: 'auth.login',
+          user_id: auth.user.id,
+          entity_id: auth.session.token,
+          metadata: {},
+        });
+        return { status: 200, body: auth };
       }
 
       if (request.method === 'POST' && request.path === '/auth/logout') {
@@ -58,7 +74,14 @@ export class CapsuleApiApp {
         if (!token) {
           return { status: 401, body: { error: 'UNAUTHENTICATED' } };
         }
+        const auth = this.authService.authenticate(token);
         this.authService.logout(token);
+        this.observability.emit({
+          event_name: 'auth.logout',
+          user_id: auth.user.id,
+          entity_id: token,
+          metadata: {},
+        });
         return { status: 204, body: null };
       }
 
@@ -67,7 +90,15 @@ export class CapsuleApiApp {
         if (!token) {
           return { status: 401, body: { error: 'UNAUTHENTICATED' } };
         }
-        return { status: 200, body: { session: this.authService.refresh(token) } };
+        const auth = this.authService.authenticate(token);
+        const session = this.authService.refresh(token);
+        this.observability.emit({
+          event_name: 'auth.refresh',
+          user_id: auth.user.id,
+          entity_id: session.token,
+          metadata: { previous_session: token },
+        });
+        return { status: 200, body: { session } };
       }
 
       if (request.method === 'POST' && request.path === '/exports') {
@@ -80,6 +111,14 @@ export class CapsuleApiApp {
 
       if (request.method === 'GET' && request.path === '/exports/audit') {
         return this.listExportAuditLogs(request);
+      }
+
+      if (request.method === 'GET' && request.path === '/observability/audit') {
+        return this.getObservabilityAuditLog(request);
+      }
+
+      if (request.method === 'GET' && request.path === '/observability/dashboard') {
+        return this.getDashboard(request);
       }
 
       if (request.path.startsWith('/data/')) {
@@ -116,6 +155,12 @@ export class CapsuleApiApp {
     const auth = this.authService.authenticate(token);
     const format = parseExportFormat(request.body);
     const generated = await this.exportService.createExport(auth.user.id, auth.user.id, format);
+    this.observability.emit({
+      event_name: 'export.created',
+      user_id: auth.user.id,
+      entity_id: generated.id,
+      metadata: { format: generated.format },
+    });
 
     return {
       status: 201,
@@ -137,6 +182,12 @@ export class CapsuleApiApp {
     const auth = this.authService.authenticate(token);
     const exportId = request.path.replace('/exports/', '').replace('/download', '');
     const record = this.exportService.getExport(auth.user.id, exportId);
+    this.observability.emit({
+      event_name: 'export.downloaded',
+      user_id: auth.user.id,
+      entity_id: record.id,
+      metadata: { format: record.format },
+    });
 
     return {
       status: 200,
@@ -158,6 +209,33 @@ export class CapsuleApiApp {
     const auth = this.authService.authenticate(token);
     const entries = this.exportService.listAuditByOwner(auth.user.id);
     return { status: 200, body: { entries } };
+  }
+
+  private getObservabilityAuditLog(request: RequestLike): ResponseLike {
+    const token = parseBearer(request.headers?.authorization);
+    if (!token) {
+      return { status: 401, body: { error: 'UNAUTHENTICATED' } };
+    }
+
+    this.authService.authenticate(token);
+    return { status: 200, body: { entries: this.observability.listAuditLog() } };
+  }
+
+  private getDashboard(request: RequestLike): ResponseLike {
+    const token = parseBearer(request.headers?.authorization);
+    if (!token) {
+      return { status: 401, body: { error: 'UNAUTHENTICATED' } };
+    }
+
+    this.authService.authenticate(token);
+
+    return {
+      status: 200,
+      body: {
+        json: this.observability.dashboardJson(),
+        csv: this.observability.dashboardCsv(),
+      },
+    };
   }
 
   private mapError(error: unknown): ResponseLike {
