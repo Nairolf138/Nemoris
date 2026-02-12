@@ -1,4 +1,5 @@
 import { type ExportFormat } from './export-service.js';
+import { ValidationError } from './errors.js';
 
 export interface Credentials {
   email: string;
@@ -62,7 +63,7 @@ const assertAllowedKeys = (payload: Record<string, unknown>, allowedKeys: readon
   const allowed = new Set(allowedKeys);
   for (const key of Object.keys(payload)) {
     if (!allowed.has(key)) {
-      throw new Error('INVALID_PAYLOAD');
+      throw new ValidationError('INVALID_PAYLOAD');
     }
   }
 };
@@ -72,7 +73,7 @@ const parseInteger = (value: string | null): number | undefined => {
     return undefined;
   }
   if (!/^\d+$/.test(value)) {
-    throw new Error('INVALID_QUERY_PARAMS');
+    throw new ValidationError('INVALID_QUERY_PARAMS');
   }
   return Number(value);
 };
@@ -81,24 +82,24 @@ export const normalizeEmail = (value: string): string => value.trim().toLowerCas
 
 export const parseCredentials = (body: unknown): Credentials => {
   if (!isRecord(body)) {
-    throw new Error('INVALID_PAYLOAD');
+    throw new ValidationError('INVALID_PAYLOAD');
   }
 
   assertAllowedKeys(body, ['email', 'password']);
 
   if (typeof body.email !== 'string' || typeof body.password !== 'string') {
-    throw new Error('INVALID_PAYLOAD');
+    throw new ValidationError('INVALID_PAYLOAD');
   }
 
   const email = normalizeEmail(body.email);
   const password = body.password;
 
   if (!EMAIL_REGEX.test(email)) {
-    throw new Error('INVALID_EMAIL');
+    throw new ValidationError('INVALID_EMAIL');
   }
 
   if (password.length < MIN_PASSWORD_LENGTH || !PASSWORD_COMPLEXITY_REGEX.test(password)) {
-    throw new Error('WEAK_PASSWORD');
+    throw new ValidationError('WEAK_PASSWORD');
   }
 
   return { email, password };
@@ -110,19 +111,19 @@ export const parseExportPayload = (body: unknown): ExportPayload => {
   }
 
   if (!isRecord(body)) {
-    throw new Error('INVALID_PAYLOAD');
+    throw new ValidationError('INVALID_PAYLOAD');
   }
 
   assertAllowedKeys(body, ['format', 'owner_id']);
 
   const format = body.format;
   if (format !== undefined && format !== 'json' && format !== 'pdf') {
-    throw new Error('INVALID_EXPORT_FORMAT');
+    throw new ValidationError('INVALID_EXPORT_FORMAT');
   }
 
   const ownerId = body.owner_id;
   if (ownerId !== undefined && (typeof ownerId !== 'string' || ownerId.trim().length === 0)) {
-    throw new Error('INVALID_OWNER_SCOPE');
+    throw new ValidationError('INVALID_OWNER_SCOPE');
   }
 
   return {
@@ -137,12 +138,12 @@ export const parseOwnerScope = (value: unknown): string | undefined => {
   }
 
   if (typeof value !== 'string') {
-    throw new Error('INVALID_OWNER_SCOPE');
+    throw new ValidationError('INVALID_OWNER_SCOPE');
   }
 
   const normalized = value.trim();
   if (normalized.length === 0) {
-    throw new Error('INVALID_OWNER_SCOPE');
+    throw new ValidationError('INVALID_OWNER_SCOPE');
   }
 
   return normalized;
@@ -154,7 +155,7 @@ export const parseDataListQuery = <C extends DataCollection>(collection: C, path
 
   const limit = parseInteger(params.get('limit')) ?? DEFAULT_LIMIT;
   if (limit < MIN_LIMIT || limit > MAX_LIMIT) {
-    throw new Error('INVALID_QUERY_PARAMS');
+    throw new ValidationError('INVALID_QUERY_PARAMS');
   }
 
   const offsetParam = parseInteger(params.get('offset'));
@@ -164,27 +165,27 @@ export const parseDataListQuery = <C extends DataCollection>(collection: C, path
   if (cursorParam !== null) {
     const decodedCursor = parseInteger(cursorParam);
     if (decodedCursor === undefined) {
-      throw new Error('INVALID_QUERY_PARAMS');
+      throw new ValidationError('INVALID_QUERY_PARAMS');
     }
     if (offsetParam !== undefined && offsetParam !== decodedCursor) {
-      throw new Error('INVALID_QUERY_PARAMS');
+      throw new ValidationError('INVALID_QUERY_PARAMS');
     }
     offset = decodedCursor;
   }
 
   if (offset < 0) {
-    throw new Error('INVALID_QUERY_PARAMS');
+    throw new ValidationError('INVALID_QUERY_PARAMS');
   }
 
   const sortParam = params.get('sort') as DataListSortBy<C> | null;
   const sort = sortParam ?? DEFAULT_SORT_BY[collection];
   if (!allowedSortBy[collection].includes(sort)) {
-    throw new Error('INVALID_QUERY_PARAMS');
+    throw new ValidationError('INVALID_QUERY_PARAMS');
   }
 
   const orderParam = params.get('order');
   if (orderParam !== null && orderParam !== 'asc' && orderParam !== 'desc') {
-    throw new Error('INVALID_QUERY_PARAMS');
+    throw new ValidationError('INVALID_QUERY_PARAMS');
   }
 
   return {

@@ -1,5 +1,6 @@
 import type { ExportAggregator } from '@capsule/export';
 import { serializeExportPayload, type ExportFormat } from '@capsule/export';
+import { NotFoundError } from './errors.js';
 import type { ExportRepository } from './export-repository.js';
 
 export type { ExportFormat };
@@ -54,7 +55,7 @@ export class ExportService {
   public getExport(ownerId: string, exportId: string): ExportRecord {
     const record = this.repository.getByIdForOwner(ownerId, exportId);
     if (!record) {
-      throw new Error('EXPORT_NOT_FOUND');
+      throw new NotFoundError('EXPORT_NOT_FOUND');
     }
     return record;
   }

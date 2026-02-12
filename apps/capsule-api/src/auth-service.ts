@@ -1,5 +1,6 @@
 import type { AuthContext, AuthUser, Session } from '@capsule/core';
 import { generateToken, hashPassword, verifyPassword } from './security.js';
+import { AuthError, ConflictError } from './errors.js';
 import { InMemoryAuthStore, type AuthStore } from './store.js';
 
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24;
@@ -24,7 +25,7 @@ export class AuthService {
 
   public async register(email: string, password: string): Promise<AuthContext> {
     if (this.store.findUserByEmail(email)) {
-      throw new Error('EMAIL_ALREADY_USED');
+      throw new ConflictError('EMAIL_ALREADY_USED');
     }
 
     const { createdAt, expiresAt } = createTimestamps();
@@ -49,7 +50,7 @@ export class AuthService {
   public async login(email: string, password: string): Promise<AuthContext> {
     const user = this.store.findUserByEmail(email);
     if (!user || !(await verifyPassword(password, user.password_hash))) {
-      throw new Error('INVALID_CREDENTIALS');
+      throw new AuthError('INVALID_CREDENTIALS');
     }
 
     const { expiresAt } = createTimestamps();
@@ -69,11 +70,11 @@ export class AuthService {
   public refresh(token: string): Session {
     const session = this.store.findSessionByToken(token);
     if (!session) {
-      throw new Error('SESSION_NOT_FOUND');
+      throw new AuthError('SESSION_NOT_FOUND');
     }
 
     if (session.revoked_at || new Date(session.expires_at).getTime() <= Date.now()) {
-      throw new Error('SESSION_INVALID');
+      throw new AuthError('SESSION_INVALID');
     }
 
     this.store.revokeSession(token, new Date().toISOString());
@@ -89,12 +90,12 @@ export class AuthService {
   public authenticate(token: string): AuthContext {
     const session = this.store.findSessionByToken(token);
     if (!session || session.revoked_at || new Date(session.expires_at).getTime() <= Date.now()) {
-      throw new Error('UNAUTHENTICATED');
+      throw new AuthError('UNAUTHENTICATED');
     }
 
     const user = this.store.findUserById(session.user_id);
     if (!user) {
-      throw new Error('UNAUTHENTICATED');
+      throw new AuthError('UNAUTHENTICATED');
     }
 
     return {
