@@ -1,0 +1,10 @@
+{
+  "name": "@capsule/app",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@capsule/core": "0.1.0",
+    "@capsule/ui": "0.1.0"
+  }
+}
