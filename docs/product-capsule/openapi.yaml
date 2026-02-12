@@ -1,0 +1,1181 @@
+openapi: 3.1.0
+info:
+  title: Capsule API
+  version: 1.0.0
+  description: |
+    Contrat OpenAPI v1 pour Capsule.
+
+    Ce contrat couvre :
+    - l'authentification,
+    - le CRUD des ressources métier,
+    - l'export des données,
+    - l'observabilité en lecture seule.
+
+    Les codes d'erreur sont alignés sur `docs/product-capsule/api-error-contract.md`.
+servers:
+  - url: https://api.capsule.nemoris.app
+    description: Production
+  - url: http://localhost:3000
+    description: Local
+
+tags:
+  - name: Auth
+  - name: Memories
+  - name: Beliefs
+  - name: Lessons
+  - name: ValueProfiles
+  - name: LegacyMessages
+  - name: Exports
+  - name: Observability
+
+security:
+  - bearerAuth: []
+
+paths:
+  /auth/register:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Créer un compte
+      operationId: register
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Compte créé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthSession'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Authentifier un utilisateur
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Session ouverte
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthSession'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Révoquer la session courante
+      operationId: logout
+      responses:
+        '204':
+          description: Session fermée
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /memories:
+    get:
+      tags: [Memories]
+      summary: Lister les mémoires d'un owner
+      operationId: listMemories
+      parameters:
+        - $ref: '#/components/parameters/OwnerId'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: Liste paginée
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedMemories'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags: [Memories]
+      summary: Créer une mémoire
+      operationId: createMemory
+      parameters:
+        - $ref: '#/components/parameters/OwnerId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MemoryCreate'
+            examples:
+              memoryPayload:
+                $ref: '#/components/examples/MemoryPayload'
+      responses:
+        '201':
+          description: Mémoire créée
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Memory'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /memories/{memoryId}:
+    parameters:
+      - $ref: '#/components/parameters/MemoryId'
+      - $ref: '#/components/parameters/OwnerId'
+    get:
+      tags: [Memories]
+      summary: Lire une mémoire
+      operationId: getMemory
+      responses:
+        '200':
+          description: Mémoire trouvée
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Memory'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [Memories]
+      summary: Mettre à jour partiellement une mémoire
+      operationId: updateMemory
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MemoryUpdate'
+      responses:
+        '200':
+          description: Mémoire mise à jour
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Memory'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [Memories]
+      summary: Supprimer une mémoire
+      operationId: deleteMemory
+      responses:
+        '204':
+          description: Supprimée
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /beliefs:
+    get:
+      tags: [Beliefs]
+      summary: Lister les convictions
+      operationId: listBeliefs
+      parameters:
+        - $ref: '#/components/parameters/OwnerId'
+      responses:
+        '200':
+          description: Liste des convictions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Belief'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [Beliefs]
+      summary: Créer une conviction
+      operationId: createBelief
+      parameters:
+        - $ref: '#/components/parameters/OwnerId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BeliefCreate'
+            examples:
+              beliefPayload:
+                $ref: '#/components/examples/BeliefPayload'
+      responses:
+        '201':
+          description: Conviction créée
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Belief'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /beliefs/{beliefId}:
+    parameters:
+      - $ref: '#/components/parameters/BeliefId'
+      - $ref: '#/components/parameters/OwnerId'
+    get:
+      tags: [Beliefs]
+      summary: Lire une conviction
+      operationId: getBelief
+      responses:
+        '200':
+          description: Conviction trouvée
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Belief'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [Beliefs]
+      summary: Mettre à jour une conviction
+      operationId: updateBelief
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BeliefUpdate'
+      responses:
+        '200':
+          description: Conviction mise à jour
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Belief'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [Beliefs]
+      summary: Supprimer une conviction
+      operationId: deleteBelief
+      responses:
+        '204': { description: Supprimée }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /lessons:
+    get:
+      tags: [Lessons]
+      summary: Lister les leçons
+      operationId: listLessons
+      parameters:
+        - $ref: '#/components/parameters/OwnerId'
+      responses:
+        '200':
+          description: Liste des leçons
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Lesson'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [Lessons]
+      summary: Créer une leçon
+      operationId: createLesson
+      parameters:
+        - $ref: '#/components/parameters/OwnerId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LessonCreate'
+            examples:
+              lessonPayload:
+                $ref: '#/components/examples/LessonPayload'
+      responses:
+        '201':
+          description: Leçon créée
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Lesson'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /lessons/{lessonId}:
+    parameters:
+      - $ref: '#/components/parameters/LessonId'
+      - $ref: '#/components/parameters/OwnerId'
+    get:
+      tags: [Lessons]
+      summary: Lire une leçon
+      operationId: getLesson
+      responses:
+        '200':
+          description: Leçon trouvée
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Lesson'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [Lessons]
+      summary: Mettre à jour une leçon
+      operationId: updateLesson
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LessonUpdate'
+      responses:
+        '200':
+          description: Leçon mise à jour
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Lesson'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [Lessons]
+      summary: Supprimer une leçon
+      operationId: deleteLesson
+      responses:
+        '204': { description: Supprimée }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /value_profiles:
+    get:
+      tags: [ValueProfiles]
+      summary: Lister les profils de valeurs
+      operationId: listValueProfiles
+      parameters:
+        - $ref: '#/components/parameters/OwnerId'
+      responses:
+        '200':
+          description: Liste des profils
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ValueProfile'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [ValueProfiles]
+      summary: Créer un profil de valeurs
+      operationId: createValueProfile
+      parameters:
+        - $ref: '#/components/parameters/OwnerId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ValueProfileCreate'
+            examples:
+              valueProfilePayload:
+                $ref: '#/components/examples/ValueProfilePayload'
+      responses:
+        '201':
+          description: Profil créé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValueProfile'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /value_profiles/{profileId}:
+    parameters:
+      - $ref: '#/components/parameters/ProfileId'
+      - $ref: '#/components/parameters/OwnerId'
+    get:
+      tags: [ValueProfiles]
+      summary: Lire un profil de valeurs
+      operationId: getValueProfile
+      responses:
+        '200':
+          description: Profil trouvé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValueProfile'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [ValueProfiles]
+      summary: Mettre à jour un profil de valeurs
+      operationId: updateValueProfile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ValueProfileUpdate'
+      responses:
+        '200':
+          description: Profil mis à jour
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValueProfile'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [ValueProfiles]
+      summary: Supprimer un profil
+      operationId: deleteValueProfile
+      responses:
+        '204': { description: Supprimé }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /legacy_messages:
+    get:
+      tags: [LegacyMessages]
+      summary: Lister les messages de transmission
+      operationId: listLegacyMessages
+      parameters:
+        - $ref: '#/components/parameters/OwnerId'
+      responses:
+        '200':
+          description: Liste des messages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LegacyMessage'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [LegacyMessages]
+      summary: Créer un message de transmission
+      operationId: createLegacyMessage
+      parameters:
+        - $ref: '#/components/parameters/OwnerId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LegacyMessageCreate'
+            examples:
+              legacyMessagePayload:
+                $ref: '#/components/examples/LegacyMessagePayload'
+      responses:
+        '201':
+          description: Message créé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LegacyMessage'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /legacy_messages/{messageId}:
+    parameters:
+      - $ref: '#/components/parameters/MessageId'
+      - $ref: '#/components/parameters/OwnerId'
+    get:
+      tags: [LegacyMessages]
+      summary: Lire un message de transmission
+      operationId: getLegacyMessage
+      responses:
+        '200':
+          description: Message trouvé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LegacyMessage'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [LegacyMessages]
+      summary: Mettre à jour un message de transmission
+      operationId: updateLegacyMessage
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LegacyMessageUpdate'
+      responses:
+        '200':
+          description: Message mis à jour
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LegacyMessage'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [LegacyMessages]
+      summary: Supprimer un message
+      operationId: deleteLegacyMessage
+      responses:
+        '204': { description: Supprimé }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /exports:
+    post:
+      tags: [Exports]
+      summary: Démarrer un export de données personnelles
+      operationId: createExport
+      parameters:
+        - $ref: '#/components/parameters/OwnerId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExportRequest'
+      responses:
+        '202':
+          description: Export accepté
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExportJob'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /exports/{exportId}:
+    parameters:
+      - $ref: '#/components/parameters/ExportId'
+      - $ref: '#/components/parameters/OwnerId'
+    get:
+      tags: [Exports]
+      summary: Consulter un export
+      operationId: getExport
+      responses:
+        '200':
+          description: État de l'export
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExportJob'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404':
+          description: Export introuvable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                exportNotFound:
+                  value:
+                    error: EXPORT_NOT_FOUND
+                    message: Aucun export trouvé pour cet identifiant
+
+  /observability/health:
+    get:
+      tags: [Observability]
+      security: []
+      summary: Vérifier la disponibilité du service (read-only)
+      operationId: getHealth
+      responses:
+        '200':
+          description: Santé du service
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+
+  /observability/metrics:
+    get:
+      tags: [Observability]
+      summary: Lire les métriques agrégées (read-only)
+      operationId: getMetrics
+      responses:
+        '200':
+          description: Snapshot des métriques
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MetricsSnapshot'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /observability/audit-events:
+    get:
+      tags: [Observability]
+      summary: Lire les événements d'audit (read-only)
+      operationId: listAuditEvents
+      parameters:
+        - $ref: '#/components/parameters/OwnerId'
+        - in: query
+          name: action
+          schema:
+            type: string
+          required: false
+          description: Filtrer par action (ex. export.requested)
+        - in: query
+          name: since
+          schema:
+            type: string
+            format: date-time
+          required: false
+      responses:
+        '200':
+          description: Événements d'audit
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AuditEvent'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    OwnerId:
+      in: query
+      name: owner_id
+      required: true
+      description: Propriétaire logique de la donnée.
+      schema:
+        type: string
+        format: uuid
+    Limit:
+      in: query
+      name: limit
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    Offset:
+      in: query
+      name: offset
+      required: false
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+    MemoryId:
+      in: path
+      name: memoryId
+      required: true
+      schema:
+        type: string
+        format: uuid
+    BeliefId:
+      in: path
+      name: beliefId
+      required: true
+      schema:
+        type: string
+        format: uuid
+    LessonId:
+      in: path
+      name: lessonId
+      required: true
+      schema:
+        type: string
+        format: uuid
+    ProfileId:
+      in: path
+      name: profileId
+      required: true
+      schema:
+        type: string
+        format: uuid
+    MessageId:
+      in: path
+      name: messageId
+      required: true
+      schema:
+        type: string
+        format: uuid
+    ExportId:
+      in: path
+      name: exportId
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+  responses:
+    BadRequest:
+      description: |
+        Erreur de validation / payload invalide.
+        Codes possibles : INVALID_PAYLOAD, INVALID_EMAIL, WEAK_PASSWORD,
+        INVALID_EXPORT_FORMAT, INVALID_OWNER_SCOPE, INVALID_QUERY_PARAMS,
+        OWNER_SCOPE_REQUIRED, DOMAIN_VALIDATION_ERROR.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Unauthorized:
+      description: |
+        Authentification invalide.
+        Codes possibles : UNAUTHENTICATED, INVALID_CREDENTIALS,
+        SESSION_INVALID, SESSION_NOT_FOUND.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Forbidden:
+      description: Accès refusé (FORBIDDEN).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Ressource introuvable (NOT_FOUND, RESOURCE_NOT_FOUND).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Conflict:
+      description: Conflit de création (EMAIL_ALREADY_USED).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    TooManyRequests:
+      description: Limite de débit atteinte (RATE_LIMITED).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    InternalServerError:
+      description: Erreur inattendue (INTERNAL_ERROR).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  examples:
+    MemoryPayload:
+      value:
+        title: "Premier job étudiant"
+        occurred_at: "2012-07-01T18:00:00Z"
+        summary: "J'ai appris l'importance de la ponctualité et de la communication proactive."
+        tags: ["travail", "autonomie"]
+        visibility: trusted_circle
+        media_urls:
+          - "https://cdn.example.com/memory/job-2012-photo.jpg"
+    BeliefPayload:
+      value:
+        statement: "La transparence financière renforce la confiance familiale."
+        confidence: 0.82
+        evidence:
+          - "Historique des conflits évités via des bilans trimestriels."
+        version_note: "Formalisée après 10 ans de suivi budgétaire."
+    LessonPayload:
+      value:
+        context: "Investissement concentré sur un seul actif technologique"
+        decision: "Ne pas diversifier pendant 3 ans"
+        consequence: "Perte de 35% lors d'une correction brutale"
+        lesson: "Diversifier systématiquement au-delà de 10% par ligne"
+        severity: high
+    ValueProfilePayload:
+      value:
+        period_label: "35-40 ans"
+        values:
+          - name: "Stabilité"
+            weight: 0.45
+          - name: "Transmission"
+            weight: 0.35
+          - name: "Croissance"
+            weight: 0.20
+        note: "Période orientée protection du foyer et préparation successorale."
+    LegacyMessagePayload:
+      value:
+        title: "Message à ouvrir pour mes enfants"
+        body: "Continuez à vous soutenir mutuellement et gardez vos rituels familiaux."
+        trigger_type: posthumous
+        recipients:
+          - "child-1@example.com"
+          - "child-2@example.com"
+        status: draft
+
+  schemas:
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+          description: Code d'erreur stable (cf. docs/product-capsule/api-error-contract.md)
+          enum:
+            - INVALID_PAYLOAD
+            - INVALID_EMAIL
+            - WEAK_PASSWORD
+            - INVALID_EXPORT_FORMAT
+            - INVALID_OWNER_SCOPE
+            - INVALID_QUERY_PARAMS
+            - OWNER_SCOPE_REQUIRED
+            - DOMAIN_VALIDATION_ERROR
+            - UNAUTHENTICATED
+            - INVALID_CREDENTIALS
+            - SESSION_INVALID
+            - SESSION_NOT_FOUND
+            - FORBIDDEN
+            - NOT_FOUND
+            - RESOURCE_NOT_FOUND
+            - EXPORT_NOT_FOUND
+            - EMAIL_ALREADY_USED
+            - RATE_LIMITED
+            - INTERNAL_ERROR
+        message:
+          type: string
+        retry_after_ms:
+          type: integer
+          minimum: 1
+        details:
+          type: object
+          additionalProperties: true
+
+    RegisterRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 12
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+
+    AuthSession:
+      type: object
+      required: [access_token, token_type, expires_in_s, user]
+      properties:
+        access_token:
+          type: string
+        token_type:
+          type: string
+          enum: [Bearer]
+        expires_in_s:
+          type: integer
+          minimum: 1
+        user:
+          type: object
+          properties:
+            id: { type: string, format: uuid }
+            email: { type: string, format: email }
+
+    MemoryBase:
+      type: object
+      properties:
+        title: { type: string, minLength: 1, maxLength: 180 }
+        occurred_at: { type: string, format: date-time }
+        summary: { type: string, minLength: 1 }
+        tags:
+          type: array
+          items: { type: string }
+        visibility:
+          type: string
+          enum: [private, trusted_circle, posthumous]
+        media_urls:
+          type: array
+          items:
+            type: string
+            format: uri
+
+    MemoryCreate:
+      allOf:
+        - $ref: '#/components/schemas/MemoryBase'
+      required: [title, occurred_at, summary]
+
+    MemoryUpdate:
+      allOf:
+        - $ref: '#/components/schemas/MemoryBase'
+
+    Memory:
+      allOf:
+        - $ref: '#/components/schemas/MemoryBase'
+        - type: object
+          required: [id, owner_id, title, occurred_at, summary, created_at, updated_at]
+          properties:
+            id: { type: string, format: uuid }
+            owner_id: { type: string, format: uuid }
+            created_at: { type: string, format: date-time }
+            updated_at: { type: string, format: date-time }
+
+    PaginatedMemories:
+      type: object
+      required: [items, limit, offset, total]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Memory'
+        limit: { type: integer }
+        offset: { type: integer }
+        total: { type: integer }
+
+    BeliefBase:
+      type: object
+      properties:
+        statement: { type: string, minLength: 1 }
+        confidence: { type: number, minimum: 0, maximum: 1 }
+        evidence:
+          type: array
+          items: { type: string }
+        version_note: { type: string }
+
+    BeliefCreate:
+      allOf:
+        - $ref: '#/components/schemas/BeliefBase'
+      required: [statement]
+
+    BeliefUpdate:
+      allOf:
+        - $ref: '#/components/schemas/BeliefBase'
+
+    Belief:
+      allOf:
+        - $ref: '#/components/schemas/BeliefBase'
+        - type: object
+          required: [id, owner_id, statement, version, created_at, updated_at]
+          properties:
+            id: { type: string, format: uuid }
+            owner_id: { type: string, format: uuid }
+            version: { type: integer, minimum: 1 }
+            created_at: { type: string, format: date-time }
+            updated_at: { type: string, format: date-time }
+
+    LessonBase:
+      type: object
+      properties:
+        context: { type: string }
+        decision: { type: string }
+        consequence: { type: string }
+        lesson: { type: string }
+        severity:
+          type: string
+          enum: [low, medium, high]
+
+    LessonCreate:
+      allOf:
+        - $ref: '#/components/schemas/LessonBase'
+      required: [context, decision, consequence, lesson]
+
+    LessonUpdate:
+      allOf:
+        - $ref: '#/components/schemas/LessonBase'
+
+    Lesson:
+      allOf:
+        - $ref: '#/components/schemas/LessonBase'
+        - type: object
+          required: [id, owner_id, context, decision, consequence, lesson, created_at, updated_at]
+          properties:
+            id: { type: string, format: uuid }
+            owner_id: { type: string, format: uuid }
+            created_at: { type: string, format: date-time }
+            updated_at: { type: string, format: date-time }
+
+    WeightedValue:
+      type: object
+      required: [name, weight]
+      properties:
+        name: { type: string }
+        weight:
+          type: number
+          minimum: 0
+          maximum: 1
+
+    ValueProfileBase:
+      type: object
+      properties:
+        period_label: { type: string }
+        values:
+          type: array
+          items:
+            $ref: '#/components/schemas/WeightedValue'
+        note: { type: string }
+
+    ValueProfileCreate:
+      allOf:
+        - $ref: '#/components/schemas/ValueProfileBase'
+      required: [period_label, values]
+
+    ValueProfileUpdate:
+      allOf:
+        - $ref: '#/components/schemas/ValueProfileBase'
+
+    ValueProfile:
+      allOf:
+        - $ref: '#/components/schemas/ValueProfileBase'
+        - type: object
+          required: [id, owner_id, period_label, values, version, created_at, updated_at]
+          properties:
+            id: { type: string, format: uuid }
+            owner_id: { type: string, format: uuid }
+            version: { type: integer, minimum: 1 }
+            created_at: { type: string, format: date-time }
+            updated_at: { type: string, format: date-time }
+
+    LegacyMessageBase:
+      type: object
+      properties:
+        title: { type: string }
+        body: { type: string }
+        trigger_type:
+          type: string
+          enum: [posthumous, scheduled, manual]
+        recipients:
+          type: array
+          items:
+            type: string
+            format: email
+        status:
+          type: string
+          enum: [draft, armed, sent, revoked]
+
+    LegacyMessageCreate:
+      allOf:
+        - $ref: '#/components/schemas/LegacyMessageBase'
+      required: [title, body, trigger_type, recipients]
+
+    LegacyMessageUpdate:
+      allOf:
+        - $ref: '#/components/schemas/LegacyMessageBase'
+
+    LegacyMessage:
+      allOf:
+        - $ref: '#/components/schemas/LegacyMessageBase'
+        - type: object
+          required: [id, owner_id, title, body, trigger_type, recipients, status, created_at, updated_at]
+          properties:
+            id: { type: string, format: uuid }
+            owner_id: { type: string, format: uuid }
+            created_at: { type: string, format: date-time }
+            updated_at: { type: string, format: date-time }
+
+    ExportRequest:
+      type: object
+      required: [format]
+      properties:
+        format:
+          type: string
+          enum: [json, zip]
+
+    ExportJob:
+      type: object
+      required: [id, owner_id, format, status, requested_at]
+      properties:
+        id: { type: string, format: uuid }
+        owner_id: { type: string, format: uuid }
+        format:
+          type: string
+          enum: [json, zip]
+        status:
+          type: string
+          enum: [queued, processing, ready, failed]
+        requested_at: { type: string, format: date-time }
+        completed_at: { type: string, format: date-time }
+        download_url:
+          type: string
+          format: uri
+
+    HealthStatus:
+      type: object
+      required: [status, uptime_s]
+      properties:
+        status:
+          type: string
+          enum: [ok, degraded]
+        uptime_s:
+          type: integer
+          minimum: 0
+
+    MetricsSnapshot:
+      type: object
+      required: [window_s, request_count, error_rate]
+      properties:
+        window_s: { type: integer, minimum: 1 }
+        request_count: { type: integer, minimum: 0 }
+        error_rate: { type: number, minimum: 0, maximum: 1 }
+
+    AuditEvent:
+      type: object
+      required: [id, owner_id, action, timestamp]
+      properties:
+        id: { type: string, format: uuid }
+        owner_id: { type: string, format: uuid }
+        action: { type: string }
+        actor_id: { type: string, format: uuid }
+        timestamp: { type: string, format: date-time }
+        metadata:
+          type: object
+          additionalProperties: true

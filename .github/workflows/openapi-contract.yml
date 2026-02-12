@@ -1,0 +1,33 @@
+name: OpenAPI Contract
+
+on:
+  pull_request:
+    paths:
+      - docs/product-capsule/openapi.yaml
+      - scripts/lint-openapi.rb
+      - .github/workflows/openapi-contract.yml
+      - package.json
+  push:
+    branches:
+      - main
+    paths:
+      - docs/product-capsule/openapi.yaml
+      - scripts/lint-openapi.rb
+      - .github/workflows/openapi-contract.yml
+      - package.json
+
+jobs:
+  lint-openapi:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+
+      - name: Lint OpenAPI contract
+        run: npm run lint:openapi
