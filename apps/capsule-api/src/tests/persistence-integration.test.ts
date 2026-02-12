@@ -22,7 +22,7 @@ export const runPersistenceIntegrationTests = async (): Promise<void> => {
   const register = await firstInstance.handle({
     method: 'POST',
     path: '/auth/register',
-    body: { email: 'persist@example.com', password: 'secret123' },
+    body: { email: 'persist@example.com', password: 'Secret123!' },
     headers: { 'x-forwarded-for': '198.51.100.10' },
   });
 
@@ -62,7 +62,7 @@ export const runPersistenceIntegrationTests = async (): Promise<void> => {
   const loginAfterRestart = await secondInstance.handle({
     method: 'POST',
     path: '/auth/login',
-    body: { email: 'persist@example.com', password: 'secret123' },
+    body: { email: 'persist@example.com', password: 'Secret123!' },
     headers: { 'x-forwarded-for': '198.51.100.10' },
   });
 

@@ -16,7 +16,7 @@ export const runExportIntegrationTests = async (): Promise<void> => {
   const register = await app.handle({
     method: 'POST',
     path: '/auth/register',
-    body: { email: 'exporter@example.com', password: 'secret123' },
+    body: { email: 'exporter@example.com', password: 'Secret123!' },
     headers: { 'x-forwarded-for': '203.0.113.3' },
   });
 
@@ -65,6 +65,28 @@ export const runExportIntegrationTests = async (): Promise<void> => {
 
   const denied = await app.handle({ method: 'POST', path: '/exports', body: { format: 'json', owner_id: ownerId } });
   assert(denied.status === 401, 'exports endpoint should require auth');
+
+
+  const invalidFormat = await app.handle({
+    method: 'POST',
+    path: '/exports',
+    headers: { authorization: `Bearer ${token}` },
+    body: { format: 'xml', owner_id: ownerId },
+  });
+  assert(invalidFormat.status === 400, 'invalid export format should return 400');
+  assert((invalidFormat.body as { error: string }).error === 'INVALID_EXPORT_FORMAT', 'invalid format should expose INVALID_EXPORT_FORMAT');
+
+  const invalidOwnerScope = await app.handle({
+    method: 'POST',
+    path: '/exports',
+    headers: { authorization: `Bearer ${token}` },
+    body: { format: 'json', owner_id: '   ' },
+  });
+  assert(invalidOwnerScope.status === 400, 'invalid owner scope should return 400');
+  assert(
+    (invalidOwnerScope.body as { error: string }).error === 'INVALID_OWNER_SCOPE',
+    'invalid owner scope should expose INVALID_OWNER_SCOPE',
+  );
 
   const created = await app.handle({
     method: 'POST',
