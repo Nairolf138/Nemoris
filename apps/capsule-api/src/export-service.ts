@@ -1,5 +1,5 @@
-import type { ExportAggregator } from '../../../packages/export/dist/src/aggregator.js';
-import { serializeExportPayload, type ExportFormat } from '../../../packages/export/dist/src/aggregator.js';
+import type { ExportAggregator } from '@capsule/export';
+import { serializeExportPayload, type ExportFormat } from '@capsule/export';
 
 export type { ExportFormat };
 

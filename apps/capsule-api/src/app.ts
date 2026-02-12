@@ -21,9 +21,9 @@ import {
   updateMemory,
   updateValueProfile,
   type CapsulePersistence,
-} from '../../../packages/core/dist/index.js';
-import { ExportAggregator } from '../../../packages/export/dist/src/aggregator.js';
-import { ObservabilityService } from '../../../packages/observability/dist/src/index.js';
+} from '@capsule/core';
+import { ExportAggregator } from '@capsule/export';
+import { ObservabilityService } from '@capsule/observability';
 import { AuthService } from './auth-service.js';
 import {
   mapCreateBeliefInput,

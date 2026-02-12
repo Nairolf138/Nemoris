@@ -1,4 +1,4 @@
-import { ObservabilityService } from '../../../packages/observability/dist/src/index.js';
+import { ObservabilityService } from '@capsule/observability';
 
 const latencyBucket = (durationMs: number): string => {
   if (durationMs < 100) return 'lt_100ms';
