@@ -6,3 +6,4 @@ export * from './types.js';
 export * from './security-config.js';
 export * from './rate-limiter.js';
 export * from './security-monitor.js';
+export * from './persistence-config.js';

@@ -48,3 +48,15 @@ export interface NarrativeNodeRepository {
   getById(id: string): Promise<NarrativeNode | null>;
   existsByIds(ids: string[]): Promise<boolean>;
 }
+
+
+export type PersistenceBackend = 'memory' | 'sqlite';
+
+export interface CapsulePersistence {
+  memories: MemoryRepository;
+  beliefs: BeliefRepository;
+  lessons: LessonRepository;
+  valueProfiles: ValueProfileRepository;
+  legacyMessages: LegacyMessageRepository;
+  narrativeNodes: NarrativeNodeRepository;
+}
