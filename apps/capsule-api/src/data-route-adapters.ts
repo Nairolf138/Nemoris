@@ -8,6 +8,8 @@ import type {
   LegacyMessage,
   Lesson,
   Memory,
+  NarrativeEdge,
+  NarrativeNode,
   UpdateBeliefInput,
   UpdateLegacyMessageInput,
   UpdateLessonInput,
@@ -252,5 +254,65 @@ export const mapUpdateLegacyMessageInput = (body: unknown): UpdateLegacyMessageI
     related_narrative_node_ids:
       payload.related_narrative_node_ids === undefined ? undefined : asStringArray(payload, 'related_narrative_node_ids'),
     delivery_status: asString(payload, 'delivery_status') as LegacyMessage['delivery_status'],
+  };
+};
+
+export const mapCreateNarrativeNodeInput = (body: unknown, ownerId: string): Omit<NarrativeNode, 'id' | 'created_at' | 'updated_at'> => {
+  const payload = asRecord(body);
+  return {
+    owner_id: ownerId,
+    visibility: asVisibility(payload, true) as NarrativeNode['visibility'],
+    node_type: asString(payload, 'node_type', true) as NarrativeNode['node_type'],
+    label: asString(payload, 'label', true) as string,
+    description: asString(payload, 'description'),
+    occurred_at: asString(payload, 'occurred_at'),
+    memory_ids: asStringArray(payload, 'memory_ids'),
+    belief_ids: asStringArray(payload, 'belief_ids'),
+    lesson_ids: asStringArray(payload, 'lesson_ids'),
+    value_profile_ids: asStringArray(payload, 'value_profile_ids'),
+  };
+};
+
+export const mapUpdateNarrativeNodeInput = (body: unknown): Partial<Omit<NarrativeNode, 'id' | 'owner_id' | 'created_at' | 'updated_at'>> => {
+  const payload = asRecord(body);
+  return {
+    visibility: asVisibility(payload),
+    node_type: asString(payload, 'node_type') as NarrativeNode['node_type'],
+    label: asString(payload, 'label'),
+    description: asString(payload, 'description'),
+    occurred_at: asString(payload, 'occurred_at'),
+    memory_ids: payload.memory_ids === undefined ? undefined : asStringArray(payload, 'memory_ids'),
+    belief_ids: payload.belief_ids === undefined ? undefined : asStringArray(payload, 'belief_ids'),
+    lesson_ids: payload.lesson_ids === undefined ? undefined : asStringArray(payload, 'lesson_ids'),
+    value_profile_ids: payload.value_profile_ids === undefined ? undefined : asStringArray(payload, 'value_profile_ids'),
+  };
+};
+
+export const mapCreateNarrativeEdgeInput = (body: unknown, ownerId: string): Omit<NarrativeEdge, 'id' | 'created_at' | 'updated_at'> => {
+  const payload = asRecord(body);
+  return {
+    owner_id: ownerId,
+    visibility: asVisibility(payload, true) as NarrativeEdge['visibility'],
+    from_node_id: asString(payload, 'from_node_id', true) as string,
+    to_node_id: asString(payload, 'to_node_id', true) as string,
+    relation_type: asString(payload, 'relation_type', true) as NarrativeEdge['relation_type'],
+    weight: asNumber(payload, 'weight'),
+    evidence_memory_ids: asStringArray(payload, 'evidence_memory_ids'),
+    belief_ids: asStringArray(payload, 'belief_ids'),
+    lesson_ids: asStringArray(payload, 'lesson_ids'),
+  };
+};
+
+export const mapUpdateNarrativeEdgeInput = (body: unknown): Partial<Omit<NarrativeEdge, 'id' | 'owner_id' | 'created_at' | 'updated_at'>> => {
+  const payload = asRecord(body);
+  return {
+    visibility: asVisibility(payload),
+    from_node_id: asString(payload, 'from_node_id'),
+    to_node_id: asString(payload, 'to_node_id'),
+    relation_type: asString(payload, 'relation_type') as NarrativeEdge['relation_type'],
+    weight: asNumber(payload, 'weight'),
+    evidence_memory_ids: payload.evidence_memory_ids === undefined ? undefined : asStringArray(payload, 'evidence_memory_ids'),
+    belief_ids: payload.belief_ids === undefined ? undefined : asStringArray(payload, 'belief_ids'),
+    lesson_ids: payload.lesson_ids === undefined ? undefined : asStringArray(payload, 'lesson_ids'),
   };
 };

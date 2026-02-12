@@ -1,4 +1,4 @@
-import type { Belief, LegacyMessage, Lesson, Memory, NarrativeNode, ValueProfile } from '../domain/entities.js';
+import type { Belief, LegacyMessage, Lesson, Memory, NarrativeEdge, NarrativeNode, ValueProfile } from '../domain/entities.js';
 
 export type RepositorySortOrder = 'asc' | 'desc';
 
@@ -66,10 +66,24 @@ export interface LegacyMessageRepository {
 }
 
 export interface NarrativeNodeRepository {
+  create(node: NarrativeNode): Promise<NarrativeNode>;
+  update(id: string, patch: Partial<NarrativeNode>): Promise<NarrativeNode | null>;
+  delete(id: string): Promise<boolean>;
+  listByOwner(ownerId: string): Promise<NarrativeNode[]>;
+  listByOwnerPaginated(ownerId: string, query: ListByOwnerQuery): Promise<PaginatedListResult<NarrativeNode>>;
   getById(id: string): Promise<NarrativeNode | null>;
   existsByIds(ids: string[]): Promise<boolean>;
 }
 
+export interface NarrativeEdgeRepository {
+  create(edge: NarrativeEdge): Promise<NarrativeEdge>;
+  update(id: string, patch: Partial<NarrativeEdge>): Promise<NarrativeEdge | null>;
+  delete(id: string): Promise<boolean>;
+  listByOwner(ownerId: string): Promise<NarrativeEdge[]>;
+  listByOwnerPaginated(ownerId: string, query: ListByOwnerQuery): Promise<PaginatedListResult<NarrativeEdge>>;
+  getById(id: string): Promise<NarrativeEdge | null>;
+  existsByIds(ids: string[]): Promise<boolean>;
+}
 
 export type PersistenceBackend = 'memory' | 'sqlite';
 
@@ -80,4 +94,5 @@ export interface CapsulePersistence {
   valueProfiles: ValueProfileRepository;
   legacyMessages: LegacyMessageRepository;
   narrativeNodes: NarrativeNodeRepository;
+  narrativeEdges: NarrativeEdgeRepository;
 }
