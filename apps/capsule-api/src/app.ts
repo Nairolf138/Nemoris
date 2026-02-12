@@ -187,7 +187,7 @@ export class CapsuleApiApp {
   public constructor(dependencies: CapsuleApiAppDependencies = {}) {
     const providers: PersistenceProviders = createPersistenceProviders();
     this.persistence = dependencies.persistence ?? providers.capsulePersistence;
-    this.authService = dependencies.authService ?? new AuthService(providers.authStore);
+    this.authService = dependencies.authService ?? new AuthService(providers.authStore, this.securityConfig.sessionTokenSecret);
     this.exportAggregator = new ExportAggregator({
       memories: this.persistence.memories,
       beliefs: this.persistence.beliefs,
@@ -241,8 +241,8 @@ export class CapsuleApiApp {
         if (!token) {
           throw new AuthError('UNAUTHENTICATED');
         }
-        const auth = this.authService.authenticate(token);
-        this.authService.logout(token);
+        const auth = await this.authService.authenticate(token);
+        await this.authService.logout(token);
         this.observability.emit({
           event_name: 'auth.logout',
           user_id: auth.user.id,
@@ -258,8 +258,8 @@ export class CapsuleApiApp {
         if (!token) {
           throw new AuthError('UNAUTHENTICATED');
         }
-        const auth = this.authService.authenticate(token);
-        const session = this.authService.refresh(token);
+        const auth = await this.authService.authenticate(token);
+        const session = await this.authService.refresh(token);
         this.observability.emit({
           event_name: 'auth.refresh',
           user_id: auth.user.id,
@@ -435,7 +435,7 @@ export class CapsuleApiApp {
       throw new AuthError('UNAUTHENTICATED');
     }
 
-    const auth = this.authService.authenticate(token);
+    const auth = await this.authService.authenticate(token);
     this.enforceOwnerAccess(request, auth.user.id);
 
     const route = this.parseLegacyMessageOrchestrationRoute(request.path);
@@ -502,7 +502,7 @@ export class CapsuleApiApp {
       throw new AuthError('UNAUTHENTICATED');
     }
 
-    const auth = this.authService.authenticate(token);
+    const auth = await this.authService.authenticate(token);
     this.enforceOwnerAccess(request, auth.user.id);
 
     const route = parseDataRoute(request.path);
@@ -780,7 +780,7 @@ export class CapsuleApiApp {
     if (!token) {
       throw new AuthError('UNAUTHENTICATED');
     }
-    const auth = this.authService.authenticate(token);
+    const auth = await this.authService.authenticate(token);
     const payload = parseConsentPayload(request.body);
     this.enforceOwnerAccess(request, auth.user.id);
     if (payload.owner_id !== auth.user.id) {
@@ -809,7 +809,7 @@ export class CapsuleApiApp {
     if (!token) {
       throw new AuthError('UNAUTHENTICATED');
     }
-    const auth = this.authService.authenticate(token);
+    const auth = await this.authService.authenticate(token);
     const payload = parseConsentPayload(request.body);
     this.enforceOwnerAccess(request, auth.user.id);
     if (payload.owner_id !== auth.user.id) {
@@ -839,7 +839,7 @@ export class CapsuleApiApp {
       throw new AuthError('UNAUTHENTICATED');
     }
 
-    const auth = this.authService.authenticate(token);
+    const auth = await this.authService.authenticate(token);
     this.enforceOwnerAccess(request, auth.user.id);
 
     return { status: 200, body: { entries: await this.persistence.consents.listByOwner(auth.user.id) } };
@@ -852,7 +852,7 @@ export class CapsuleApiApp {
       throw new AuthError('UNAUTHENTICATED');
     }
 
-    const auth = this.authService.authenticate(token);
+    const auth = await this.authService.authenticate(token);
     const exportPayload = parseExportPayload(request.body);
     this.enforceOwnerAccess(request, auth.user.id);
     await this.assertConsentScope(request, auth.user.id, 'data_export');
@@ -883,7 +883,7 @@ export class CapsuleApiApp {
       throw new AuthError('UNAUTHENTICATED');
     }
 
-    const auth = this.authService.authenticate(token);
+    const auth = await this.authService.authenticate(token);
     this.enforceOwnerAccess(request, auth.user.id);
     await this.assertConsentScope(request, auth.user.id, 'data_export');
     const exportId = pathWithoutQuery(request.path).replace('/exports/', '').replace('/download', '');
@@ -912,31 +912,31 @@ export class CapsuleApiApp {
       throw new AuthError('UNAUTHENTICATED');
     }
 
-    const auth = this.authService.authenticate(token);
+    const auth = await this.authService.authenticate(token);
     this.enforceOwnerAccess(request, auth.user.id);
     await this.assertConsentScope(request, auth.user.id, 'data_export');
     const entries = this.exportService.listAuditByOwner(auth.user.id);
     return { status: 200, body: { entries } };
   }
 
-  private getObservabilityAuditLog(request: RequestLike): ResponseLike {
+  private async getObservabilityAuditLog(request: RequestLike): Promise<ResponseLike> {
     const token = parseBearer(request.headers?.authorization);
     if (!token) {
       throw new AuthError('UNAUTHENTICATED');
     }
 
-    const auth = this.authService.authenticate(token);
+    const auth = await this.authService.authenticate(token);
     this.enforceOwnerAccess(request, auth.user.id);
     return { status: 200, body: { entries: this.observability.listAuditLog() } };
   }
 
-  private getDashboard(request: RequestLike): ResponseLike {
+  private async getDashboard(request: RequestLike): Promise<ResponseLike> {
     const token = parseBearer(request.headers?.authorization);
     if (!token) {
       throw new AuthError('UNAUTHENTICATED');
     }
 
-    const auth = this.authService.authenticate(token);
+    const auth = await this.authService.authenticate(token);
     this.enforceOwnerAccess(request, auth.user.id);
 
     return {

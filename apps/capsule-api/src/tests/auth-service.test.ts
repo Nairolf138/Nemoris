@@ -16,22 +16,22 @@ export const runAuthServiceTests = async (): Promise<void> => {
 
   const service = new AuthService();
   const auth = await service.register('alice@example.com', 'Secret123!');
-  const rotated = service.refresh(auth.session.token);
+  const rotated = await service.refresh(auth.session.token);
 
   assert(rotated.token !== auth.session.token, 'refresh should rotate token');
   let oldTokenRejected = false;
   try {
-    service.authenticate(auth.session.token);
+    await service.authenticate(auth.session.token);
   } catch {
     oldTokenRejected = true;
   }
   assert(oldTokenRejected, 'previous token should be invalidated after refresh');
 
   const authLogout = await service.register('bob@example.com', 'Secret123!');
-  service.logout(authLogout.session.token);
+  await service.logout(authLogout.session.token);
   let revokedRejected = false;
   try {
-    service.authenticate(authLogout.session.token);
+    await service.authenticate(authLogout.session.token);
   } catch {
     revokedRejected = true;
   }
