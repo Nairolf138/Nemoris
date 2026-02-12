@@ -1,4 +1,5 @@
 import type {
+  Beneficiary,
   Belief,
   LegacyMessage,
   LegacyMessageDeliveryAttempt,
@@ -79,6 +80,16 @@ export interface LegacyMessageDeliveryAttemptRepository {
   listByLegacyMessageId(legacyMessageId: string): Promise<LegacyMessageDeliveryAttempt[]>;
 }
 
+export interface BeneficiaryRepository {
+  create(beneficiary: Beneficiary): Promise<Beneficiary>;
+  update(id: string, patch: Partial<Beneficiary>): Promise<Beneficiary | null>;
+  delete(id: string): Promise<boolean>;
+  listByOwner(ownerId: string): Promise<Beneficiary[]>;
+  listByOwnerPaginated(ownerId: string, query: ListByOwnerQuery): Promise<PaginatedListResult<Beneficiary>>;
+  getById(id: string): Promise<Beneficiary | null>;
+  existsByIds(ids: string[]): Promise<boolean>;
+}
+
 export interface NarrativeNodeRepository {
   create(node: NarrativeNode): Promise<NarrativeNode>;
   update(id: string, patch: Partial<NarrativeNode>): Promise<NarrativeNode | null>;
@@ -107,6 +118,7 @@ export interface CapsulePersistence {
   lessons: LessonRepository;
   valueProfiles: ValueProfileRepository;
   legacyMessages: LegacyMessageRepository;
+  beneficiaries: BeneficiaryRepository;
   legacyMessageDeliveryAttempts: LegacyMessageDeliveryAttemptRepository;
   narrativeNodes: NarrativeNodeRepository;
   narrativeEdges: NarrativeEdgeRepository;

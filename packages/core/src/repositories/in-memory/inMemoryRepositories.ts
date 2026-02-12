@@ -1,4 +1,5 @@
 import type {
+  Beneficiary,
   Belief,
   LegacyMessage,
   LegacyMessageDeliveryAttempt,
@@ -9,6 +10,7 @@ import type {
   ValueProfile,
 } from '../../domain/entities.js';
 import type {
+  BeneficiaryRepository,
   BeliefRepository,
   ListByOwnerQuery,
   LegacyMessageDeliveryAttemptRepository,
@@ -101,6 +103,7 @@ export class InMemoryLegacyMessageRepository
   extends InMemoryEntityStore<LegacyMessage>
   implements LegacyMessageRepository {}
 
+export class InMemoryBeneficiaryRepository extends InMemoryEntityStore<Beneficiary> implements BeneficiaryRepository {}
 
 
 class InMemoryLegacyMessageDeliveryAttemptRepository implements LegacyMessageDeliveryAttemptRepository {
@@ -128,6 +131,7 @@ export const createInMemoryPersistence = (): CapsulePersistence => ({
   lessons: new InMemoryLessonRepository(),
   valueProfiles: new InMemoryValueProfileRepository(),
   legacyMessages: new InMemoryLegacyMessageRepository(),
+  beneficiaries: new InMemoryBeneficiaryRepository(),
   legacyMessageDeliveryAttempts: new InMemoryLegacyMessageDeliveryAttemptRepository(),
   narrativeNodes: new InMemoryNarrativeNodeRepository(),
   narrativeEdges: new InMemoryNarrativeEdgeRepository(),

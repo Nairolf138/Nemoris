@@ -98,13 +98,21 @@ export interface LegacyMessage extends BaseEntity {
   message: string;
   trigger_type: 'manual' | 'date' | 'inactivity' | 'verified_death';
   trigger_at?: string;
-  recipient_ids: string[];
+  beneficiary_ids: string[];
   attachment_memory_ids: string[];
   related_belief_ids: string[];
   related_lesson_ids: string[];
   related_value_profile_ids: string[];
   related_narrative_node_ids: string[];
   state: 'draft' | 'armed' | 'triggered' | 'sent' | 'revoked' | 'failed';
+}
+
+export interface Beneficiary extends BaseEntity {
+  identity: string;
+  channel: 'email' | 'sms' | 'postal';
+  contact: string;
+  verification_status: 'pending' | 'verified' | 'rejected';
+  status: 'active' | 'inactive';
 }
 
 export interface LegacyMessageDeliveryAttempt {

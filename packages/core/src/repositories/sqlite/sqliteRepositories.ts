@@ -1,5 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import type {
+  Beneficiary,
   Belief,
   LegacyMessage,
   LegacyMessageDeliveryAttempt,
@@ -10,6 +11,7 @@ import type {
   ValueProfile,
 } from '../../domain/entities.js';
 import type {
+  BeneficiaryRepository,
   BeliefRepository,
   CapsulePersistence,
   LegacyMessageDeliveryAttemptRepository,
@@ -128,6 +130,7 @@ export class SqliteBeliefRepository extends SqliteEntityStore<Belief> implements
 export class SqliteLessonRepository extends SqliteEntityStore<Lesson> implements LessonRepository {}
 export class SqliteValueProfileRepository extends SqliteEntityStore<ValueProfile> implements ValueProfileRepository {}
 export class SqliteLegacyMessageRepository extends SqliteEntityStore<LegacyMessage> implements LegacyMessageRepository {}
+export class SqliteBeneficiaryRepository extends SqliteEntityStore<Beneficiary> implements BeneficiaryRepository {}
 export class SqliteLegacyMessageDeliveryAttemptRepository implements LegacyMessageDeliveryAttemptRepository {
   public constructor(private readonly dbPath: string) {}
 
@@ -162,6 +165,7 @@ const setupSchema = (dbPath: string): void => {
     CREATE TABLE IF NOT EXISTS lessons (id TEXT PRIMARY KEY, owner_id TEXT NOT NULL, payload TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS value_profiles (id TEXT PRIMARY KEY, owner_id TEXT NOT NULL, payload TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS legacy_messages (id TEXT PRIMARY KEY, owner_id TEXT NOT NULL, payload TEXT NOT NULL);
+    CREATE TABLE IF NOT EXISTS beneficiaries (id TEXT PRIMARY KEY, owner_id TEXT NOT NULL, payload TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS legacy_message_delivery_attempts (id TEXT PRIMARY KEY, legacy_message_id TEXT NOT NULL, owner_id TEXT NOT NULL, attempted_at TEXT NOT NULL, payload TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS narrative_nodes (id TEXT PRIMARY KEY, owner_id TEXT NOT NULL, payload TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS narrative_edges (id TEXT PRIMARY KEY, owner_id TEXT NOT NULL, payload TEXT NOT NULL);
@@ -171,6 +175,7 @@ const setupSchema = (dbPath: string): void => {
     CREATE INDEX IF NOT EXISTS idx_lessons_owner ON lessons(owner_id);
     CREATE INDEX IF NOT EXISTS idx_value_profiles_owner ON value_profiles(owner_id);
     CREATE INDEX IF NOT EXISTS idx_legacy_messages_owner ON legacy_messages(owner_id);
+    CREATE INDEX IF NOT EXISTS idx_beneficiaries_owner ON beneficiaries(owner_id);
     CREATE INDEX IF NOT EXISTS idx_legacy_message_delivery_attempts_message ON legacy_message_delivery_attempts(legacy_message_id);
     CREATE INDEX IF NOT EXISTS idx_narrative_nodes_owner ON narrative_nodes(owner_id);
     CREATE INDEX IF NOT EXISTS idx_narrative_edges_owner ON narrative_edges(owner_id);
@@ -186,6 +191,7 @@ export const createSqlitePersistence = (path: string): CapsulePersistence => {
     lessons: new SqliteLessonRepository(path, 'lessons'),
     valueProfiles: new SqliteValueProfileRepository(path, 'value_profiles'),
     legacyMessages: new SqliteLegacyMessageRepository(path, 'legacy_messages'),
+    beneficiaries: new SqliteBeneficiaryRepository(path, 'beneficiaries'),
     legacyMessageDeliveryAttempts: new SqliteLegacyMessageDeliveryAttemptRepository(path),
     narrativeNodes: new SqliteNarrativeNodeRepository(path, 'narrative_nodes'),
     narrativeEdges: new SqliteNarrativeEdgeRepository(path, 'narrative_edges'),

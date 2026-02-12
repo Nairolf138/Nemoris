@@ -43,6 +43,12 @@ const makeDeps = async () => {
     source_memory_ids: ['mem-ref'], linked_belief_ids: [], linked_value_profile_ids: ['vp-ref'],
   });
 
+
+  await persistence.beneficiaries.create({
+    id: 'benef-ref', owner_id, visibility: 'private', created_at: now, updated_at: now,
+    identity: 'Child One', channel: 'email', contact: 'child@example.com', verification_status: 'verified', status: 'active',
+  });
+
   await persistence.beliefs.create({
     id: 'belief-ref', owner_id, visibility: 'private', created_at: now, updated_at: now,
     belief_key: 'seed', statement: 'Seeds are useful.', status: 'active', current_version_number: 1,
@@ -125,13 +131,14 @@ test('other entities create successfully with consistent relations', async () =>
     lessonRepository: persistence.lessons,
     valueProfileRepository: persistence.valueProfiles,
     narrativeNodeRepository: persistence.narrativeNodes,
+    beneficiaryRepository: persistence.beneficiaries,
   }, {
     owner_id,
     visibility: 'private',
     title: 'Legacy draft',
     message: 'Remember what mattered.',
     trigger_type: 'manual',
-    recipient_ids: ['recipient-1'],
+    beneficiary_ids: ['benef-ref'],
     attachment_memory_ids: ['mem-ref'],
     related_belief_ids: ['belief-ref'],
     related_lesson_ids: ['lesson-ref'],
@@ -185,6 +192,7 @@ test('observability emits required sensitive CRUD and legacy message arm/revoke 
     lessonRepository: persistence.lessons,
     valueProfileRepository: persistence.valueProfiles,
     narrativeNodeRepository: persistence.narrativeNodes,
+    beneficiaryRepository: persistence.beneficiaries,
     observer,
   }, {
     owner_id,
@@ -192,7 +200,7 @@ test('observability emits required sensitive CRUD and legacy message arm/revoke 
     title: 'Legacy tracked',
     message: 'Message to arm and revoke.',
     trigger_type: 'manual',
-    recipient_ids: ['recipient-1'],
+    beneficiary_ids: ['benef-ref'],
     attachment_memory_ids: ['mem-ref'],
     related_belief_ids: ['belief-ref'],
     related_lesson_ids: ['lesson-ref'],
@@ -208,6 +216,7 @@ test('observability emits required sensitive CRUD and legacy message arm/revoke 
     lessonRepository: persistence.lessons,
     valueProfileRepository: persistence.valueProfiles,
     narrativeNodeRepository: persistence.narrativeNodes,
+    beneficiaryRepository: persistence.beneficiaries,
     observer,
   }, legacy.id, { state: 'armed' });
 
@@ -218,6 +227,7 @@ test('observability emits required sensitive CRUD and legacy message arm/revoke 
     lessonRepository: persistence.lessons,
     valueProfileRepository: persistence.valueProfiles,
     narrativeNodeRepository: persistence.narrativeNodes,
+    beneficiaryRepository: persistence.beneficiaries,
     observer,
   }, legacy.id, { state: 'revoked' });
 
