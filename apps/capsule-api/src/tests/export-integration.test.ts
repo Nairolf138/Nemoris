@@ -13,18 +13,20 @@ export const runExportIntegrationTests = async (): Promise<void> => {
     method: 'POST',
     path: '/auth/register',
     body: { email: 'exporter@example.com', password: 'secret123' },
+    headers: { 'x-forwarded-for': '203.0.113.3' },
   });
 
   const token = (register.body as { session: { token: string } }).session.token;
+  const ownerId = (register.body as { user: { id: string } }).user.id;
 
-  const denied = await app.handle({ method: 'POST', path: '/exports', body: { format: 'json' } });
+  const denied = await app.handle({ method: 'POST', path: '/exports', body: { format: 'json', owner_id: ownerId } });
   assert(denied.status === 401, 'exports endpoint should require auth');
 
   const created = await app.handle({
     method: 'POST',
     path: '/exports',
     headers: { authorization: `Bearer ${token}` },
-    body: { format: 'pdf' },
+    body: { format: 'pdf', owner_id: ownerId },
   });
 
   assert(created.status === 201, 'export creation should return 201');
@@ -33,7 +35,7 @@ export const runExportIntegrationTests = async (): Promise<void> => {
   const downloaded = await app.handle({
     method: 'GET',
     path: `/exports/${exportId}/download`,
-    headers: { authorization: `Bearer ${token}` },
+    headers: { authorization: `Bearer ${token}`, 'x-owner-id': ownerId },
   });
 
   assert(downloaded.status === 200, 'download should return 200');
@@ -44,7 +46,7 @@ export const runExportIntegrationTests = async (): Promise<void> => {
   const audit = await app.handle({
     method: 'GET',
     path: '/exports/audit',
-    headers: { authorization: `Bearer ${token}` },
+    headers: { authorization: `Bearer ${token}`, 'x-owner-id': ownerId },
   });
 
   assert(audit.status === 200, 'audit route should return 200');
@@ -55,7 +57,7 @@ export const runExportIntegrationTests = async (): Promise<void> => {
   const observabilityAudit = await app.handle({
     method: 'GET',
     path: '/observability/audit',
-    headers: { authorization: `Bearer ${token}` },
+    headers: { authorization: `Bearer ${token}`, 'x-owner-id': ownerId },
   });
   assert(observabilityAudit.status === 200, 'observability audit endpoint should return 200');
 
@@ -66,7 +68,7 @@ export const runExportIntegrationTests = async (): Promise<void> => {
   const dashboard = await app.handle({
     method: 'GET',
     path: '/observability/dashboard',
-    headers: { authorization: `Bearer ${token}` },
+    headers: { authorization: `Bearer ${token}`, 'x-owner-id': ownerId },
   });
 
   assert(dashboard.status === 200, 'dashboard endpoint should return 200');
