@@ -63,7 +63,7 @@ export const runExportIntegrationTests = async (): Promise<void> => {
       related_lesson_ids: [],
       related_value_profile_ids: [],
       related_narrative_node_ids: [],
-      delivery_status: 'draft',
+      state: 'draft',
     },
   });
   assert(createdMessage.status === 201, 'legacy message setup should return 201');

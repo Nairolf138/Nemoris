@@ -4,3 +4,7 @@ export * from './lesson.js';
 export * from './valueProfile.js';
 export * from './legacyMessage.js';
 export * from './observability.js';
+export * from './armLegacyMessage.js';
+export * from './triggerLegacyMessage.js';
+export * from './revokeLegacyMessage.js';
+export * from './deliverLegacyMessage.js';

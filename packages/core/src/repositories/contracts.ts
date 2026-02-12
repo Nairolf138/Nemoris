@@ -1,4 +1,13 @@
-import type { Belief, LegacyMessage, Lesson, Memory, NarrativeEdge, NarrativeNode, ValueProfile } from '../domain/entities.js';
+import type {
+  Belief,
+  LegacyMessage,
+  LegacyMessageDeliveryAttempt,
+  Lesson,
+  Memory,
+  NarrativeEdge,
+  NarrativeNode,
+  ValueProfile,
+} from '../domain/entities.js';
 
 export type RepositorySortOrder = 'asc' | 'desc';
 
@@ -65,6 +74,11 @@ export interface LegacyMessageRepository {
   getById(id: string): Promise<LegacyMessage | null>;
 }
 
+export interface LegacyMessageDeliveryAttemptRepository {
+  create(attempt: LegacyMessageDeliveryAttempt): Promise<LegacyMessageDeliveryAttempt>;
+  listByLegacyMessageId(legacyMessageId: string): Promise<LegacyMessageDeliveryAttempt[]>;
+}
+
 export interface NarrativeNodeRepository {
   create(node: NarrativeNode): Promise<NarrativeNode>;
   update(id: string, patch: Partial<NarrativeNode>): Promise<NarrativeNode | null>;
@@ -93,6 +107,7 @@ export interface CapsulePersistence {
   lessons: LessonRepository;
   valueProfiles: ValueProfileRepository;
   legacyMessages: LegacyMessageRepository;
+  legacyMessageDeliveryAttempts: LegacyMessageDeliveryAttemptRepository;
   narrativeNodes: NarrativeNodeRepository;
   narrativeEdges: NarrativeEdgeRepository;
 }

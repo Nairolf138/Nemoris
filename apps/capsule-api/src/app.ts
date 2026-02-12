@@ -4,6 +4,10 @@ import {
   createLesson,
   createMemory,
   createValueProfile,
+  armLegacyMessage,
+  deliverLegacyMessage,
+  revokeLegacyMessage,
+  triggerLegacyMessage,
   deleteBelief,
   deleteLegacyMessage,
   deleteLesson,
@@ -278,6 +282,10 @@ export class CapsuleApiApp {
         return this.getDashboard(request);
       }
 
+      if (request.path.startsWith('/legacy-messages/')) {
+        return await this.handleLegacyMessageOrchestrationRoute(request);
+      }
+
       if (request.path.startsWith('/data/')) {
         return await this.handleDataRoute(request);
       }
@@ -359,6 +367,86 @@ export class CapsuleApiApp {
     await this.assertOwnedReferences(ownerId, 'evidence_memory_ids', input.evidence_memory_ids, this.persistence.memories.getById);
     await this.assertOwnedReferences(ownerId, 'belief_ids', input.belief_ids, this.persistence.beliefs.getById);
     await this.assertOwnedReferences(ownerId, 'lesson_ids', input.lesson_ids, this.persistence.lessons.getById);
+  }
+
+  private parseLegacyMessageOrchestrationRoute(
+    path: string,
+  ): { id: string; action: 'arm' | 'trigger' | 'revoke' | 'deliver' | 'delivery-attempts' } | null {
+    const cleanPath = pathWithoutQuery(path);
+    const parts = cleanPath.split('/').filter(Boolean);
+    if (parts[0] !== 'legacy-messages' || !parts[1] || !parts[2]) {
+      return null;
+    }
+    const action = parts[2];
+    if (action !== 'arm' && action !== 'trigger' && action !== 'revoke' && action !== 'deliver' && action !== 'delivery-attempts') {
+      return null;
+    }
+    return { id: parts[1], action };
+  }
+
+  private async handleLegacyMessageOrchestrationRoute(request: RequestLike): Promise<ResponseLike> {
+    const token = parseBearer(request.headers?.authorization);
+    if (!token) {
+      throw new AuthError('UNAUTHENTICATED');
+    }
+
+    const auth = this.authService.authenticate(token);
+    this.enforceOwnerAccess(request, auth.user.id);
+
+    const route = this.parseLegacyMessageOrchestrationRoute(request.path);
+    if (!route) {
+      throw new NotFoundError('NOT_FOUND');
+    }
+
+    const legacyMessage = await this.persistence.legacyMessages.getById(route.id);
+    if (!legacyMessage) {
+      throw new NotFoundError('RESOURCE_NOT_FOUND');
+    }
+    if (legacyMessage.owner_id !== auth.user.id) {
+      throw new ForbiddenError();
+    }
+
+    if (request.method === 'GET' && route.action === 'delivery-attempts') {
+      return { status: 200, body: await this.persistence.legacyMessageDeliveryAttempts.listByLegacyMessageId(route.id) };
+    }
+
+    if (request.method !== 'POST') {
+      throw new NotFoundError('NOT_FOUND');
+    }
+
+    try {
+      if (route.action === 'arm') {
+        return { status: 200, body: await armLegacyMessage({ legacyMessageRepository: this.persistence.legacyMessages }, route.id) };
+      }
+      if (route.action === 'trigger') {
+        return { status: 200, body: await triggerLegacyMessage({ legacyMessageRepository: this.persistence.legacyMessages }, route.id) };
+      }
+      if (route.action === 'revoke') {
+        return { status: 200, body: await revokeLegacyMessage({ legacyMessageRepository: this.persistence.legacyMessages }, route.id) };
+      }
+
+      const result = await deliverLegacyMessage(
+        {
+          legacyMessageRepository: this.persistence.legacyMessages,
+          legacyMessageDeliveryAttemptRepository: this.persistence.legacyMessageDeliveryAttempts,
+          deliver: async (message) => {
+            if (message.message.includes('[FAIL_DELIVERY]')) {
+              throw new Error('Simulated delivery failure');
+            }
+          },
+        },
+        route.id,
+      );
+      return { status: 200, body: result };
+    } catch (error) {
+      if (error instanceof Error && error.message === 'LEGACY_MESSAGE_INVALID_STATE') {
+        throw new ValidationError('DOMAIN_VALIDATION_ERROR', { message: 'Invalid legacy message state transition.' });
+      }
+      if (error instanceof Error && error.message === 'LEGACY_MESSAGE_NOT_FOUND') {
+        throw new NotFoundError('RESOURCE_NOT_FOUND');
+      }
+      throw error;
+    }
   }
 
   private async handleDataRoute(request: RequestLike): Promise<ResponseLike> {

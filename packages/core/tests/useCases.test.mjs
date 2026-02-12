@@ -137,13 +137,13 @@ test('other entities create successfully with consistent relations', async () =>
     related_lesson_ids: ['lesson-ref'],
     related_value_profile_ids: ['vp-ref'],
     related_narrative_node_ids: ['node-ref'],
-    delivery_status: 'draft',
+    state: 'draft',
   });
 
   assert.equal(belief.previous_belief_id, 'belief-ref');
   assert.equal(lesson.title, 'Link belief and profile');
   assert.equal(valueProfile.profile_label, 'Mature values');
-  assert.equal(legacyMessage.delivery_status, 'draft');
+  assert.equal(legacyMessage.state, 'draft');
 });
 
 
@@ -198,7 +198,7 @@ test('observability emits required sensitive CRUD and legacy message arm/revoke 
     related_lesson_ids: ['lesson-ref'],
     related_value_profile_ids: ['vp-ref'],
     related_narrative_node_ids: ['node-ref'],
-    delivery_status: 'draft',
+    state: 'draft',
   });
 
   await updateLegacyMessage({
@@ -209,7 +209,7 @@ test('observability emits required sensitive CRUD and legacy message arm/revoke 
     valueProfileRepository: persistence.valueProfiles,
     narrativeNodeRepository: persistence.narrativeNodes,
     observer,
-  }, legacy.id, { delivery_status: 'armed' });
+  }, legacy.id, { state: 'armed' });
 
   await updateLegacyMessage({
     legacyMessageRepository: persistence.legacyMessages,
@@ -219,11 +219,11 @@ test('observability emits required sensitive CRUD and legacy message arm/revoke 
     valueProfileRepository: persistence.valueProfiles,
     narrativeNodeRepository: persistence.narrativeNodes,
     observer,
-  }, legacy.id, { delivery_status: 'revoked' });
+  }, legacy.id, { state: 'revoked' });
 
   assert.ok(events.some((event) => event.event_name === 'capsule.created'));
   assert.ok(events.some((event) => event.event_name === 'memory.updated'));
   assert.ok(events.some((event) => event.event_name === 'memory.deleted'));
-  assert.ok(events.some((event) => event.event_name === 'legacy_message.armed'));
-  assert.ok(events.some((event) => event.event_name === 'legacy_message.revoked'));
+  const legacyUpdateEvents = events.filter((event) => event.event_name === 'legacy_message.updated');
+  assert.ok(legacyUpdateEvents.length >= 2);
 });

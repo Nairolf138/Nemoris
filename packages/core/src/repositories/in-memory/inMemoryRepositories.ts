@@ -1,7 +1,17 @@
-import type { Belief, LegacyMessage, Lesson, Memory, NarrativeEdge, NarrativeNode, ValueProfile } from '../../domain/entities.js';
+import type {
+  Belief,
+  LegacyMessage,
+  LegacyMessageDeliveryAttempt,
+  Lesson,
+  Memory,
+  NarrativeEdge,
+  NarrativeNode,
+  ValueProfile,
+} from '../../domain/entities.js';
 import type {
   BeliefRepository,
   ListByOwnerQuery,
+  LegacyMessageDeliveryAttemptRepository,
   LegacyMessageRepository,
   LessonRepository,
   MemoryRepository,
@@ -91,6 +101,23 @@ export class InMemoryLegacyMessageRepository
   extends InMemoryEntityStore<LegacyMessage>
   implements LegacyMessageRepository {}
 
+
+
+class InMemoryLegacyMessageDeliveryAttemptRepository implements LegacyMessageDeliveryAttemptRepository {
+  private readonly records: LegacyMessageDeliveryAttempt[] = [];
+
+  public create = async (attempt: LegacyMessageDeliveryAttempt): Promise<LegacyMessageDeliveryAttempt> => {
+    this.records.push(attempt);
+    return attempt;
+  };
+
+  public listByLegacyMessageId = async (legacyMessageId: string): Promise<LegacyMessageDeliveryAttempt[]> => {
+    return this.records
+      .filter((attempt) => attempt.legacy_message_id === legacyMessageId)
+      .sort((left, right) => left.attempted_at.localeCompare(right.attempted_at));
+  };
+}
+
 export class InMemoryNarrativeNodeRepository extends InMemoryEntityStore<NarrativeNode> implements NarrativeNodeRepository {}
 
 export class InMemoryNarrativeEdgeRepository extends InMemoryEntityStore<NarrativeEdge> implements NarrativeEdgeRepository {}
@@ -101,6 +128,7 @@ export const createInMemoryPersistence = (): CapsulePersistence => ({
   lessons: new InMemoryLessonRepository(),
   valueProfiles: new InMemoryValueProfileRepository(),
   legacyMessages: new InMemoryLegacyMessageRepository(),
+  legacyMessageDeliveryAttempts: new InMemoryLegacyMessageDeliveryAttemptRepository(),
   narrativeNodes: new InMemoryNarrativeNodeRepository(),
   narrativeEdges: new InMemoryNarrativeEdgeRepository(),
 });

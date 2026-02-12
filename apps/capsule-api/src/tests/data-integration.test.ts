@@ -68,7 +68,7 @@ const createPayloadByResource: Record<DataResource, Record<string, unknown>> = {
     related_lesson_ids: [],
     related_value_profile_ids: [],
     related_narrative_node_ids: [],
-    delivery_status: 'draft',
+    state: 'draft',
   },
   narrative_nodes: {
     visibility: 'private',
@@ -216,6 +216,108 @@ const runPaginationAndSortingTests = async (app: CapsuleApiApp, owner: { userId:
   assert(invalidOrder.status === 400, 'invalid order should return 400');
 };
 
+
+
+const runLegacyMessageOrchestrationScenarios = async (app: CapsuleApiApp, owner: { userId: string; token: string }): Promise<void> => {
+  const createResponse = await app.handle({
+    method: 'POST',
+    path: '/data/legacy_messages',
+    headers: { authorization: `Bearer ${owner.token}`, 'x-owner-id': owner.userId },
+    body: {
+      ...createPayloadByResource.legacy_messages,
+      title: 'Scenario message',
+      message: 'Ready to send',
+      state: 'draft',
+    },
+  });
+  assert(createResponse.status === 201, 'legacy orchestration setup should create message');
+  const messageId = (createResponse.body as { id: string }).id;
+
+  const armResponse = await app.handle({
+    method: 'POST',
+    path: `/legacy-messages/${messageId}/arm`,
+    headers: { authorization: `Bearer ${owner.token}`, 'x-owner-id': owner.userId },
+    body: {},
+  });
+  assert(armResponse.status === 200, 'arm should return 200');
+
+  const firstTrigger = await app.handle({
+    method: 'POST',
+    path: `/legacy-messages/${messageId}/trigger`,
+    headers: { authorization: `Bearer ${owner.token}`, 'x-owner-id': owner.userId },
+    body: {},
+  });
+  assert(firstTrigger.status === 200, 'first trigger should return 200');
+
+  const secondTrigger = await app.handle({
+    method: 'POST',
+    path: `/legacy-messages/${messageId}/trigger`,
+    headers: { authorization: `Bearer ${owner.token}`, 'x-owner-id': owner.userId },
+    body: {},
+  });
+  assert(secondTrigger.status === 400, 'double trigger should be rejected');
+
+  const lateRevoke = await app.handle({
+    method: 'POST',
+    path: `/legacy-messages/${messageId}/revoke`,
+    headers: { authorization: `Bearer ${owner.token}`, 'x-owner-id': owner.userId },
+    body: {},
+  });
+  assert(lateRevoke.status === 400, 'late revoke after trigger should be rejected');
+
+  const createFailureResponse = await app.handle({
+    method: 'POST',
+    path: '/data/legacy_messages',
+    headers: { authorization: `Bearer ${owner.token}`, 'x-owner-id': owner.userId },
+    body: {
+      ...createPayloadByResource.legacy_messages,
+      title: 'Failure message',
+      message: '[FAIL_DELIVERY] force error',
+      state: 'draft',
+    },
+  });
+  assert(createFailureResponse.status === 201, 'failure setup should create message');
+  const failureMessageId = (createFailureResponse.body as { id: string }).id;
+
+  const failureArm = await app.handle({
+    method: 'POST',
+    path: `/legacy-messages/${failureMessageId}/arm`,
+    headers: { authorization: `Bearer ${owner.token}`, 'x-owner-id': owner.userId },
+    body: {},
+  });
+  assert(failureArm.status === 200, 'failure message arm should return 200');
+
+  const failureTrigger = await app.handle({
+    method: 'POST',
+    path: `/legacy-messages/${failureMessageId}/trigger`,
+    headers: { authorization: `Bearer ${owner.token}`, 'x-owner-id': owner.userId },
+    body: {},
+  });
+  assert(failureTrigger.status === 200, 'failure message trigger should return 200');
+
+  const deliveryResponse = await app.handle({
+    method: 'POST',
+    path: `/legacy-messages/${failureMessageId}/deliver`,
+    headers: { authorization: `Bearer ${owner.token}`, 'x-owner-id': owner.userId },
+    body: {},
+  });
+  assert(deliveryResponse.status === 200, 'delivery endpoint should return 200 even on delivery failure');
+  const deliveryBody = deliveryResponse.body as { message: { state: string }; attempt: { status: string; attempted_at: string } };
+  assert(deliveryBody.message.state === 'failed', 'delivery failure should switch state to failed');
+  assert(deliveryBody.attempt.status === 'failed', 'delivery failure should create failed attempt');
+  assert(typeof deliveryBody.attempt.attempted_at === 'string', 'delivery attempt should be timestamped');
+
+  const attemptsResponse = await app.handle({
+    method: 'GET',
+    path: `/legacy-messages/${failureMessageId}/delivery-attempts?owner_id=${owner.userId}`,
+    headers: { authorization: `Bearer ${owner.token}` },
+  });
+  assert(attemptsResponse.status === 200, 'attempts listing should return 200');
+  const attempts = attemptsResponse.body as Array<{ status: string; attempted_at: string }>;
+  assert(attempts.length >= 1, 'attempt log should contain at least one record');
+  assert(attempts.some((attempt) => attempt.status === 'failed'), 'attempt log should include failed record');
+};
+
 export const runDataIntegrationTests = async (): Promise<void> => {
   const app = new CapsuleApiApp();
 
@@ -287,6 +389,8 @@ export const runDataIntegrationTests = async (): Promise<void> => {
   }
 
 
+
+  await runLegacyMessageOrchestrationScenarios(app, owner);
 
   const firstNodeResponse = await app.handle({
     method: 'POST',
