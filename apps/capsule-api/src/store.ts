@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import type { AuthUser, Session } from '@capsule/core';
 
 export interface AuthStore {
@@ -10,11 +10,78 @@ export interface AuthStore {
   revokeSession(token: string, revokedAt: string): Session | undefined;
 }
 
-const quote = (value: string): string => `'${value.replace(/'/g, "''")}'`;
+type SqlRow = Record<string, string | null>;
 
-const runSql = (dbPath: string, sql: string): string => {
-  return execFileSync('sqlite3', [dbPath, sql], { encoding: 'utf8' });
+const sqliteLiteral = (value: string | null): string => {
+  if (value === null) {
+    return 'NULL';
+  }
+  return `'${value.replace(/'/g, "''")}'`;
 };
+
+const bindSql = (sql: string, params: Array<string | null>): string => {
+  let index = 0;
+  return sql.replace(/\?/g, () => {
+    const value = params[index];
+    index += 1;
+    return sqliteLiteral(value ?? null);
+  });
+};
+
+class SqlitePreparedStatement {
+  public constructor(
+    private readonly client: SqliteClient,
+    private readonly sql: string,
+  ) {}
+
+  public run(params: Array<string | null>): void {
+    this.client.exec(bindSql(this.sql, params));
+  }
+
+  public get(params: Array<string | null>): SqlRow | undefined {
+    const rows = this.client.query(bindSql(this.sql, params));
+    return rows[0];
+  }
+}
+
+class SqliteClient {
+  private static readonly clients = new Map<string, SqliteClient>();
+
+  public static forPath(path: string): SqliteClient {
+    const existing = SqliteClient.clients.get(path);
+    if (existing) {
+      return existing;
+    }
+    const created = new SqliteClient(path);
+    SqliteClient.clients.set(path, created);
+    return created;
+  }
+
+  private constructor(private readonly path: string) {}
+
+  public prepare(sql: string): SqlitePreparedStatement {
+    return new SqlitePreparedStatement(this, sql);
+  }
+
+  public exec(sql: string): void {
+    const result = spawnSync('sqlite3', [this.path, sql], { encoding: 'utf8' });
+    if (result.status !== 0) {
+      throw new Error(result.stderr.trim() || 'sqlite command failed');
+    }
+  }
+
+  public query(sql: string): SqlRow[] {
+    const result = spawnSync('sqlite3', ['-json', this.path, sql], { encoding: 'utf8' });
+    if (result.status !== 0) {
+      throw new Error(result.stderr.trim() || 'sqlite command failed');
+    }
+    const raw = result.stdout.trim();
+    if (!raw) {
+      return [];
+    }
+    return JSON.parse(raw) as SqlRow[];
+  }
+}
 
 export class InMemoryAuthStore implements AuthStore {
   private usersById = new Map<string, AuthUser>();
@@ -56,10 +123,17 @@ export class InMemoryAuthStore implements AuthStore {
 }
 
 export class SqliteAuthStore implements AuthStore {
-  public constructor(private readonly path: string) {
-    runSql(
-      this.path,
-      `
+  private readonly client;
+  private readonly createUserStmt;
+  private readonly findUserByEmailStmt;
+  private readonly findUserByIdStmt;
+  private readonly saveSessionStmt;
+  private readonly findSessionByTokenStmt;
+  private readonly revokeSessionStmt;
+
+  public constructor(path: string) {
+    this.client = SqliteClient.forPath(path);
+    this.client.exec(`
       CREATE TABLE IF NOT EXISTS auth_users (
         id TEXT PRIMARY KEY,
         email TEXT NOT NULL UNIQUE,
@@ -73,49 +147,49 @@ export class SqliteAuthStore implements AuthStore {
         expires_at TEXT NOT NULL,
         revoked_at TEXT
       );
-    `,
+    `);
+
+    this.createUserStmt = this.client.prepare(
+      'INSERT INTO auth_users (id, email, password_hash, created_at, updated_at) VALUES (?, ?, ?, ?, ?);',
     );
+    this.findUserByEmailStmt = this.client.prepare(
+      'SELECT id, email, password_hash, created_at, updated_at FROM auth_users WHERE email = ? LIMIT 1;',
+    );
+    this.findUserByIdStmt = this.client.prepare(
+      'SELECT id, email, password_hash, created_at, updated_at FROM auth_users WHERE id = ? LIMIT 1;',
+    );
+    this.saveSessionStmt = this.client.prepare(
+      'INSERT INTO auth_sessions (token, user_id, expires_at, revoked_at) VALUES (?, ?, ?, ?);',
+    );
+    this.findSessionByTokenStmt = this.client.prepare(
+      'SELECT token, user_id, expires_at, revoked_at FROM auth_sessions WHERE token = ? LIMIT 1;',
+    );
+    this.revokeSessionStmt = this.client.prepare('UPDATE auth_sessions SET revoked_at = ? WHERE token = ?;');
   }
 
   public createUser(user: AuthUser): AuthUser {
-    runSql(
-      this.path,
-      `INSERT INTO auth_users (id, email, password_hash, created_at, updated_at) VALUES (${quote(user.id)}, ${quote(user.email)}, ${quote(user.password_hash)}, ${quote(user.created_at)}, ${quote(user.updated_at)});`,
-    );
+    this.createUserStmt.run([user.id, user.email, user.password_hash, user.created_at, user.updated_at]);
     return user;
   }
 
   public findUserByEmail(email: string): AuthUser | undefined {
-    const raw = runSql(
-      this.path,
-      `SELECT json_object('id', id, 'email', email, 'password_hash', password_hash, 'created_at', created_at, 'updated_at', updated_at) FROM auth_users WHERE email = ${quote(email)} LIMIT 1;`,
-    ).trim();
-    return raw ? (JSON.parse(raw) as AuthUser) : undefined;
+    const row = this.findUserByEmailStmt.get([email]);
+    return row as AuthUser | undefined;
   }
 
   public findUserById(id: string): AuthUser | undefined {
-    const raw = runSql(
-      this.path,
-      `SELECT json_object('id', id, 'email', email, 'password_hash', password_hash, 'created_at', created_at, 'updated_at', updated_at) FROM auth_users WHERE id = ${quote(id)} LIMIT 1;`,
-    ).trim();
-    return raw ? (JSON.parse(raw) as AuthUser) : undefined;
+    const row = this.findUserByIdStmt.get([id]);
+    return row as AuthUser | undefined;
   }
 
   public saveSession(session: Session): Session {
-    const revoked = session.revoked_at ? quote(session.revoked_at) : 'NULL';
-    runSql(
-      this.path,
-      `INSERT INTO auth_sessions (token, user_id, expires_at, revoked_at) VALUES (${quote(session.token)}, ${quote(session.user_id)}, ${quote(session.expires_at)}, ${revoked});`,
-    );
+    this.saveSessionStmt.run([session.token, session.user_id, session.expires_at, session.revoked_at ?? null]);
     return session;
   }
 
   public findSessionByToken(token: string): Session | undefined {
-    const raw = runSql(
-      this.path,
-      `SELECT json_object('token', token, 'user_id', user_id, 'expires_at', expires_at, 'revoked_at', revoked_at) FROM auth_sessions WHERE token = ${quote(token)} LIMIT 1;`,
-    ).trim();
-    return raw ? (JSON.parse(raw) as Session) : undefined;
+    const row = this.findSessionByTokenStmt.get([token]);
+    return row as Session | undefined;
   }
 
   public revokeSession(token: string, revokedAt: string): Session | undefined {
@@ -123,7 +197,7 @@ export class SqliteAuthStore implements AuthStore {
     if (!session) {
       return undefined;
     }
-    runSql(this.path, `UPDATE auth_sessions SET revoked_at = ${quote(revokedAt)} WHERE token = ${quote(token)};`);
+    this.revokeSessionStmt.run([revokedAt, token]);
     return { ...session, revoked_at: revokedAt };
   }
 }
