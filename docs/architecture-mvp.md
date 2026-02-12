@@ -1,10 +1,11 @@
 # Architecture MVP — Nemoris (fonction par fonction)
 
 ## Objectif MVP
-Lancer rapidement une première version exploitable qui unit :
+Lancer une première version exploitable qui unit :
 - mémoire personnelle/familiale,
 - structuration cognitive,
-- transmission volontaire.
+- transmission volontaire,
+- gouvernance de confiance minimale (sécurité, consentement, audit).
 
 ---
 
@@ -27,6 +28,7 @@ Lancer rapidement une première version exploitable qui unit :
 ### Critères d’acceptation
 - Un utilisateur peut créer, modifier, archiver une entrée.
 - Les entrées s’affichent en timeline chronologique.
+- Une entrée peut être reliée à conviction/leçon/valeur/nœud narratif.
 
 ---
 
@@ -143,6 +145,7 @@ Lancer rapidement une première version exploitable qui unit :
 - Journal d’audit (actions sensibles).
 - Export des données personnelles (portabilité).
 - Consentement et paramètres de confidentialité explicites.
+- Traces d’intégrité sur les opérations critiques de transmission.
 
 ---
 
@@ -162,12 +165,48 @@ Lancer rapidement une première version exploitable qui unit :
 ### Phase 1 — Fondations (4-6 semaines)
 - Authentification, modèle de données, module Mémoire.
 - Interface timeline + CRUD de base.
+- Paramètres de confidentialité initiaux.
 
 ### Phase 2 — Cœur cognitif (4-6 semaines)
 - Convictions, Erreurs/Leçons, Valeurs.
 - Liaisons entre modules.
+- Premiers exports lisibles.
 
 ### Phase 3 — Transmission et visualisation (4-6 semaines)
 - Graphe narratif.
 - Transmission post-mortem MVP.
-- Export, audit, durcissement sécurité.
+- Audit, durcissement sécurité, stabilisation.
+
+---
+
+## Tâches nécessaires (backlog exécutable)
+
+### Epic 1 — Modèle de données unifié
+- [ ] Créer les entités `Memory`, `Belief`, `Lesson`, `ValueProfile`, `NarrativeNode`, `NarrativeEdge`, `LegacyMessage`.
+- [ ] Implémenter les relations croisées (`evidence_memory_ids`, références inter-modules).
+- [ ] Ajouter versionning sur convictions et valeurs.
+
+### Epic 2 — Gouvernance et contrôle utilisateur
+- [ ] Implémenter règles de visibilité granulaires par ressource.
+- [ ] Ajouter gestion des consentements et révocations horodatées.
+- [ ] Déployer journal d’audit pour actions sensibles.
+
+### Epic 3 — Expérience cognitive
+- [ ] Concevoir composants UI communs (timeline, cartes de réflexion, comparateurs de périodes).
+- [ ] Déployer vues “avant/après” convictions et “cohérence des valeurs”.
+- [ ] Construire formulaire guidé “erreur → leçon”.
+
+### Epic 4 — Graphe narratif
+- [ ] Définir taxonomie des nœuds/liens.
+- [ ] Implémenter visualisation interactive et panneau de contexte.
+- [ ] Ajouter validation des liens causaux avec preuves.
+
+### Epic 5 — Transmission post-mortem
+- [ ] Concevoir moteur de déclencheurs et états de workflow.
+- [ ] Sécuriser le processus de validation de déclenchement.
+- [ ] Implémenter notifications et journal des remises.
+
+### Epic 6 — Conformité, confiance et industrialisation
+- [ ] Préparer flux RGPD (export, suppression, accès).
+- [ ] Définir stratégie de chiffrement et rotation des clés.
+- [ ] Mettre en place monitoring sécurité + plan de réponse incident.

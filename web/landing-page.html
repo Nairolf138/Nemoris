@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Nemoris — Identité cognitive augmentée</title>
+  <title>Nemoris — Infrastructure d'identité cognitive augmentée</title>
   <style>
     :root {
       --bg: #0b1020;
@@ -12,6 +12,7 @@
       --muted: #b8c0ff;
       --accent: #6ea8fe;
       --accent-2: #8ef6d1;
+      --line: #263468;
     }
     * { box-sizing: border-box; }
     body {
@@ -21,7 +22,7 @@
       background: radial-gradient(circle at 20% 0%, #1a285a 0%, var(--bg) 40%);
       line-height: 1.55;
     }
-    .container { max-width: 1060px; margin: 0 auto; padding: 28px 20px 80px; }
+    .container { max-width: 1080px; margin: 0 auto; padding: 28px 20px 80px; }
     .hero {
       border: 1px solid #2d3c78;
       background: linear-gradient(145deg, #131d3b, #0f1630);
@@ -30,7 +31,7 @@
       box-shadow: 0 20px 50px rgba(0, 0, 0, .35);
     }
     h1 { margin: 0 0 12px; font-size: clamp(2rem, 4vw, 3.2rem); }
-    .subtitle { color: var(--muted); font-size: 1.08rem; max-width: 780px; }
+    .subtitle { color: var(--muted); font-size: 1.08rem; max-width: 800px; }
     .cta {
       margin-top: 22px;
       display: inline-block;
@@ -42,20 +43,12 @@
       font-weight: 700;
     }
     section { margin-top: 28px; }
-    .grid {
-      display: grid;
-      gap: 16px;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    }
-    .card {
-      background: var(--card);
-      border: 1px solid #263468;
-      border-radius: 14px;
-      padding: 16px;
-    }
+    .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
     h2 { margin: 0 0 10px; font-size: 1.3rem; }
     h3 { margin: 0 0 8px; font-size: 1.05rem; }
     ul { margin: 0; padding-left: 18px; color: #d8defe; }
+    .pill { display:inline-block; border:1px solid #4c5f9f; color:#d5ddff; padding:4px 10px; border-radius:999px; margin:3px 6px 3px 0; font-size:.86rem; }
     footer { margin-top: 36px; color: var(--muted); font-size: .95rem; }
   </style>
 </head>
@@ -63,38 +56,50 @@
   <main class="container">
     <header class="hero">
       <h1>Nemoris</h1>
-      <p class="subtitle"><strong>Mémoire personnelle + identité cognitive augmentée.</strong> Nemoris réunit souvenirs, convictions, valeurs, erreurs et leçons dans une trajectoire transmissible aux générations suivantes.</p>
-      <a class="cta" href="#modules">Découvrir les modules MVP</a>
+      <p class="subtitle"><strong>De la capsule numérique à l'identité cognitive augmentée.</strong> Nemoris ne stocke pas seulement des souvenirs : il structure une trajectoire humaine (convictions, erreurs, valeurs, narration de vie) pour une transmission volontaire et responsable.</p>
+      <a class="cta" href="#modules">Voir les modules MVP</a>
     </header>
 
     <section>
-      <h2>Pourquoi maintenant ?</h2>
+      <h2>Pourquoi c’est différent</h2>
       <div class="card">
-        <p>Nous stockons beaucoup de données, mais nous transmettons rarement une intelligence de vie structurée. Nemoris transforme des traces dispersées en héritage compréhensible : émotionnel, intellectuel et éthique.</p>
+        <p>Les systèmes classiques conservent des traces. Nemoris conserve aussi le sens : pourquoi une décision a été prise, ce qui a changé une conviction, quelles leçons peuvent éviter la répétition d’erreurs générationnelles.</p>
       </div>
     </section>
 
     <section id="modules">
-      <h2>Les 6 modules du MVP</h2>
+      <h2>Les 6 modules fondateurs</h2>
       <div class="grid">
-        <article class="card"><h3>1. Mémoire de vie</h3><ul><li>Timeline personnelle</li><li>Médias et documents</li><li>Classement par périodes</li></ul></article>
-        <article class="card"><h3>2. Convictions</h3><ul><li>Évolution dans le temps</li><li>Déclencheurs de changement</li><li>Vue avant / après</li></ul></article>
-        <article class="card"><h3>3. Erreurs & leçons</h3><ul><li>Contexte et décisions</li><li>Conséquences réelles</li><li>Leçons transmissibles</li></ul></article>
-        <article class="card"><h3>4. Valeurs</h3><ul><li>Valeurs par âge</li><li>Cohérence vécue</li><li>Comparaisons de périodes</li></ul></article>
+        <article class="card"><h3>1. Mémoire de vie</h3><ul><li>Timeline personnelle</li><li>Médias et documents</li><li>Périodes de vie</li></ul></article>
+        <article class="card"><h3>2. Évolution des convictions</h3><ul><li>Versions dans le temps</li><li>Déclencheurs de bascule</li><li>Vue avant / après</li></ul></article>
+        <article class="card"><h3>3. Erreurs & leçons</h3><ul><li>Contexte et décision</li><li>Conséquences réelles</li><li>Leçons transmissibles</li></ul></article>
+        <article class="card"><h3>4. Valeurs par âge</h3><ul><li>Top valeurs par période</li><li>Cohérence perçue</li><li>Comparaison chronologique</li></ul></article>
         <article class="card"><h3>5. Graphe narratif</h3><ul><li>Nœuds de vie clés</li><li>Liens causaux</li><li>Visualisation interactive</li></ul></article>
-        <article class="card"><h3>6. Transmission</h3><ul><li>Messages post-mortem</li><li>Déclencheurs paramétrés</li><li>Accès par niveaux</li></ul></article>
+        <article class="card"><h3>6. Transmission volontaire</h3><ul><li>Messages post-mortem</li><li>Déclencheurs paramétrés</li><li>Accès révisables</li></ul></article>
       </div>
     </section>
 
     <section>
-      <h2>Ambition</h2>
+      <h2>Principes de confiance</h2>
       <div class="card">
-        <p>Nemoris n’est pas seulement une application : c’est une infrastructure de continuité cognitive. À l’échelle individuelle, elle clarifie la trajectoire humaine. À l’échelle collective, elle réduit la répétition des erreurs générationnelles.</p>
+        <span class="pill">Consentement explicite</span>
+        <span class="pill">Révocabilité</span>
+        <span class="pill">Granularité des accès</span>
+        <span class="pill">Chiffrement & audit</span>
+        <span class="pill">Interopérabilité</span>
+        <p style="margin-top:12px;">Sans gouvernance solide, pas d’infrastructure légitime. Nemoris place la souveraineté utilisateur au centre du système.</p>
+      </div>
+    </section>
+
+    <section>
+      <h2>Ambition civilisationnelle</h2>
+      <div class="card">
+        <p>Nemoris vise une infrastructure de continuité cognitive : utile à la personne, à la famille et à la société (recherche anonymisée, apprentissage historique, responsabilité biographique).</p>
       </div>
     </section>
 
     <footer>
-      Nemoris — Infrastructure de mémoire active intergénérationnelle.
+      Nemoris — Infrastructure de mémoire active et de transmission intergénérationnelle.
     </footer>
   </main>
 </body>
