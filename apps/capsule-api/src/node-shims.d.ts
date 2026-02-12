@@ -50,3 +50,17 @@ declare namespace process {
 }
 
 declare function setTimeout(handler: () => void, timeout?: number): { unref(): void };
+
+declare module 'node:fs/promises' {
+  export function mkdir(path: string, options?: { recursive?: boolean }): Promise<void>;
+  export function writeFile(path: string, data: string, encoding: 'utf8'): Promise<void>;
+}
+
+declare module 'node:path' {
+  export function resolve(...paths: string[]): string;
+  export function dirname(path: string): string;
+}
+
+declare module 'node:url' {
+  export function fileURLToPath(url: string | URL): string;
+}
