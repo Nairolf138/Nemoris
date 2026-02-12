@@ -1,212 +1,124 @@
-# Architecture MVP — Nemoris (fonction par fonction)
+# Architecture MVP — Nemoris
+
+> Architecture strictement alignée sur le scope canonique : `docs/product-capsule/scope-fonctionnel.md`.
 
 ## Objectif MVP
-Lancer une première version exploitable qui unit :
-- mémoire personnelle/familiale,
-- structuration cognitive,
-- transmission volontaire,
-- gouvernance de confiance minimale (sécurité, consentement, audit).
 
----
+Livrer une première version exploitable permettant à un utilisateur de :
+- s’authentifier,
+- créer et structurer ses contenus (Mémoire, Convictions, Leçons, Valeurs),
+- relier ces contenus,
+- exporter en PDF et JSON.
 
-## 1) Module « Mémoire de vie »
+## Modules applicatifs in scope
 
-### Fonctionnalités MVP
-- Création d’entrées de mémoire (texte, image, document, audio, vidéo).
-- Classement par date, période de vie, et tags.
-- Timeline personnelle avec filtres.
+### 1) Authentification & session
 
-### Données clés
+**Fonctionnalités MVP**
+- Inscription, connexion, déconnexion.
+- Session utilisateur basique.
+
+**Données clés**
+- `user_id`
+- `email`
+- `password_hash`
+- `session_token`
+- `created_at`, `updated_at`
+
+### 2) Module Mémoire
+
+**Fonctionnalités MVP**
+- CRUD mémoire.
+- Consultation chronologique simple.
+
+**Données clés**
 - `memory_id`
 - `owner_id`
 - `title`, `description`
-- `media_type`, `media_url`
-- `event_date`, `created_at`
-- `tags[]`
-- `visibility_scope`
+- `event_date`, `created_at`, `updated_at`
 
-### Critères d’acceptation
-- Un utilisateur peut créer, modifier, archiver une entrée.
-- Les entrées s’affichent en timeline chronologique.
-- Une entrée peut être reliée à conviction/leçon/valeur/nœud narratif.
+### 3) Module Convictions
 
----
+**Fonctionnalités MVP**
+- Création et édition de convictions.
+- Liaison optionnelle à des mémoires.
 
-## 2) Module « Évolution des convictions »
-
-### Fonctionnalités MVP
-- Saisie de convictions par période (ex: 18-25 ans, 26-35 ans).
-- Description des déclencheurs de changement (événement, lecture, rencontre).
-- Visualisation simple « avant / après ».
-
-### Données clés
+**Données clés**
 - `belief_id`
 - `owner_id`
-- `period_label`
-- `belief_statement`
-- `change_trigger`
-- `confidence_level` (1-5)
+- `statement`
+- `linked_memory_ids[]`
 
-### Critères d’acceptation
-- Une conviction peut être versionnée dans le temps.
-- L’utilisateur peut lier un changement à une mémoire existante.
+### 4) Module Leçons
 
----
+**Fonctionnalités MVP**
+- Ajout, mise à jour, archivage simple.
 
-## 3) Module « Erreurs majeures & leçons »
-
-### Fonctionnalités MVP
-- Formulaire structuré : contexte → décision → conséquence → leçon.
-- Typologie d’erreur (jugement, émotion, éthique, relationnel).
-- Marquage « partageable » / « privé ».
-
-### Données clés
+**Données clés**
 - `lesson_id`
 - `owner_id`
-- `context`
-- `decision_taken`
-- `consequence`
-- `lesson_learned`
-- `error_type`
-- `share_permission`
+- `context`, `lesson_learned`
+- `is_archived`
 
-### Critères d’acceptation
-- Une leçon peut être exportée en format lisible (PDF/texte).
-- Les leçons apparaissent dans un espace dédié et filtrable.
+### 5) Module Valeurs
 
----
+**Fonctionnalités MVP**
+- Définition et priorisation des valeurs.
+- Liaison avec convictions/leçons.
 
-## 4) Module « Valeurs déclarées à différents âges »
-
-### Fonctionnalités MVP
-- Déclaration de top 5 valeurs par période de vie.
-- Évaluation de cohérence perçue (valeur proclamée vs vécue).
-- Comparaison entre deux périodes.
-
-### Données clés
-- `value_profile_id`
+**Données clés**
+- `value_id`
 - `owner_id`
-- `period_label`
-- `values_ranked[]`
-- `alignment_score` (0-100)
-- `reflection_note`
+- `label`
+- `priority`
+- `linked_belief_ids[]`, `linked_lesson_ids[]`
 
-### Critères d’acceptation
-- L’utilisateur peut visualiser l’évolution de ses valeurs.
-- Les périodes comparées s’affichent côte à côte.
+### 6) Liens inter-objets
 
----
+**Fonctionnalités MVP**
+- Création manuelle de liens entre objets de domaine.
+- Navigation basique entre éléments liés.
 
-## 5) Module « Graphe narratif de vie »
-
-### Fonctionnalités MVP
-- Création de nœuds : événement, personne, décision, rupture, réussite.
-- Création de liens causaux (« a influencé », « a provoqué », « a transformé »).
-- Vue graphe interactive simple (zoom + sélection nœud).
-
-### Données clés
-- `node_id`, `edge_id`
+**Données clés**
+- `link_id`
 - `owner_id`
-- `node_type`, `node_label`
-- `edge_type`, `source_node`, `target_node`
-- `evidence_memory_ids[]`
+- `source_type`, `source_id`
+- `target_type`, `target_id`
+- `created_at`
 
-### Critères d’acceptation
-- Un utilisateur peut créer au moins 20 nœuds sans perte de performance notable.
-- Cliquer un nœud affiche les mémoires/preuves associées.
+### 7) Export
 
----
+**Fonctionnalités MVP**
+- Export PDF lisible.
+- Export JSON structuré.
 
-## 6) Module « Transmission post-mortem volontaire »
+**Données clés**
+- `export_id`
+- `owner_id`
+- `format` (`pdf`/`json`)
+- `status`
+- `created_at`
 
-### Fonctionnalités MVP
-- Création de messages de transmission.
-- Déclencheurs simples : date, âge du destinataire, événement manuel validé.
-- Niveaux d’accès : privé, famille, contact nommé.
+## Capacités transverses minimales
 
-### Données clés
-- `legacy_message_id`
-- `owner_id`, `recipient_id`
-- `trigger_type`, `trigger_value`
-- `message_content`
-- `access_level`
-- `revocable` (bool)
+- Autorisations minimales par utilisateur.
+- Journalisation d’erreurs applicatives.
+- Instrumentation des KPI MVP (onboarding, activité, liens, exports, rétention).
 
-### Critères d’acceptation
-- L’auteur peut activer/désactiver une transmission.
-- Un journal d’audit trace les changements de règles.
+## Out of scope (architecture MVP)
 
----
+- Recherche avancée sémantique / filtres complexes.
+- IA conversationnelle/générative avancée.
+- Graphe narratif interactif avancé.
+- Transmission post-mortem automatisée.
+- Workflows juridiques post-mortem complets.
 
-## Capacités transverses indispensables (MVP)
+## Definition of Done (rappel)
 
-- Authentification + gestion des rôles.
-- Chiffrement des données sensibles au repos et en transit.
-- Journal d’audit (actions sensibles).
-- Export des données personnelles (portabilité).
-- Consentement et paramètres de confidentialité explicites.
-- Traces d’intégrité sur les opérations critiques de transmission.
+Le MVP est livré quand un utilisateur peut s’authentifier, créer/modifier les quatre types de contenus, les relier et exporter en PDF/JSON sans blocage.
 
----
+## Decision log
 
-## Parcours utilisateur MVP (de l’idée à l’usage)
-
-1. L’utilisateur crée son profil et configure sa confidentialité.
-2. Il ajoute ses premières mémoires de vie.
-3. Il renseigne une conviction, une erreur majeure, et un profil de valeurs.
-4. Il relie ces éléments dans son graphe narratif.
-5. Il configure une première transmission volontaire.
-6. Il exporte un récapitulatif « héritage cognitif » partageable.
-
----
-
-## Roadmap d’exécution en 3 phases
-
-### Phase 1 — Fondations (4-6 semaines)
-- Authentification, modèle de données, module Mémoire.
-- Interface timeline + CRUD de base.
-- Paramètres de confidentialité initiaux.
-
-### Phase 2 — Cœur cognitif (4-6 semaines)
-- Convictions, Erreurs/Leçons, Valeurs.
-- Liaisons entre modules.
-- Premiers exports lisibles.
-
-### Phase 3 — Transmission et visualisation (4-6 semaines)
-- Graphe narratif.
-- Transmission post-mortem MVP.
-- Audit, durcissement sécurité, stabilisation.
-
----
-
-## Tâches nécessaires (backlog exécutable)
-
-### Epic 1 — Modèle de données unifié
-- [ ] Créer les entités `Memory`, `Belief`, `Lesson`, `ValueProfile`, `NarrativeNode`, `NarrativeEdge`, `LegacyMessage`.
-- [ ] Implémenter les relations croisées (`evidence_memory_ids`, références inter-modules).
-- [ ] Ajouter versionning sur convictions et valeurs.
-
-### Epic 2 — Gouvernance et contrôle utilisateur
-- [ ] Implémenter règles de visibilité granulaires par ressource.
-- [ ] Ajouter gestion des consentements et révocations horodatées.
-- [ ] Déployer journal d’audit pour actions sensibles.
-
-### Epic 3 — Expérience cognitive
-- [ ] Concevoir composants UI communs (timeline, cartes de réflexion, comparateurs de périodes).
-- [ ] Déployer vues “avant/après” convictions et “cohérence des valeurs”.
-- [ ] Construire formulaire guidé “erreur → leçon”.
-
-### Epic 4 — Graphe narratif
-- [ ] Définir taxonomie des nœuds/liens.
-- [ ] Implémenter visualisation interactive et panneau de contexte.
-- [ ] Ajouter validation des liens causaux avec preuves.
-
-### Epic 5 — Transmission post-mortem
-- [ ] Concevoir moteur de déclencheurs et états de workflow.
-- [ ] Sécuriser le processus de validation de déclenchement.
-- [ ] Implémenter notifications et journal des remises.
-
-### Epic 6 — Conformité, confiance et industrialisation
-- [ ] Préparer flux RGPD (export, suppression, accès).
-- [ ] Définir stratégie de chiffrement et rotation des clés.
-- [ ] Mettre en place monitoring sécurité + plan de réponse incident.
+| Date | Owner | Décision |
+| --- | --- | --- |
+| 2026-02-12 | Product + Tech | Simplification de l’architecture MVP aux seuls modules in scope du document canonique. |

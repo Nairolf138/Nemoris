@@ -1,8 +1,8 @@
 # Périmètre MVP (v1)
 
-## 1) Fonctionnalités incluses en v1
+> Document aligné sur la source canonique : `docs/product-capsule/scope-fonctionnel.md`.
 
-Le MVP v1 inclut les briques essentielles suivantes :
+## 1) In scope (v1)
 
 - **Authentification (Auth)**
   - Inscription, connexion, déconnexion.
@@ -11,64 +11,43 @@ Le MVP v1 inclut les briques essentielles suivantes :
   - Création, édition, suppression d’entrées mémoire.
   - Consultation chronologique simple.
 - **Convictions**
-  - Création et édition de convictions personnelles.
-  - Association optionnelle à des entrées du module Mémoire.
+  - Création et édition.
+  - Association optionnelle à des entrées mémoire.
 - **Leçons**
-  - Ajout de leçons apprises.
-  - Mise à jour et archivage simple.
+  - Ajout, mise à jour, archivage simple.
 - **Valeurs**
-  - Définition et priorisation des valeurs clés.
-  - Liaison avec convictions/leçons si pertinent.
+  - Définition, priorisation et liaison avec convictions/leçons.
 - **Liens simples**
-  - Capacité à relier manuellement des éléments entre eux (Mémoire, Convictions, Leçons, Valeurs).
+  - Liens manuels entre Mémoire, Convictions, Leçons, Valeurs.
   - Navigation basique entre éléments liés.
 - **Export basique**
-  - **Export PDF** : vue lisible, structurée, non personnalisable avancée.
-  - **Export JSON** : format brut structuré pour réutilisation.
+  - Export PDF lisible.
+  - Export JSON structuré.
 
----
+## 2) Out of scope (MVP)
 
-## 2) Fonctionnalités explicitement exclues du MVP
+- Recherche avancée (sémantique, indexation poussée, filtres complexes).
+- IA complexe (assistant conversationnel contextuel riche, génération avancée).
+- Workflows juridiques post-mortem complets.
+- Transmission post-mortem automatisée.
+- Graphe narratif interactif avancé.
 
-Les éléments suivants sont hors périmètre v1 :
+## 3) KPI de succès MVP
 
-- **Recherche avancée**
-  - Pas de recherche sémantique, filtres complexes, ni indexation poussée.
-- **IA complexe**
-  - Pas de génération automatique avancée, pas d’assistant conversationnel contextuel riche.
-- **Workflows juridiques post-mortem complets**
-  - Pas de parcours notarial intégré, ni d’automatisation de conformité juridique complète.
+1. Taux d’onboarding terminé.
+2. Nombre moyen d’entrées créées par utilisateur actif (30 jours).
+3. Taux de création de liens entre éléments.
+4. Taux d’export réussi (PDF/JSON).
+5. Rétention à J+7.
 
----
-
-## 3) KPI de succès (5)
-
-1. **Taux d’onboarding terminé**
-   - % d’utilisateurs ayant complété le parcours initial.
-2. **Nombre moyen d’entrées créées par utilisateur actif (30 jours)**
-   - Mesure de l’adoption du cœur produit.
-3. **Taux de création de liens entre éléments**
-   - % d’utilisateurs ayant relié au moins 2 types d’objets (ex: Mémoire ↔ Valeurs).
-4. **Taux d’export réussi (PDF/JSON)**
-   - % d’exports terminés sans erreur.
-5. **Rétention à J+7**
-   - % d’utilisateurs revenant au moins une fois dans les 7 jours après onboarding.
-
----
-
-## 4) Définition claire de “Done MVP”
+## 4) Definition of Done (DoD)
 
 Le MVP est considéré comme **Done** quand un utilisateur peut, de bout en bout :
 
 1. S’authentifier de manière fiable.
-2. Créer et modifier des contenus dans les modules **Mémoire, Convictions, Leçons et Valeurs**.
+2. Créer et modifier des contenus dans les modules Mémoire, Convictions, Leçons et Valeurs.
 3. Relier simplement ces contenus entre eux.
-4. Exporter son corpus en **PDF** et en **JSON** sans blocage.
-
-**Formulation synthétique :**
-> Un utilisateur peut créer, relier et exporter son héritage cognitif de manière autonome.
-
----
+4. Exporter son corpus en PDF et en JSON sans blocage.
 
 ## 5) Validation finale — Checklist signée Produit + Tech
 
@@ -79,8 +58,8 @@ Le MVP est considéré comme **Done** quand un utilisateur peut, de bout en bout
 - [ ] Les KPI sont instrumentés et mesurables.
 - [ ] Les critères d’acceptation UX minimum sont atteints.
 
-**Signature Produit** : ____________________  
-**Nom** : ____________________  
+**Signature Produit** : ____________________
+**Nom** : ____________________
 **Date** : ____ / ____ / ______
 
 ### Checklist Tech
@@ -90,6 +69,12 @@ Le MVP est considéré comme **Done** quand un utilisateur peut, de bout en bout
 - [ ] La sécurité de base (auth, gestion de session, autorisations minimales) est validée.
 - [ ] La supervision minimale (logs d’erreur + métriques KPI) est en place.
 
-**Signature Tech** : ____________________  
-**Nom** : ____________________  
+**Signature Tech** : ____________________
+**Nom** : ____________________
 **Date** : ____ / ____ / ______
+
+## Decision log
+
+| Date | Owner | Décision |
+| --- | --- | --- |
+| 2026-02-12 | Product + Tech | Harmonisation du périmètre de ce document avec la source canonique MVP. |

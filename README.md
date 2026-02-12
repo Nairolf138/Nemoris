@@ -1,83 +1,44 @@
 # Nemoris
 
-**Nemoris** est un produit de **capsule numérique post-mortem**.
-Il permet à une personne d’organiser ses contenus importants (messages, documents, photos, vidéos, enregistrements audio, instructions, souhaits post-mortem, heritage, comptes de reseaux sociaux) et d’en planifier la transmission à ses proches selon des règles explicites et vérifiables.
+**Nemoris** est un produit de capsule numérique centré sur la structuration d’un héritage cognitif personnel.
+Le périmètre MVP est défini de manière canonique dans `docs/product-capsule/scope-fonctionnel.md`.
 
 ## Proposition de valeur
 
-Nemoris apporte une solution claire pour préparer une transmission numérique de confiance :
-- centraliser les éléments à transmettre,
-- définir précisément qui reçoit quoi,
-- garantir confidentialité, traçabilité et contrôle jusqu’au déclenchement.
+Nemoris aide un utilisateur à structurer ses contenus clés pour les rendre clairs, reliés et exportables :
+- centraliser des éléments de mémoire et de réflexion,
+- relier convictions, leçons et valeurs,
+- exporter un corpus lisible et portable.
 
-## Bénéfices
+## Périmètre MVP (shipping)
 
-- **Clarté pour les proches** : contenus structurés et accessibles au bon moment.
-- **Sérénité pour l’utilisateur** : règles de transmission définies à l’avance et révisables.
-- **Confiance opérationnelle** : sécurité, journalisation et preuves d’exécution.
-- **Pérennité des données** : export simple et portabilité.
+Référence canonique : `docs/product-capsule/scope-fonctionnel.md`.
 
----
+- Authentification : inscription, connexion, déconnexion, session basique.
+- Modules de contenu : mémoire, convictions, leçons, valeurs.
+- Liens manuels inter-objets.
+- Exports PDF et JSON.
 
-## Périmètre actuel (shipping)
+## Hors périmètre MVP
 
-- **Stockage et transmission post-mortem**
-  - création et organisation de contenus (messages, documents, consignes),
-  - configuration des bénéficiaires et des conditions de transmission,
-  - exécution post-mortem avec traçabilité.
-- **Sécurité / confidentialité**
-  - contrôle d’accès granulaire,
-  - chiffrement des données,
-  - journal d’audit des actions sensibles.
-- **Export et portabilité**
-  - export des données utilisateur,
-  - formats de sortie lisibles et réutilisables,
-  - préparation à l’interopérabilité.
-
-## Hors périmètre actuel
+- Recherche avancée (sémantique/filtres complexes).
+- IA complexe conversationnelle/générative.
+- Workflows juridiques post-mortem complets.
+- Transmission post-mortem automatisée.
+- Graphe narratif interactif avancé.
 
 Vision long terme (séparée) : `docs/vision-cognitive/VISION.md`.
 
----
+## Documents de référence
 
-## Roadmaps prioritaires
+- `docs/product-capsule/scope-fonctionnel.md` — **source canonique du scope MVP**.
+- `docs/mvp-scope.md` — synthèse de périmètre alignée.
+- `docs/architecture-mvp.md` — architecture cible strictement dans le scope MVP.
+- `docs/product-capsule/ROADMAP.md` — roadmap produit alignée sur le scope canonique.
+- `docs/product-capsule/roadmap-shipping.md` — lots de delivery et gate de scope.
 
-1. **Piste Capsule Produit (prioritaire)** : `docs/product-capsule/ROADMAP.md`
-2. **Piste Vision Cognitive (R&D)** : `docs/vision-cognitive/ROADMAP-RD.md`
+## Decision log
 
-## Reclassification des tâches existantes (README + mvp-scope)
-
-### Piste Capsule Produit
-
-- Authentification (inscription, connexion, déconnexion, session).
-- Export basique PDF/JSON et portabilité des données.
-- Traçabilité opérationnelle (logs d’erreur, métriques KPI, journal d’audit).
-- Sécurité de base (auth, session, autorisations minimales).
-- Workflows juridiques post-mortem complets : **Not in scope MVP**, traité en phase conformité élargie.
-
-### Piste Vision Cognitive (R&D)
-
-- Module Mémoire (création/édition/suppression + consultation chronologique).
-- Convictions, Leçons, Valeurs (création, édition, priorisation, archivage).
-- Liens simples entre éléments de connaissance.
-- Recherche avancée sémantique et filtres complexes : **Research / Later**.
-- IA complexe conversationnelle/contextuelle : **Research**.
-- Héritage cognitif autonome (formulation "Done MVP") comme cible de protocole d’évaluation et d’impact.
-
----
-
-## Documents du projet
-
-### Documentation produit capsule (périmètre actuel)
-
-- `docs/architecture-mvp.md` — architecture et cadrage MVP.
-- `docs/mvp-scope.md` — périmètre fonctionnel MVP.
-- `docs/data-model-mvp.md` — modèle de données MVP.
-- `docs/Capsule_Numerique_*.pdf` — dossiers produit (marché, architecture, UX/UI, sécurité, éthique, business).
-- `docs/Capsule_Numerique_Financier_36mois.xlsx` — hypothèses financières.
-
----
-
-## État du dépôt
-
-Ce dépôt contient le cadrage produit de la capsule numérique post-mortem et les documents de référence associés.
+| Date | Owner | Décision |
+| --- | --- | --- |
+| 2026-02-12 | Product + Tech | Réalignement de la documentation sur `docs/product-capsule/scope-fonctionnel.md` comme source unique. |

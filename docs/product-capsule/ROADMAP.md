@@ -1,96 +1,64 @@
 # ROADMAP — Product Capsule
 
-## Légende de statut (commune)
+> Cette roadmap est alignée sur le scope canonique : `docs/product-capsule/scope-fonctionnel.md`.
+
+## Légende de statut
 
 - **Now** : en cours d’exécution sur le cycle actuel.
-- **Next** : prêt à démarrer dès validation des prérequis immédiats.
+- **Next** : prêt à démarrer après validation des prérequis.
 - **Later** : planifié, sans engagement de cycle court.
-- **Research** : nécessite exploration / preuve avant engagement delivery.
-- **Not in scope** : explicitement hors périmètre de la phase en cours.
+- **Research** : nécessite exploration avant engagement delivery.
+- **Not in scope** : explicitement hors périmètre MVP.
 
 ## Milestones livrables
 
-### M1 — MVP Capsule (Now)
+### M1 — MVP Scope Canonique (Now)
 
 **Objectif**
-Livrer un parcours utilisateur complet pour préparer et transmettre une capsule numérique de manière autonome.
+Livrer le parcours complet : authentification → création/édition contenus → liens inter-objets → export PDF/JSON.
 
 **Livrables clés**
-- Authentification (inscription, connexion, déconnexion) et session fiable.
-- Création/édition/suppression des contenus capsule (messages, documents, consignes).
-- Paramétrage des bénéficiaires et règles de transmission.
-- Exécution post-mortem traçable.
-- Exports PDF / JSON.
-
-**Entrée de phase**
-- Périmètre MVP validé Produit + Tech.
-- Modèle de données cœur figé pour v1.
+- Authentification (inscription, connexion, déconnexion) + session basique.
+- CRUD Mémoire, Convictions, Leçons, Valeurs.
+- Liens manuels inter-objets.
+- Export PDF/JSON.
+- KPI MVP instrumentés.
 
 **Sortie de phase**
-- Parcours critique onboarding → création → transmission → export validé.
-- KPI MVP instrumentés (onboarding, activité, export, rétention).
+- DoD MVP validée (Produit + Tech).
+- Aucun item out-of-scope intégré au lot.
 
-### M2 — Sécurité (Next)
+### M2 — Fiabilisation MVP (Next)
 
 **Objectif**
-Renforcer la confiance opérationnelle et la résistance aux abus.
+Stabiliser le MVP sans élargir le périmètre fonctionnel.
 
 **Livrables clés**
-- Contrôle d’accès granulaire renforcé.
-- Chiffrement au repos et en transit revu et documenté.
-- Journal d’audit sur actions sensibles.
-- Revue de menaces MVP et plan de remédiation priorisé.
+- Durcissement qualité et performance sur fonctionnalités in scope.
+- Journalisation d’erreurs et observabilité opérationnelle.
+- Renforcement des autorisations minimales.
 
-**Entrée de phase**
-- MVP fonctionnel en environnement cible.
-- Liste des scénarios d’abus priorisée.
-
-**Sortie de phase**
-- Correctifs critiques sécurité fermés.
-- Preuves d’auditabilité disponibles.
-
-### M3 — Conformité (Next)
+### M3 — Sécurité & Conformité socle (Next)
 
 **Objectif**
-Opérationnaliser les obligations réglementaires et la gouvernance de données.
+Préparer l’industrialisation en renforçant la confiance, toujours sans étendre le scope métier MVP.
 
 **Livrables clés**
-- Registre des traitements et base légale documentés.
-- Processus d’export/suppression/révocation testés.
-- Politique de conservation et minimisation explicite.
-- Dossier de conformité prêt pour revue externe.
+- Revue de menaces ciblée MVP.
+- Processus export/suppression de données validés.
+- Checklist conformité de base validée.
 
-**Entrée de phase**
-- Fondations sécurité stables.
-- Cartographie des données personnelles finalisée.
+### M4 — Extensions (Later/Research)
 
-**Sortie de phase**
-- Checklist conformité validée (Produit + Tech + Legal).
-- Non-conformités bloquantes à zéro.
+**Candidats hors scope MVP**
+- Recherche avancée.
+- IA complexe.
+- Transmission post-mortem automatisée.
+- Workflows juridiques complets.
+- Graphe narratif avancé.
 
-### M4 — Go-to-market (Later)
+## Decision log
 
-**Objectif**
-Industrialiser la mise sur le marché, l’onboarding et la montée en confiance.
-
-**Livrables clés**
-- Positionnement, messages de valeur et preuves de confiance.
-- Parcours d’onboarding production + support opérationnel.
-- Playbook de lancement (canaux, KPIs acquisition/activation).
-- Cadre de Go/No-Go final.
-
-**Entrée de phase**
-- MVP sécurisé et conforme.
-- Hypothèses marché priorisées et mesurables.
-
-**Sortie de phase**
-- Lancement contrôlé effectué.
-- Tableau de bord GTM actif avec seuils d’alerte.
-
-## Reclassification des tâches existantes (README + mvp-scope)
-
-- Authentification + gestion de session → **M1 (Now)**.
-- Export PDF/JSON, portabilité → **M1 (Now)**.
-- Sécurité de base (auth/session/autorisations minimales) → **M1 (Now)** puis **M2 (Next)**.
-- Journalisation / traçabilité / supervision KPI → **M1 (Now)** puis durcissement **M2 (Next)**.
-- Workflows juridiques post-mortem complets → **M3 (Next)** (et **Not in scope** pour MVP strict).
+| Date | Owner | Décision |
+| --- | --- | --- |
+| 2026-02-12 | Product + Tech | Recentrage de la roadmap M1 sur le scope canonique et séparation explicite des extensions en Later/Research. |
