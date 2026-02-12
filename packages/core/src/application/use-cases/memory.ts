@@ -8,6 +8,7 @@ import {
   ensureRelatedIds,
   ensureRequiredString,
 } from '../validation.js';
+import type { UseCaseObserver } from './observability.js';
 
 const MEMORY_TYPES = ['event', 'document', 'media', 'note'] as const;
 
@@ -37,6 +38,7 @@ export interface MemoryUseCaseDeps {
   lessonRepository: LessonRepository;
   valueProfileRepository: ValueProfileRepository;
   narrativeNodeRepository: NarrativeNodeRepository;
+  observer?: UseCaseObserver;
 }
 
 const validateCreateMemory = async (deps: MemoryUseCaseDeps, input: CreateMemoryInput): Promise<Memory> => {
@@ -111,16 +113,45 @@ const validateUpdateMemory = async (deps: MemoryUseCaseDeps, input: UpdateMemory
 
 export const createMemory = async (deps: MemoryUseCaseDeps, input: CreateMemoryInput): Promise<Memory> => {
   const memory = await validateCreateMemory(deps, input);
-  return deps.memoryRepository.create(memory);
+  const created = await deps.memoryRepository.create(memory);
+  deps.observer?.emitEvent({
+    event_name: 'capsule.created',
+    user_id: created.owner_id,
+    entity_id: created.id,
+    metadata: { source: 'memory.create' },
+  });
+  return created;
 };
 
 export const updateMemory = async (
   deps: MemoryUseCaseDeps,
   id: string,
   input: UpdateMemoryInput,
-): Promise<Memory | null> => deps.memoryRepository.update(id, await validateUpdateMemory(deps, input));
+): Promise<Memory | null> => {
+  const updated = await deps.memoryRepository.update(id, await validateUpdateMemory(deps, input));
+  if (updated) {
+    deps.observer?.emitEvent({
+      event_name: 'memory.updated',
+      user_id: updated.owner_id,
+      entity_id: updated.id,
+      metadata: { source: 'memory.update' },
+    });
+  }
+  return updated;
+};
 
-export const deleteMemory = async (deps: MemoryUseCaseDeps, id: string): Promise<boolean> => deps.memoryRepository.delete(id);
+export const deleteMemory = async (deps: MemoryUseCaseDeps, id: string): Promise<boolean> => {
+  const deleted = await deps.memoryRepository.delete(id);
+  if (deleted) {
+    deps.observer?.emitEvent({
+      event_name: 'memory.deleted',
+      user_id: 'system',
+      entity_id: id,
+      metadata: { source: 'memory.delete' },
+    });
+  }
+  return deleted;
+};
 
 export const listMemories = async (deps: Pick<MemoryUseCaseDeps, 'memoryRepository'>, ownerId: string): Promise<Memory[]> => {
   ensureRequiredString(ownerId, 'ownerId');

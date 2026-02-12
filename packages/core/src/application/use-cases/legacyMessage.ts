@@ -8,6 +8,7 @@ import type {
   ValueProfileRepository,
 } from '../../repositories/contracts.js';
 import { VISIBILITIES, defaultedMetadata, ensureEnum, ensureRelatedIds, ensureRequiredString } from '../validation.js';
+import type { UseCaseObserver } from './observability.js';
 
 const TRIGGER_TYPES = ['manual', 'date', 'inactivity', 'verified_death'] as const;
 const DELIVERY_STATUS = ['draft', 'armed', 'sent', 'revoked'] as const;
@@ -40,6 +41,7 @@ export interface LegacyMessageUseCaseDeps {
   lessonRepository: LessonRepository;
   valueProfileRepository: ValueProfileRepository;
   narrativeNodeRepository: NarrativeNodeRepository;
+  observer?: UseCaseObserver;
 }
 
 const validateCreateLegacyMessage = async (
@@ -129,16 +131,67 @@ const validateUpdateLegacyMessage = async (
 export const createLegacyMessage = async (
   deps: LegacyMessageUseCaseDeps,
   input: CreateLegacyMessageInput,
-): Promise<LegacyMessage> => deps.legacyMessageRepository.create(await validateCreateLegacyMessage(deps, input));
+): Promise<LegacyMessage> => {
+  const created = await deps.legacyMessageRepository.create(await validateCreateLegacyMessage(deps, input));
+  deps.observer?.emitEvent({
+    event_name: 'legacy_message.created',
+    user_id: created.owner_id,
+    entity_id: created.id,
+    metadata: { delivery_status: created.delivery_status },
+  });
+  return created;
+};
 
 export const updateLegacyMessage = async (
   deps: LegacyMessageUseCaseDeps,
   id: string,
   input: UpdateLegacyMessageInput,
-): Promise<LegacyMessage | null> => deps.legacyMessageRepository.update(id, await validateUpdateLegacyMessage(deps, input));
+): Promise<LegacyMessage | null> => {
+  const updated = await deps.legacyMessageRepository.update(id, await validateUpdateLegacyMessage(deps, input));
+  if (!updated) {
+    return null;
+  }
 
-export const deleteLegacyMessage = async (deps: LegacyMessageUseCaseDeps, id: string): Promise<boolean> =>
-  deps.legacyMessageRepository.delete(id);
+  deps.observer?.emitEvent({
+    event_name: 'legacy_message.updated',
+    user_id: updated.owner_id,
+    entity_id: updated.id,
+    metadata: { delivery_status: updated.delivery_status },
+  });
+
+  if (input.delivery_status === 'armed') {
+    deps.observer?.emitEvent({
+      event_name: 'legacy_message.armed',
+      user_id: updated.owner_id,
+      entity_id: updated.id,
+      metadata: { trigger_type: updated.trigger_type },
+    });
+  }
+
+  if (input.delivery_status === 'revoked') {
+    deps.observer?.emitEvent({
+      event_name: 'legacy_message.revoked',
+      user_id: updated.owner_id,
+      entity_id: updated.id,
+      metadata: { trigger_type: updated.trigger_type },
+    });
+  }
+
+  return updated;
+};
+
+export const deleteLegacyMessage = async (deps: LegacyMessageUseCaseDeps, id: string): Promise<boolean> => {
+  const deleted = await deps.legacyMessageRepository.delete(id);
+  if (deleted) {
+    deps.observer?.emitEvent({
+      event_name: 'legacy_message.deleted',
+      user_id: 'system',
+      entity_id: id,
+      metadata: {},
+    });
+  }
+  return deleted;
+};
 
 export const listLegacyMessages = async (
   deps: Pick<LegacyMessageUseCaseDeps, 'legacyMessageRepository'>,

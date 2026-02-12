@@ -51,4 +51,26 @@ export const runExportIntegrationTests = async (): Promise<void> => {
   const entries = (audit.body as { entries: Array<{ format: string }> }).entries;
   assert(entries.length === 1, 'audit should contain one entry');
   assert(entries[0]?.format === 'pdf', 'audit should keep the format');
+
+  const observabilityAudit = await app.handle({
+    method: 'GET',
+    path: '/observability/audit',
+    headers: { authorization: `Bearer ${token}` },
+  });
+  assert(observabilityAudit.status === 200, 'observability audit endpoint should return 200');
+
+  const obsEntries = (observabilityAudit.body as { entries: Array<{ event_name: string }> }).entries;
+  assert(obsEntries.some((entry) => entry.event_name === 'export.created'), 'export created event should be emitted');
+  assert(obsEntries.some((entry) => entry.event_name === 'export.downloaded'), 'export downloaded event should be emitted');
+
+  const dashboard = await app.handle({
+    method: 'GET',
+    path: '/observability/dashboard',
+    headers: { authorization: `Bearer ${token}` },
+  });
+
+  assert(dashboard.status === 200, 'dashboard endpoint should return 200');
+  const body = dashboard.body as { json: { metrics: { exports: number } }; csv: string };
+  assert(body.json.metrics.exports >= 1, 'dashboard should expose export metric');
+  assert(body.csv.includes('exports,'), 'dashboard csv should include exports metric');
 };

@@ -57,4 +57,16 @@ export const runAuthIntegrationTests = async (): Promise<void> => {
     body: { email: 'dana@example.com', password: 'secret123' },
   });
   assert(loginOk.status === 200, 'login with valid credentials should pass');
+  const token = (loginOk.body as { session: { token: string } }).session.token;
+
+  const observabilityAudit = await app.handle({
+    method: 'GET',
+    path: '/observability/audit',
+    headers: { authorization: `Bearer ${token}` },
+  });
+  const entries = (observabilityAudit.body as { entries: Array<{ event_name: string }> }).entries;
+
+  assert(entries.some((entry) => entry.event_name === 'onboarding.completed'), 'register should emit onboarding event');
+  assert(entries.some((entry) => entry.event_name === 'auth.login'), 'login should emit auth.login event');
+  assert(entries.some((entry) => entry.event_name === 'auth.logout'), 'logout should emit auth.logout event');
 };
