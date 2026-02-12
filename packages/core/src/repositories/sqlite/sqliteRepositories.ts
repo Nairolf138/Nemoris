@@ -2,6 +2,8 @@ import { execFileSync } from 'node:child_process';
 import type {
   Beneficiary,
   Belief,
+  ConsentRecord,
+  ConsentScope,
   LegacyMessage,
   LegacyMessageDeliveryAttempt,
   Lesson,
@@ -14,6 +16,7 @@ import type {
   BeneficiaryRepository,
   BeliefRepository,
   CapsulePersistence,
+  ConsentRepository,
   LegacyMessageDeliveryAttemptRepository,
   LegacyMessageRepository,
   LessonRepository,
@@ -153,6 +156,68 @@ export class SqliteLegacyMessageDeliveryAttemptRepository implements LegacyMessa
   };
 }
 
+
+export class SqliteConsentRepository implements ConsentRepository {
+  public constructor(private readonly dbPath: string) {}
+
+  public grant = async (input: { owner_id: string; scope: ConsentScope; granted_at: string; legal_basis: string }): Promise<ConsentRecord> => {
+    const record: ConsentRecord = {
+      id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      owner_id: input.owner_id,
+      scope: input.scope,
+      status: 'granted',
+      granted_at: input.granted_at,
+      legal_basis: input.legal_basis,
+    };
+    runSql(
+      this.dbPath,
+      `INSERT INTO consent_records (id, owner_id, scope, status, granted_at, revoked_at, legal_basis, payload) VALUES (${quote(record.id)}, ${quote(record.owner_id)}, ${quote(record.scope)}, ${quote(record.status)}, ${quote(record.granted_at)}, NULL, ${quote(record.legal_basis)}, ${quote(JSON.stringify(record))});`,
+    );
+    return record;
+  };
+
+  public revoke = async (input: { owner_id: string; scope: ConsentScope; revoked_at: string; legal_basis: string }): Promise<ConsentRecord> => {
+    const latest = await this.getLatestByScope(input.owner_id, input.scope);
+    const record: ConsentRecord = {
+      id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      owner_id: input.owner_id,
+      scope: input.scope,
+      status: 'revoked',
+      granted_at: latest?.granted_at ?? input.revoked_at,
+      revoked_at: input.revoked_at,
+      legal_basis: input.legal_basis,
+    };
+    runSql(
+      this.dbPath,
+      `INSERT INTO consent_records (id, owner_id, scope, status, granted_at, revoked_at, legal_basis, payload) VALUES (${quote(record.id)}, ${quote(record.owner_id)}, ${quote(record.scope)}, ${quote(record.status)}, ${quote(record.granted_at)}, ${quote(record.revoked_at ?? '')}, ${quote(record.legal_basis)}, ${quote(JSON.stringify(record))});`,
+    );
+    return record;
+  };
+
+  public listByOwner = async (ownerId: string): Promise<ConsentRecord[]> => {
+    const rows = runSql(
+      this.dbPath,
+      `SELECT payload FROM consent_records WHERE owner_id = ${quote(ownerId)} ORDER BY COALESCE(revoked_at, granted_at) ASC, id ASC;`,
+    )
+      .split('\n')
+      .filter(Boolean);
+    return rows.map((payload) => JSON.parse(payload) as ConsentRecord);
+  };
+
+  public getLatestByScope = async (ownerId: string, scope: ConsentScope): Promise<ConsentRecord | null> => {
+    const row = runSql(
+      this.dbPath,
+      `SELECT payload FROM consent_records WHERE owner_id = ${quote(ownerId)} AND scope = ${quote(scope)} ORDER BY COALESCE(revoked_at, granted_at) DESC, id DESC LIMIT 1;`,
+    ).trim();
+    return row ? (JSON.parse(row) as ConsentRecord) : null;
+  };
+
+  public isGranted = async (ownerId: string, scope: ConsentScope): Promise<boolean> => {
+    const latest = await this.getLatestByScope(ownerId, scope);
+    return latest?.status === 'granted';
+  };
+}
+
 export class SqliteNarrativeNodeRepository extends SqliteEntityStore<NarrativeNode> implements NarrativeNodeRepository {}
 export class SqliteNarrativeEdgeRepository extends SqliteEntityStore<NarrativeEdge> implements NarrativeEdgeRepository {}
 
@@ -169,6 +234,7 @@ const setupSchema = (dbPath: string): void => {
     CREATE TABLE IF NOT EXISTS legacy_message_delivery_attempts (id TEXT PRIMARY KEY, legacy_message_id TEXT NOT NULL, owner_id TEXT NOT NULL, attempted_at TEXT NOT NULL, payload TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS narrative_nodes (id TEXT PRIMARY KEY, owner_id TEXT NOT NULL, payload TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS narrative_edges (id TEXT PRIMARY KEY, owner_id TEXT NOT NULL, payload TEXT NOT NULL);
+    CREATE TABLE IF NOT EXISTS consent_records (id TEXT PRIMARY KEY, owner_id TEXT NOT NULL, scope TEXT NOT NULL, status TEXT NOT NULL, granted_at TEXT NOT NULL, revoked_at TEXT, legal_basis TEXT NOT NULL, payload TEXT NOT NULL);
 
     CREATE INDEX IF NOT EXISTS idx_memories_owner ON memories(owner_id);
     CREATE INDEX IF NOT EXISTS idx_beliefs_owner ON beliefs(owner_id);
@@ -179,6 +245,7 @@ const setupSchema = (dbPath: string): void => {
     CREATE INDEX IF NOT EXISTS idx_legacy_message_delivery_attempts_message ON legacy_message_delivery_attempts(legacy_message_id);
     CREATE INDEX IF NOT EXISTS idx_narrative_nodes_owner ON narrative_nodes(owner_id);
     CREATE INDEX IF NOT EXISTS idx_narrative_edges_owner ON narrative_edges(owner_id);
+    CREATE INDEX IF NOT EXISTS idx_consent_records_owner_scope ON consent_records(owner_id, scope);
   `,
   );
 };
@@ -195,5 +262,6 @@ export const createSqlitePersistence = (path: string): CapsulePersistence => {
     legacyMessageDeliveryAttempts: new SqliteLegacyMessageDeliveryAttemptRepository(path),
     narrativeNodes: new SqliteNarrativeNodeRepository(path, 'narrative_nodes'),
     narrativeEdges: new SqliteNarrativeEdgeRepository(path, 'narrative_edges'),
+    consents: new SqliteConsentRepository(path),
   };
 };

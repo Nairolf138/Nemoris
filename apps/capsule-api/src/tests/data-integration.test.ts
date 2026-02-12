@@ -229,6 +229,7 @@ const runPaginationAndSortingTests = async (app: CapsuleApiApp, owner: { userId:
 
 
 const runLegacyMessageOrchestrationScenarios = async (app: CapsuleApiApp, owner: { userId: string; token: string }): Promise<void> => {
+  await grantConsent(app, owner, 'post_mortem_transmission');
   const beneficiaryResponse = await app.handle({
     method: 'POST',
     path: '/data/beneficiaries',
@@ -491,3 +492,14 @@ export const runDataIntegrationTests = async (): Promise<void> => {
 
   await runPaginationAndSortingTests(app, owner);
 };
+const grantConsent = async (app: CapsuleApiApp, owner: { userId: string; token: string }, scope: 'data_export' | 'post_mortem_transmission' | 'posthumous_visibility'): Promise<void> => {
+  const response = await app.handle({
+    method: 'POST',
+    path: '/consent/grant',
+    headers: { authorization: `Bearer ${owner.token}`, 'x-owner-id': owner.userId },
+    body: { owner_id: owner.userId, scope, legal_basis: 'explicit_opt_in' },
+  });
+  assert(response.status === 201, `consent grant should return 201 for ${scope}`);
+};
+
+

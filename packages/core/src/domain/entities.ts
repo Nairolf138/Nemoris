@@ -123,3 +123,17 @@ export interface LegacyMessageDeliveryAttempt {
   status: 'success' | 'failed';
   error_message?: string;
 }
+
+export type ConsentScope = 'data_export' | 'post_mortem_transmission' | 'posthumous_visibility';
+
+export type ConsentStatus = 'granted' | 'revoked';
+
+export interface ConsentRecord {
+  id: string;
+  owner_id: string;
+  scope: ConsentScope;
+  status: ConsentStatus;
+  granted_at: string;
+  revoked_at?: string;
+  legal_basis: string;
+}

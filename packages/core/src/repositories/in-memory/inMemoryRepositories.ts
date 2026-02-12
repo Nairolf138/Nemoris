@@ -1,6 +1,8 @@
 import type {
   Beneficiary,
   Belief,
+  ConsentRecord,
+  ConsentScope,
   LegacyMessage,
   LegacyMessageDeliveryAttempt,
   Lesson,
@@ -12,6 +14,7 @@ import type {
 import type {
   BeneficiaryRepository,
   BeliefRepository,
+  ConsentRepository,
   ListByOwnerQuery,
   LegacyMessageDeliveryAttemptRepository,
   LegacyMessageRepository,
@@ -121,6 +124,61 @@ class InMemoryLegacyMessageDeliveryAttemptRepository implements LegacyMessageDel
   };
 }
 
+
+class InMemoryConsentRepository implements ConsentRepository {
+  private readonly records: ConsentRecord[] = [];
+
+  public grant = async (input: { owner_id: string; scope: ConsentScope; granted_at: string; legal_basis: string }): Promise<ConsentRecord> => {
+    const record: ConsentRecord = {
+      id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      owner_id: input.owner_id,
+      scope: input.scope,
+      status: 'granted',
+      granted_at: input.granted_at,
+      legal_basis: input.legal_basis,
+    };
+    this.records.push(record);
+    return record;
+  };
+
+  public revoke = async (input: { owner_id: string; scope: ConsentScope; revoked_at: string; legal_basis: string }): Promise<ConsentRecord> => {
+    const latest = await this.getLatestByScope(input.owner_id, input.scope);
+    const record: ConsentRecord = {
+      id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      owner_id: input.owner_id,
+      scope: input.scope,
+      status: 'revoked',
+      granted_at: latest?.granted_at ?? input.revoked_at,
+      revoked_at: input.revoked_at,
+      legal_basis: input.legal_basis,
+    };
+    this.records.push(record);
+    return record;
+  };
+
+  public listByOwner = async (ownerId: string): Promise<ConsentRecord[]> => {
+    return this.records
+      .filter((record) => record.owner_id === ownerId)
+      .sort((left, right) => left.granted_at.localeCompare(right.granted_at));
+  };
+
+  public getLatestByScope = async (ownerId: string, scope: ConsentScope): Promise<ConsentRecord | null> => {
+    const entries = this.records
+      .filter((record) => record.owner_id === ownerId && record.scope === scope)
+      .sort((left, right) => {
+        const leftTime = left.revoked_at ?? left.granted_at;
+        const rightTime = right.revoked_at ?? right.granted_at;
+        return leftTime.localeCompare(rightTime);
+      });
+    return entries.at(-1) ?? null;
+  };
+
+  public isGranted = async (ownerId: string, scope: ConsentScope): Promise<boolean> => {
+    const latest = await this.getLatestByScope(ownerId, scope);
+    return latest?.status === 'granted';
+  };
+}
+
 export class InMemoryNarrativeNodeRepository extends InMemoryEntityStore<NarrativeNode> implements NarrativeNodeRepository {}
 
 export class InMemoryNarrativeEdgeRepository extends InMemoryEntityStore<NarrativeEdge> implements NarrativeEdgeRepository {}
@@ -135,4 +193,5 @@ export const createInMemoryPersistence = (): CapsulePersistence => ({
   legacyMessageDeliveryAttempts: new InMemoryLegacyMessageDeliveryAttemptRepository(),
   narrativeNodes: new InMemoryNarrativeNodeRepository(),
   narrativeEdges: new InMemoryNarrativeEdgeRepository(),
+  consents: new InMemoryConsentRepository(),
 });
