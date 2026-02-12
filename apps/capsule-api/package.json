@@ -6,6 +6,8 @@
   "main": "src/index.ts",
   "types": "src/index.ts",
   "scripts": {
+    "start": "tsc -b && node dist/server.js",
+    "start:dev": "tsc -b && node --watch dist/server.js",
     "test": "tsc -b && node dist/tests/run-tests.js"
   },
   "dependencies": {
