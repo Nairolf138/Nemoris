@@ -56,8 +56,8 @@ export const runPersistenceIntegrationTests = async (): Promise<void> => {
   });
 
   assert(sessionStillValid.status === 200, 'session should survive app restart');
-  const memoryList = sessionStillValid.body as Array<{ id: string }>;
-  assert(memoryList.some((entry) => entry.id === memoryId), 'memory should survive app restart');
+  const memoryList = sessionStillValid.body as { items: Array<{ id: string }> };
+  assert(memoryList.items.some((entry) => entry.id === memoryId), 'memory should survive app restart');
 
   const loginAfterRestart = await secondInstance.handle({
     method: 'POST',

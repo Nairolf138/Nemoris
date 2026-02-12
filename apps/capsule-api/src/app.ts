@@ -10,11 +10,6 @@ import {
   deleteLesson,
   deleteMemory,
   deleteValueProfile,
-  listBeliefs,
-  listLegacyMessages,
-  listLessons,
-  listMemories,
-  listValueProfiles,
   updateBelief,
   updateLegacyMessage,
   updateLesson,
@@ -41,7 +36,14 @@ import type { ExportRepository } from './export-repository.js';
 import { ExportService } from './export-service.js';
 import { createPersistenceProviders, type PersistenceProviders } from './persistence-config.js';
 import { SlidingWindowRateLimiter } from './rate-limiter.js';
-import { parseCredentials, parseExportPayload, parseOwnerScope } from './request-validation.js';
+import {
+  getDefaultSortBy,
+  parseCredentials,
+  parseDataListQuery,
+  parseExportPayload,
+  parseOwnerScope,
+  type DataCollection,
+} from './request-validation.js';
 import { loadSecurityConfig } from './security-config.js';
 import { SecurityMonitor } from './security-monitor.js';
 import type { RequestLike, ResponseLike } from './types.js';
@@ -105,8 +107,6 @@ const buildEventMetadata = (
   latency_bucket: latencyBucket(durationMs),
   ...metadata,
 });
-
-type DataCollection = 'memories' | 'beliefs' | 'lessons' | 'value_profiles' | 'legacy_messages';
 
 const parseDataRoute = (path: string): { collection: DataCollection; id?: string } | null => {
   const cleanPath = pathWithoutQuery(path);
@@ -297,24 +297,63 @@ export class CapsuleApiApp {
     }
 
     if (request.method === 'GET' && !route.id) {
+      const query = parseDataListQuery(route.collection, request.path);
+      // Defaults are chronological descending: memories by occurred_at, others by created_at,
+      // and legacy messages by trigger_at when present.
+      const sort = query.sort ?? getDefaultSortBy(route.collection);
+
       if (route.collection === 'memories') {
-        return { status: 200, body: await listMemories({ memoryRepository: this.persistence.memories }, auth.user.id) };
+        return {
+          status: 200,
+          body: await this.persistence.memories.listByOwnerPaginated(auth.user.id, {
+            limit: query.limit,
+            offset: query.offset,
+            sortBy: sort,
+            order: query.order,
+          }),
+        };
       }
       if (route.collection === 'beliefs') {
-        return { status: 200, body: await listBeliefs({ beliefRepository: this.persistence.beliefs }, auth.user.id) };
+        return {
+          status: 200,
+          body: await this.persistence.beliefs.listByOwnerPaginated(auth.user.id, {
+            limit: query.limit,
+            offset: query.offset,
+            sortBy: sort,
+            order: query.order,
+          }),
+        };
       }
       if (route.collection === 'lessons') {
-        return { status: 200, body: await listLessons({ lessonRepository: this.persistence.lessons }, auth.user.id) };
+        return {
+          status: 200,
+          body: await this.persistence.lessons.listByOwnerPaginated(auth.user.id, {
+            limit: query.limit,
+            offset: query.offset,
+            sortBy: sort,
+            order: query.order,
+          }),
+        };
       }
       if (route.collection === 'value_profiles') {
         return {
           status: 200,
-          body: await listValueProfiles({ valueProfileRepository: this.persistence.valueProfiles }, auth.user.id),
+          body: await this.persistence.valueProfiles.listByOwnerPaginated(auth.user.id, {
+            limit: query.limit,
+            offset: query.offset,
+            sortBy: sort,
+            order: query.order,
+          }),
         };
       }
       return {
         status: 200,
-        body: await listLegacyMessages({ legacyMessageRepository: this.persistence.legacyMessages }, auth.user.id),
+        body: await this.persistence.legacyMessages.listByOwnerPaginated(auth.user.id, {
+          limit: query.limit,
+          offset: query.offset,
+          sortBy: sort,
+          order: query.order,
+        }),
       };
     }
 
@@ -697,7 +736,8 @@ export class CapsuleApiApp {
       error.message === 'INVALID_EMAIL' ||
       error.message === 'WEAK_PASSWORD' ||
       error.message === 'INVALID_EXPORT_FORMAT' ||
-      error.message === 'INVALID_OWNER_SCOPE'
+      error.message === 'INVALID_OWNER_SCOPE' ||
+      error.message === 'INVALID_QUERY_PARAMS'
     ) {
       return { status: 400, body: { error: error.message } };
     }
