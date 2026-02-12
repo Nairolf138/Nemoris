@@ -1,10 +1,46 @@
-import type { ResponseLike, RequestLike } from './types.js';
+import {
+  ValidationError,
+  createBelief,
+  createInMemoryPersistence,
+  createLegacyMessage,
+  createLesson,
+  createMemory,
+  createValueProfile,
+  deleteBelief,
+  deleteLegacyMessage,
+  deleteLesson,
+  deleteMemory,
+  deleteValueProfile,
+  listBeliefs,
+  listLegacyMessages,
+  listLessons,
+  listMemories,
+  listValueProfiles,
+  updateBelief,
+  updateLegacyMessage,
+  updateLesson,
+  updateMemory,
+  updateValueProfile,
+} from '../../../packages/core/dist/index.js';
+import { ObservabilityService } from '../../../packages/observability/dist/src/index.js';
 import { AuthService } from './auth-service.js';
+import {
+  mapCreateBeliefInput,
+  mapCreateLegacyMessageInput,
+  mapCreateLessonInput,
+  mapCreateMemoryInput,
+  mapCreateValueProfileInput,
+  mapUpdateBeliefInput,
+  mapUpdateLegacyMessageInput,
+  mapUpdateLessonInput,
+  mapUpdateMemoryInput,
+  mapUpdateValueProfileInput,
+} from './data-route-adapters.js';
 import { ExportService, type ExportFormat } from './export-service.js';
-import { ObservabilityService } from '@capsule/observability';
-import { loadSecurityConfig } from './security-config.js';
 import { SlidingWindowRateLimiter } from './rate-limiter.js';
+import { loadSecurityConfig } from './security-config.js';
 import { SecurityMonitor } from './security-monitor.js';
+import type { RequestLike, ResponseLike } from './types.js';
 
 interface Credentials {
   email: string;
@@ -41,6 +77,8 @@ const parseExportFormat = (body: unknown): ExportFormat => {
   return payload.format;
 };
 
+const pathWithoutQuery = (path: string): string => path.split('?')[0] ?? path;
+
 const parseRequestedOwner = (request: RequestLike): string | undefined => {
   const ownerFromHeader = request.headers?.['x-owner-id'];
   if (ownerFromHeader) {
@@ -66,10 +104,29 @@ const parseClientFingerprint = (request: RequestLike): string => {
   return ip || request.headers?.['x-client-id'] || 'unknown-client';
 };
 
+type DataCollection = 'memories' | 'beliefs' | 'lessons' | 'value_profiles' | 'legacy_messages';
+
+const parseDataRoute = (path: string): { collection: DataCollection; id?: string } | null => {
+  const cleanPath = pathWithoutQuery(path);
+  const parts = cleanPath.split('/').filter(Boolean);
+  if (parts[0] !== 'data') {
+    return null;
+  }
+  const collection = parts[1] as DataCollection | undefined;
+  if (!collection) {
+    return null;
+  }
+  if (!['memories', 'beliefs', 'lessons', 'value_profiles', 'legacy_messages'].includes(collection)) {
+    return null;
+  }
+  return { collection, id: parts[2] };
+};
+
 export class CapsuleApiApp {
   private authService = new AuthService();
   private exportService = new ExportService();
   private observability = new ObservabilityService();
+  private readonly persistence = createInMemoryPersistence();
   private readonly securityConfig = loadSecurityConfig();
   private readonly authRateLimiter = new SlidingWindowRateLimiter(
     this.securityConfig.authRateLimitMaxAttempts,
@@ -153,7 +210,7 @@ export class CapsuleApiApp {
       }
 
       if (request.method === 'POST' && request.path === '/exports') {
-        return this.generateExport(request);
+        return await this.generateExport(request);
       }
 
       if (request.method === 'GET' && request.path.startsWith('/exports/') && request.path.endsWith('/download')) {
@@ -173,7 +230,7 @@ export class CapsuleApiApp {
       }
 
       if (request.path.startsWith('/data/')) {
-        return this.protectDataRoute(request);
+        return await this.handleDataRoute(request);
       }
 
       return { status: 404, body: { error: 'NOT_FOUND' } };
@@ -201,7 +258,7 @@ export class CapsuleApiApp {
     }
   }
 
-  private protectDataRoute(request: RequestLike): ResponseLike {
+  private async handleDataRoute(request: RequestLike): Promise<ResponseLike> {
     const token = parseBearer(request.headers?.authorization);
     if (!token) {
       return { status: 401, body: { error: 'UNAUTHENTICATED' } };
@@ -209,12 +266,265 @@ export class CapsuleApiApp {
 
     const auth = this.authService.authenticate(token);
     this.enforceOwnerAccess(request, auth.user.id);
-    return {
-      status: 200,
-      body: {
-        message: `Accès autorisé à ${request.path}`,
-      },
-    };
+
+    const route = parseDataRoute(request.path);
+    if (!route) {
+      return { status: 404, body: { error: 'NOT_FOUND' } };
+    }
+
+    if (request.method === 'GET' && !route.id) {
+      if (route.collection === 'memories') {
+        return { status: 200, body: await listMemories({ memoryRepository: this.persistence.memories }, auth.user.id) };
+      }
+      if (route.collection === 'beliefs') {
+        return { status: 200, body: await listBeliefs({ beliefRepository: this.persistence.beliefs }, auth.user.id) };
+      }
+      if (route.collection === 'lessons') {
+        return { status: 200, body: await listLessons({ lessonRepository: this.persistence.lessons }, auth.user.id) };
+      }
+      if (route.collection === 'value_profiles') {
+        return {
+          status: 200,
+          body: await listValueProfiles({ valueProfileRepository: this.persistence.valueProfiles }, auth.user.id),
+        };
+      }
+      return {
+        status: 200,
+        body: await listLegacyMessages({ legacyMessageRepository: this.persistence.legacyMessages }, auth.user.id),
+      };
+    }
+
+    if (request.method === 'POST' && !route.id) {
+      if (route.collection === 'memories') {
+        const created = await createMemory(
+          {
+            memoryRepository: this.persistence.memories,
+            beliefRepository: this.persistence.beliefs,
+            lessonRepository: this.persistence.lessons,
+            valueProfileRepository: this.persistence.valueProfiles,
+            narrativeNodeRepository: this.persistence.narrativeNodes,
+            observer: { emitEvent: (event) => this.observability.emit(event) },
+          },
+          mapCreateMemoryInput(request.body, auth.user.id),
+        );
+        return { status: 201, body: created };
+      }
+
+      if (route.collection === 'beliefs') {
+        const created = await createBelief(
+          {
+            beliefRepository: this.persistence.beliefs,
+            memoryRepository: this.persistence.memories,
+            lessonRepository: this.persistence.lessons,
+          },
+          mapCreateBeliefInput(request.body, auth.user.id),
+        );
+        return { status: 201, body: created };
+      }
+
+      if (route.collection === 'lessons') {
+        const created = await createLesson(
+          {
+            lessonRepository: this.persistence.lessons,
+            memoryRepository: this.persistence.memories,
+            beliefRepository: this.persistence.beliefs,
+            valueProfileRepository: this.persistence.valueProfiles,
+          },
+          mapCreateLessonInput(request.body, auth.user.id),
+        );
+        return { status: 201, body: created };
+      }
+
+      if (route.collection === 'value_profiles') {
+        const created = await createValueProfile(
+          {
+            valueProfileRepository: this.persistence.valueProfiles,
+            memoryRepository: this.persistence.memories,
+            narrativeNodeRepository: this.persistence.narrativeNodes,
+          },
+          mapCreateValueProfileInput(request.body, auth.user.id),
+        );
+        return { status: 201, body: created };
+      }
+
+      const created = await createLegacyMessage(
+        {
+          legacyMessageRepository: this.persistence.legacyMessages,
+          memoryRepository: this.persistence.memories,
+          beliefRepository: this.persistence.beliefs,
+          lessonRepository: this.persistence.lessons,
+          valueProfileRepository: this.persistence.valueProfiles,
+          narrativeNodeRepository: this.persistence.narrativeNodes,
+          observer: { emitEvent: (event) => this.observability.emit(event) },
+        },
+        mapCreateLegacyMessageInput(request.body, auth.user.id),
+      );
+      return { status: 201, body: created };
+    }
+
+    if (request.method === 'PATCH' && route.id) {
+      if (route.collection === 'memories') {
+        const updated = await updateMemory(
+          {
+            memoryRepository: this.persistence.memories,
+            beliefRepository: this.persistence.beliefs,
+            lessonRepository: this.persistence.lessons,
+            valueProfileRepository: this.persistence.valueProfiles,
+            narrativeNodeRepository: this.persistence.narrativeNodes,
+            observer: { emitEvent: (event) => this.observability.emit(event) },
+          },
+          route.id,
+          mapUpdateMemoryInput(request.body),
+        );
+        if (!updated) throw new Error('RESOURCE_NOT_FOUND');
+        if (updated.owner_id !== auth.user.id) throw new Error('FORBIDDEN');
+        return { status: 200, body: updated };
+      }
+
+      if (route.collection === 'beliefs') {
+        const updated = await updateBelief(
+          {
+            beliefRepository: this.persistence.beliefs,
+            memoryRepository: this.persistence.memories,
+            lessonRepository: this.persistence.lessons,
+          },
+          route.id,
+          mapUpdateBeliefInput(request.body),
+        );
+        if (!updated) throw new Error('RESOURCE_NOT_FOUND');
+        if (updated.owner_id !== auth.user.id) throw new Error('FORBIDDEN');
+        return { status: 200, body: updated };
+      }
+
+      if (route.collection === 'lessons') {
+        const updated = await updateLesson(
+          {
+            lessonRepository: this.persistence.lessons,
+            memoryRepository: this.persistence.memories,
+            beliefRepository: this.persistence.beliefs,
+            valueProfileRepository: this.persistence.valueProfiles,
+          },
+          route.id,
+          mapUpdateLessonInput(request.body),
+        );
+        if (!updated) throw new Error('RESOURCE_NOT_FOUND');
+        if (updated.owner_id !== auth.user.id) throw new Error('FORBIDDEN');
+        return { status: 200, body: updated };
+      }
+
+      if (route.collection === 'value_profiles') {
+        const updated = await updateValueProfile(
+          {
+            valueProfileRepository: this.persistence.valueProfiles,
+            memoryRepository: this.persistence.memories,
+            narrativeNodeRepository: this.persistence.narrativeNodes,
+          },
+          route.id,
+          mapUpdateValueProfileInput(request.body),
+        );
+        if (!updated) throw new Error('RESOURCE_NOT_FOUND');
+        if (updated.owner_id !== auth.user.id) throw new Error('FORBIDDEN');
+        return { status: 200, body: updated };
+      }
+
+      const updated = await updateLegacyMessage(
+        {
+          legacyMessageRepository: this.persistence.legacyMessages,
+          memoryRepository: this.persistence.memories,
+          beliefRepository: this.persistence.beliefs,
+          lessonRepository: this.persistence.lessons,
+          valueProfileRepository: this.persistence.valueProfiles,
+          narrativeNodeRepository: this.persistence.narrativeNodes,
+          observer: { emitEvent: (event) => this.observability.emit(event) },
+        },
+        route.id,
+        mapUpdateLegacyMessageInput(request.body),
+      );
+      if (!updated) throw new Error('RESOURCE_NOT_FOUND');
+      if (updated.owner_id !== auth.user.id) throw new Error('FORBIDDEN');
+      return { status: 200, body: updated };
+    }
+
+    if (request.method === 'DELETE' && route.id) {
+      let deleted = false;
+      if (route.collection === 'memories') {
+        const existing = await this.persistence.memories.getById(route.id);
+        if (!existing) throw new Error('RESOURCE_NOT_FOUND');
+        if (existing.owner_id !== auth.user.id) throw new Error('FORBIDDEN');
+        deleted = await deleteMemory(
+          {
+            memoryRepository: this.persistence.memories,
+            beliefRepository: this.persistence.beliefs,
+            lessonRepository: this.persistence.lessons,
+            valueProfileRepository: this.persistence.valueProfiles,
+            narrativeNodeRepository: this.persistence.narrativeNodes,
+            observer: { emitEvent: (event) => this.observability.emit(event) },
+          },
+          route.id,
+        );
+      } else if (route.collection === 'beliefs') {
+        const existing = await this.persistence.beliefs.getById(route.id);
+        if (!existing) throw new Error('RESOURCE_NOT_FOUND');
+        if (existing.owner_id !== auth.user.id) throw new Error('FORBIDDEN');
+        deleted = await deleteBelief(
+          {
+            beliefRepository: this.persistence.beliefs,
+            memoryRepository: this.persistence.memories,
+            lessonRepository: this.persistence.lessons,
+          },
+          route.id,
+        );
+      } else if (route.collection === 'lessons') {
+        const existing = await this.persistence.lessons.getById(route.id);
+        if (!existing) throw new Error('RESOURCE_NOT_FOUND');
+        if (existing.owner_id !== auth.user.id) throw new Error('FORBIDDEN');
+        deleted = await deleteLesson(
+          {
+            lessonRepository: this.persistence.lessons,
+            memoryRepository: this.persistence.memories,
+            beliefRepository: this.persistence.beliefs,
+            valueProfileRepository: this.persistence.valueProfiles,
+          },
+          route.id,
+        );
+      } else if (route.collection === 'value_profiles') {
+        const existing = await this.persistence.valueProfiles.getById(route.id);
+        if (!existing) throw new Error('RESOURCE_NOT_FOUND');
+        if (existing.owner_id !== auth.user.id) throw new Error('FORBIDDEN');
+        deleted = await deleteValueProfile(
+          {
+            valueProfileRepository: this.persistence.valueProfiles,
+            memoryRepository: this.persistence.memories,
+            narrativeNodeRepository: this.persistence.narrativeNodes,
+          },
+          route.id,
+        );
+      } else {
+        const existing = await this.persistence.legacyMessages.getById(route.id);
+        if (!existing) throw new Error('RESOURCE_NOT_FOUND');
+        if (existing.owner_id !== auth.user.id) throw new Error('FORBIDDEN');
+        deleted = await deleteLegacyMessage(
+          {
+            legacyMessageRepository: this.persistence.legacyMessages,
+            memoryRepository: this.persistence.memories,
+            beliefRepository: this.persistence.beliefs,
+            lessonRepository: this.persistence.lessons,
+            valueProfileRepository: this.persistence.valueProfiles,
+            narrativeNodeRepository: this.persistence.narrativeNodes,
+            observer: { emitEvent: (event) => this.observability.emit(event) },
+          },
+          route.id,
+        );
+      }
+
+      if (!deleted) {
+        throw new Error('RESOURCE_NOT_FOUND');
+      }
+
+      return { status: 204, body: null };
+    }
+
+    return { status: 404, body: { error: 'NOT_FOUND' } };
   }
 
   private async generateExport(request: RequestLike): Promise<ResponseLike> {
@@ -253,7 +563,7 @@ export class CapsuleApiApp {
 
     const auth = this.authService.authenticate(token);
     this.enforceOwnerAccess(request, auth.user.id);
-    const exportId = request.path.replace('/exports/', '').replace('/download', '');
+    const exportId = pathWithoutQuery(request.path).replace('/exports/', '').replace('/download', '');
     const record = this.exportService.getExport(auth.user.id, exportId);
     this.observability.emit({
       event_name: 'export.downloaded',
@@ -338,6 +648,10 @@ export class CapsuleApiApp {
       return { status: 500, body: { error: 'INTERNAL_ERROR' } };
     }
 
+    if (error instanceof ValidationError) {
+      return { status: 400, body: { error: error.message } };
+    }
+
     if (error.message === 'EMAIL_ALREADY_USED') {
       return { status: 409, body: { error: error.message } };
     }
@@ -367,7 +681,7 @@ export class CapsuleApiApp {
       return { status: 403, body: { error: error.message } };
     }
 
-    if (error.message === 'EXPORT_NOT_FOUND') {
+    if (error.message === 'EXPORT_NOT_FOUND' || error.message === 'RESOURCE_NOT_FOUND') {
       return { status: 404, body: { error: error.message } };
     }
 

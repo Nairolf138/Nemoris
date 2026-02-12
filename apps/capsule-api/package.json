@@ -9,6 +9,7 @@
     "test": "tsc -b && node dist/tests/run-tests.js"
   },
   "dependencies": {
-    "@capsule/observability": "0.1.0"
+    "@capsule/observability": "0.1.0",
+    "@capsule/core": "0.1.0"
   }
 }

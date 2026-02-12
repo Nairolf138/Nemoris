@@ -1,6 +1,7 @@
 import { runAuthIntegrationTests } from './auth-integration.test.js';
 import { runAuthServiceTests } from './auth-service.test.js';
 import { runExportIntegrationTests } from './export-integration.test.js';
+import { runDataIntegrationTests } from './data-integration.test.js';
 
 type RuntimeEnv = Record<string, string | undefined>;
 
@@ -27,6 +28,7 @@ const run = async () => {
   await runAuthServiceTests();
   await runAuthIntegrationTests();
   await runExportIntegrationTests();
+  await runDataIntegrationTests();
   console.log('All capsule-api tests passed.');
 };
 
