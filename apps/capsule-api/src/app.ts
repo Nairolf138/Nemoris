@@ -1,5 +1,4 @@
 import {
-  ValidationError,
   createBelief,
   createLegacyMessage,
   createLesson,
@@ -34,6 +33,15 @@ import {
 } from './data-route-adapters.js';
 import type { ExportRepository } from './export-repository.js';
 import { ExportService } from './export-service.js';
+import {
+  ApiError,
+  AuthError,
+  ForbiddenError,
+  NotFoundError,
+  RateLimitedError,
+  ValidationError,
+  toApiError,
+} from './errors.js';
 import { createPersistenceProviders, type PersistenceProviders } from './persistence-config.js';
 import { SlidingWindowRateLimiter } from './rate-limiter.js';
 import {
@@ -186,7 +194,7 @@ export class CapsuleApiApp {
         const bruteForceStatus = this.bruteForceLimiter.check(bruteForceKey);
         if (!bruteForceStatus.allowed) {
           this.securityMonitor.logFailedAuth(creds.email, request.path, 'BRUTE_FORCE_BLOCKED', Date.now() - requestStartMs);
-          return { status: 429, body: { error: 'RATE_LIMITED', retry_after_ms: bruteForceStatus.retryAfterMs } };
+          throw new RateLimitedError(bruteForceStatus.retryAfterMs);
         }
 
         const auth = await this.authService.login(creds.email, creds.password);
@@ -203,7 +211,7 @@ export class CapsuleApiApp {
         this.enforceAuthRateLimits(request);
         const token = parseBearer(request.headers?.authorization);
         if (!token) {
-          return { status: 401, body: { error: 'UNAUTHENTICATED' } };
+          throw new AuthError('UNAUTHENTICATED');
         }
         const auth = this.authService.authenticate(token);
         this.authService.logout(token);
@@ -220,7 +228,7 @@ export class CapsuleApiApp {
         this.enforceAuthRateLimits(request);
         const token = parseBearer(request.headers?.authorization);
         if (!token) {
-          return { status: 401, body: { error: 'UNAUTHENTICATED' } };
+          throw new AuthError('UNAUTHENTICATED');
         }
         const auth = this.authService.authenticate(token);
         const session = this.authService.refresh(token);
@@ -257,10 +265,9 @@ export class CapsuleApiApp {
         return await this.handleDataRoute(request);
       }
 
-      return { status: 404, body: { error: 'NOT_FOUND' } };
+      throw new NotFoundError('NOT_FOUND');
     } catch (error) {
-      this.trackSecurityFailure(request, error, Date.now() - requestStartMs);
-      return this.mapError(error);
+      return this.handleError(request, error, Date.now() - requestStartMs);
     }
   }
 
@@ -268,24 +275,24 @@ export class CapsuleApiApp {
     const key = `${parseClientFingerprint(request)}:${request.path}`;
     const status = this.authRateLimiter.check(key);
     if (!status.allowed) {
-      throw new Error('RATE_LIMITED');
+      throw new RateLimitedError();
     }
   }
 
   private enforceOwnerAccess(request: RequestLike, userId: string): void {
     const requestedOwner = parseRequestedOwner(request);
     if (!requestedOwner) {
-      throw new Error('OWNER_SCOPE_REQUIRED');
+      throw new ValidationError('OWNER_SCOPE_REQUIRED');
     }
     if (requestedOwner !== userId) {
-      throw new Error('FORBIDDEN');
+      throw new ForbiddenError();
     }
   }
 
   private async handleDataRoute(request: RequestLike): Promise<ResponseLike> {
     const token = parseBearer(request.headers?.authorization);
     if (!token) {
-      return { status: 401, body: { error: 'UNAUTHENTICATED' } };
+      throw new AuthError('UNAUTHENTICATED');
     }
 
     const auth = this.authService.authenticate(token);
@@ -293,7 +300,7 @@ export class CapsuleApiApp {
 
     const route = parseDataRoute(request.path);
     if (!route) {
-      return { status: 404, body: { error: 'NOT_FOUND' } };
+      throw new NotFoundError('NOT_FOUND');
     }
 
     if (request.method === 'GET' && !route.id) {
@@ -439,8 +446,8 @@ export class CapsuleApiApp {
           route.id,
           mapUpdateMemoryInput(request.body),
         );
-        if (!updated) throw new Error('RESOURCE_NOT_FOUND');
-        if (updated.owner_id !== auth.user.id) throw new Error('FORBIDDEN');
+        if (!updated) throw new NotFoundError('RESOURCE_NOT_FOUND');
+        if (updated.owner_id !== auth.user.id) throw new ForbiddenError();
         return { status: 200, body: updated };
       }
 
@@ -454,8 +461,8 @@ export class CapsuleApiApp {
           route.id,
           mapUpdateBeliefInput(request.body),
         );
-        if (!updated) throw new Error('RESOURCE_NOT_FOUND');
-        if (updated.owner_id !== auth.user.id) throw new Error('FORBIDDEN');
+        if (!updated) throw new NotFoundError('RESOURCE_NOT_FOUND');
+        if (updated.owner_id !== auth.user.id) throw new ForbiddenError();
         return { status: 200, body: updated };
       }
 
@@ -470,8 +477,8 @@ export class CapsuleApiApp {
           route.id,
           mapUpdateLessonInput(request.body),
         );
-        if (!updated) throw new Error('RESOURCE_NOT_FOUND');
-        if (updated.owner_id !== auth.user.id) throw new Error('FORBIDDEN');
+        if (!updated) throw new NotFoundError('RESOURCE_NOT_FOUND');
+        if (updated.owner_id !== auth.user.id) throw new ForbiddenError();
         return { status: 200, body: updated };
       }
 
@@ -485,8 +492,8 @@ export class CapsuleApiApp {
           route.id,
           mapUpdateValueProfileInput(request.body),
         );
-        if (!updated) throw new Error('RESOURCE_NOT_FOUND');
-        if (updated.owner_id !== auth.user.id) throw new Error('FORBIDDEN');
+        if (!updated) throw new NotFoundError('RESOURCE_NOT_FOUND');
+        if (updated.owner_id !== auth.user.id) throw new ForbiddenError();
         return { status: 200, body: updated };
       }
 
@@ -503,8 +510,8 @@ export class CapsuleApiApp {
         route.id,
         mapUpdateLegacyMessageInput(request.body),
       );
-      if (!updated) throw new Error('RESOURCE_NOT_FOUND');
-      if (updated.owner_id !== auth.user.id) throw new Error('FORBIDDEN');
+      if (!updated) throw new NotFoundError('RESOURCE_NOT_FOUND');
+      if (updated.owner_id !== auth.user.id) throw new ForbiddenError();
       return { status: 200, body: updated };
     }
 
@@ -512,8 +519,8 @@ export class CapsuleApiApp {
       let deleted = false;
       if (route.collection === 'memories') {
         const existing = await this.persistence.memories.getById(route.id);
-        if (!existing) throw new Error('RESOURCE_NOT_FOUND');
-        if (existing.owner_id !== auth.user.id) throw new Error('FORBIDDEN');
+        if (!existing) throw new NotFoundError('RESOURCE_NOT_FOUND');
+        if (existing.owner_id !== auth.user.id) throw new ForbiddenError();
         deleted = await deleteMemory(
           {
             memoryRepository: this.persistence.memories,
@@ -527,8 +534,8 @@ export class CapsuleApiApp {
         );
       } else if (route.collection === 'beliefs') {
         const existing = await this.persistence.beliefs.getById(route.id);
-        if (!existing) throw new Error('RESOURCE_NOT_FOUND');
-        if (existing.owner_id !== auth.user.id) throw new Error('FORBIDDEN');
+        if (!existing) throw new NotFoundError('RESOURCE_NOT_FOUND');
+        if (existing.owner_id !== auth.user.id) throw new ForbiddenError();
         deleted = await deleteBelief(
           {
             beliefRepository: this.persistence.beliefs,
@@ -539,8 +546,8 @@ export class CapsuleApiApp {
         );
       } else if (route.collection === 'lessons') {
         const existing = await this.persistence.lessons.getById(route.id);
-        if (!existing) throw new Error('RESOURCE_NOT_FOUND');
-        if (existing.owner_id !== auth.user.id) throw new Error('FORBIDDEN');
+        if (!existing) throw new NotFoundError('RESOURCE_NOT_FOUND');
+        if (existing.owner_id !== auth.user.id) throw new ForbiddenError();
         deleted = await deleteLesson(
           {
             lessonRepository: this.persistence.lessons,
@@ -552,8 +559,8 @@ export class CapsuleApiApp {
         );
       } else if (route.collection === 'value_profiles') {
         const existing = await this.persistence.valueProfiles.getById(route.id);
-        if (!existing) throw new Error('RESOURCE_NOT_FOUND');
-        if (existing.owner_id !== auth.user.id) throw new Error('FORBIDDEN');
+        if (!existing) throw new NotFoundError('RESOURCE_NOT_FOUND');
+        if (existing.owner_id !== auth.user.id) throw new ForbiddenError();
         deleted = await deleteValueProfile(
           {
             valueProfileRepository: this.persistence.valueProfiles,
@@ -564,8 +571,8 @@ export class CapsuleApiApp {
         );
       } else {
         const existing = await this.persistence.legacyMessages.getById(route.id);
-        if (!existing) throw new Error('RESOURCE_NOT_FOUND');
-        if (existing.owner_id !== auth.user.id) throw new Error('FORBIDDEN');
+        if (!existing) throw new NotFoundError('RESOURCE_NOT_FOUND');
+        if (existing.owner_id !== auth.user.id) throw new ForbiddenError();
         deleted = await deleteLegacyMessage(
           {
             legacyMessageRepository: this.persistence.legacyMessages,
@@ -581,20 +588,20 @@ export class CapsuleApiApp {
       }
 
       if (!deleted) {
-        throw new Error('RESOURCE_NOT_FOUND');
+        throw new NotFoundError('RESOURCE_NOT_FOUND');
       }
 
       return { status: 204, body: null };
     }
 
-    return { status: 404, body: { error: 'NOT_FOUND' } };
+    throw new NotFoundError('NOT_FOUND');
   }
 
   private async generateExport(request: RequestLike): Promise<ResponseLike> {
     const requestStartMs = Date.now();
     const token = parseBearer(request.headers?.authorization);
     if (!token) {
-      return { status: 401, body: { error: 'UNAUTHENTICATED' } };
+      throw new AuthError('UNAUTHENTICATED');
     }
 
     const auth = this.authService.authenticate(token);
@@ -624,7 +631,7 @@ export class CapsuleApiApp {
     const requestStartMs = Date.now();
     const token = parseBearer(request.headers?.authorization);
     if (!token) {
-      return { status: 401, body: { error: 'UNAUTHENTICATED' } };
+      throw new AuthError('UNAUTHENTICATED');
     }
 
     const auth = this.authService.authenticate(token);
@@ -652,7 +659,7 @@ export class CapsuleApiApp {
   private listExportAuditLogs(request: RequestLike): ResponseLike {
     const token = parseBearer(request.headers?.authorization);
     if (!token) {
-      return { status: 401, body: { error: 'UNAUTHENTICATED' } };
+      throw new AuthError('UNAUTHENTICATED');
     }
 
     const auth = this.authService.authenticate(token);
@@ -664,7 +671,7 @@ export class CapsuleApiApp {
   private getObservabilityAuditLog(request: RequestLike): ResponseLike {
     const token = parseBearer(request.headers?.authorization);
     if (!token) {
-      return { status: 401, body: { error: 'UNAUTHENTICATED' } };
+      throw new AuthError('UNAUTHENTICATED');
     }
 
     const auth = this.authService.authenticate(token);
@@ -675,7 +682,7 @@ export class CapsuleApiApp {
   private getDashboard(request: RequestLike): ResponseLike {
     const token = parseBearer(request.headers?.authorization);
     if (!token) {
-      return { status: 401, body: { error: 'UNAUTHENTICATED' } };
+      throw new AuthError('UNAUTHENTICATED');
     }
 
     const auth = this.authService.authenticate(token);
@@ -690,74 +697,36 @@ export class CapsuleApiApp {
     };
   }
 
-  private trackSecurityFailure(request: RequestLike, error: unknown, durationMs: number): void {
-    if (!(error instanceof Error)) {
-      return;
-    }
-
-    if (error.message === 'INVALID_CREDENTIALS') {
+  private trackSecurityFailure(request: RequestLike, error: ApiError, durationMs: number): void {
+    if (error.code === 'INVALID_CREDENTIALS') {
       const creds = request.body as { email?: string } | undefined;
       if (creds?.email) {
         const bruteForceKey = `${parseClientFingerprint(request)}:${creds.email}`;
         this.bruteForceLimiter.registerFailure(bruteForceKey);
       }
-      this.securityMonitor.logFailedAuth(creds?.email ?? 'unknown', request.path, error.message, durationMs);
+      this.securityMonitor.logFailedAuth(creds?.email ?? 'unknown', request.path, error.code, durationMs);
     }
 
-    if (error.message === 'FORBIDDEN') {
+    if (error.code === 'FORBIDDEN') {
       this.securityMonitor.logDeniedAccess('authenticated-user', request.path, 'OWNER_ID_MISMATCH', durationMs);
     }
   }
 
-  private mapError(error: unknown): ResponseLike {
-    if (!(error instanceof Error)) {
-      return { status: 500, body: { error: 'INTERNAL_ERROR' } };
-    }
-
-    if (error instanceof ValidationError) {
-      return { status: 400, body: { error: error.message } };
-    }
-
-    if (error.message === 'EMAIL_ALREADY_USED') {
-      return { status: 409, body: { error: error.message } };
-    }
-
-    if (
-      error.message === 'INVALID_CREDENTIALS' ||
-      error.message === 'UNAUTHENTICATED' ||
-      error.message === 'SESSION_INVALID' ||
-      error.message === 'SESSION_NOT_FOUND'
-    ) {
-      return { status: 401, body: { error: error.message } };
-    }
-
-    if (
-      error.message === 'INVALID_PAYLOAD' ||
-      error.message === 'INVALID_EMAIL' ||
-      error.message === 'WEAK_PASSWORD' ||
-      error.message === 'INVALID_EXPORT_FORMAT' ||
-      error.message === 'INVALID_OWNER_SCOPE' ||
-      error.message === 'INVALID_QUERY_PARAMS'
-    ) {
-      return { status: 400, body: { error: error.message } };
-    }
-
-    if (error.message === 'RATE_LIMITED') {
-      return { status: 429, body: { error: error.message } };
-    }
-
-    if (error.message === 'OWNER_SCOPE_REQUIRED') {
-      return { status: 400, body: { error: error.message } };
-    }
-
-    if (error.message === 'FORBIDDEN') {
-      return { status: 403, body: { error: error.message } };
-    }
-
-    if (error.message === 'EXPORT_NOT_FOUND' || error.message === 'RESOURCE_NOT_FOUND') {
-      return { status: 404, body: { error: error.message } };
-    }
-
-    return { status: 500, body: { error: 'INTERNAL_ERROR' } };
+  private handleError(request: RequestLike, error: unknown, durationMs: number): ResponseLike {
+    const apiError = toApiError(error);
+    this.trackSecurityFailure(request, apiError, durationMs);
+    this.observability.emit({
+      event_name: 'api.request_failed',
+      user_id: 'system',
+      entity_id: pathWithoutQuery(request.path),
+      metadata: buildEventMetadata(request, apiError.httpStatus === 403 ? 'denied' : 'failure', durationMs, {
+        error_code: apiError.code,
+        http_status: apiError.httpStatus,
+      }),
+    });
+    return {
+      status: apiError.httpStatus,
+      body: apiError.toPayload(),
+    };
   }
 }
