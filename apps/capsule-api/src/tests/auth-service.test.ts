@@ -15,7 +15,7 @@ export const runAuthServiceTests = async (): Promise<void> => {
   assert((await verifyPassword('wrong-password', hash)) === false, 'invalid password should fail');
 
   const service = new AuthService();
-  const auth = await service.register('alice@example.com', 'secret123');
+  const auth = await service.register('alice@example.com', 'Secret123!');
   const rotated = service.refresh(auth.session.token);
 
   assert(rotated.token !== auth.session.token, 'refresh should rotate token');
@@ -27,7 +27,7 @@ export const runAuthServiceTests = async (): Promise<void> => {
   }
   assert(oldTokenRejected, 'previous token should be invalidated after refresh');
 
-  const authLogout = await service.register('bob@example.com', 'secret123');
+  const authLogout = await service.register('bob@example.com', 'Secret123!');
   service.logout(authLogout.session.token);
   let revokedRejected = false;
   try {

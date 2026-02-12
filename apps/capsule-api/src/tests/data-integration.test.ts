@@ -82,8 +82,8 @@ const registerAndLogin = async (app: CapsuleApiApp, email: string, password: str
 export const runDataIntegrationTests = async (): Promise<void> => {
   const app = new CapsuleApiApp();
 
-  const owner = await registerAndLogin(app, 'data-owner@example.com', 'secret123', '203.0.113.21');
-  const outsider = await registerAndLogin(app, 'data-outsider@example.com', 'secret123', '203.0.113.22');
+  const owner = await registerAndLogin(app, 'data-owner@example.com', 'Secret123!', '203.0.113.21');
+  const outsider = await registerAndLogin(app, 'data-outsider@example.com', 'Secret123!', '203.0.113.22');
 
   const resources: DataResource[] = ['memories', 'beliefs', 'lessons', 'value_profiles', 'legacy_messages'];
 

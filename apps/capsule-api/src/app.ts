@@ -37,17 +37,13 @@ import {
   mapUpdateMemoryInput,
   mapUpdateValueProfileInput,
 } from './data-route-adapters.js';
-import { ExportService, type ExportFormat } from './export-service.js';
+import { ExportService } from './export-service.js';
 import { createPersistenceProviders, type PersistenceProviders } from './persistence-config.js';
 import { SlidingWindowRateLimiter } from './rate-limiter.js';
+import { parseCredentials, parseExportPayload, parseOwnerScope } from './request-validation.js';
 import { loadSecurityConfig } from './security-config.js';
 import { SecurityMonitor } from './security-monitor.js';
 import type { RequestLike, ResponseLike } from './types.js';
-
-interface Credentials {
-  email: string;
-  password: string;
-}
 
 const parseBearer = (authorization?: string): string | undefined => {
   if (!authorization) {
@@ -60,36 +56,18 @@ const parseBearer = (authorization?: string): string | undefined => {
   return token;
 };
 
-const parseCredentials = (body: unknown): Credentials => {
-  const payload = body as Partial<Credentials>;
-  if (!payload?.email || !payload?.password) {
-    throw new Error('INVALID_PAYLOAD');
-  }
-  return { email: payload.email, password: payload.password };
-};
-
-const parseExportFormat = (body: unknown): ExportFormat => {
-  const payload = body as { format?: ExportFormat } | undefined;
-  if (!payload?.format) {
-    return 'json';
-  }
-  if (payload.format !== 'json' && payload.format !== 'pdf') {
-    throw new Error('INVALID_PAYLOAD');
-  }
-  return payload.format;
-};
-
 const pathWithoutQuery = (path: string): string => path.split('?')[0] ?? path;
 
 const parseRequestedOwner = (request: RequestLike): string | undefined => {
-  const ownerFromHeader = request.headers?.['x-owner-id'];
+  const ownerFromHeader = parseOwnerScope(request.headers?.['x-owner-id']);
   if (ownerFromHeader) {
     return ownerFromHeader;
   }
 
   const payload = request.body as { owner_id?: string } | undefined;
-  if (payload?.owner_id) {
-    return payload.owner_id;
+  const ownerFromPayload = parseOwnerScope(payload?.owner_id);
+  if (ownerFromPayload) {
+    return ownerFromPayload;
   }
 
   const [, queryString] = request.path.split('?');
@@ -98,7 +76,7 @@ const parseRequestedOwner = (request: RequestLike): string | undefined => {
   }
 
   const params = new URLSearchParams(queryString);
-  return params.get('owner_id') ?? undefined;
+  return parseOwnerScope(params.get('owner_id') ?? undefined);
 };
 
 const parseClientFingerprint = (request: RequestLike): string => {
@@ -556,8 +534,9 @@ export class CapsuleApiApp {
     }
 
     const auth = this.authService.authenticate(token);
+    const exportPayload = parseExportPayload(request.body);
     this.enforceOwnerAccess(request, auth.user.id);
-    const format = parseExportFormat(request.body);
+    const format = exportPayload.format ?? 'json';
     const generated = await this.exportService.createExport(auth.user.id, auth.user.id, format);
     this.observability.emit({
       event_name: 'export.created',
@@ -652,7 +631,7 @@ export class CapsuleApiApp {
     }
 
     if (error.message === 'INVALID_CREDENTIALS') {
-      const creds = request.body as Partial<Credentials> | undefined;
+      const creds = request.body as { email?: string } | undefined;
       if (creds?.email) {
         const bruteForceKey = `${parseClientFingerprint(request)}:${creds.email}`;
         this.bruteForceLimiter.registerFailure(bruteForceKey);
@@ -687,7 +666,13 @@ export class CapsuleApiApp {
       return { status: 401, body: { error: error.message } };
     }
 
-    if (error.message === 'INVALID_PAYLOAD') {
+    if (
+      error.message === 'INVALID_PAYLOAD' ||
+      error.message === 'INVALID_EMAIL' ||
+      error.message === 'WEAK_PASSWORD' ||
+      error.message === 'INVALID_EXPORT_FORMAT' ||
+      error.message === 'INVALID_OWNER_SCOPE'
+    ) {
       return { status: 400, body: { error: error.message } };
     }
 
