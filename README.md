@@ -36,12 +36,7 @@ Nemoris apporte une solution claire pour préparer une transmission numérique d
 
 ## Hors périmètre actuel
 
-Les éléments ci-dessous sont explicitement **non inclus** dans le périmètre livrable actuel :
-- **Phase 2**
-- **Research**
-- **Not in scope**
-
-Voir la vision long terme : `docs/vision-cognitive/VISION.md`.
+Vision long terme (séparée) : `docs/vision-cognitive/VISION.md`.
 
 ---
 
@@ -54,10 +49,6 @@ Voir la vision long terme : `docs/vision-cognitive/VISION.md`.
 - `docs/data-model-mvp.md` — modèle de données MVP.
 - `docs/Capsule_Numerique_*.pdf` — dossiers produit (marché, architecture, UX/UI, sécurité, éthique, business).
 - `docs/Capsule_Numerique_Financier_36mois.xlsx` — hypothèses financières.
-
-### Documentation vision cognitive (long terme)
-
-- `docs/vision-cognitive/VISION.md` — vision étendue (Phase 2 / Research / Not in scope).
 
 ---
 
