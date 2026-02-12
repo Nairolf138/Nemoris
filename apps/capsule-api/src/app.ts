@@ -22,6 +22,7 @@ import {
   updateMemory,
   updateValueProfile,
 } from '../../../packages/core/dist/index.js';
+import { ExportAggregator } from '../../../packages/export/dist/src/aggregator.js';
 import { ObservabilityService } from '../../../packages/observability/dist/src/index.js';
 import { AuthService } from './auth-service.js';
 import {
@@ -124,9 +125,16 @@ const parseDataRoute = (path: string): { collection: DataCollection; id?: string
 
 export class CapsuleApiApp {
   private authService = new AuthService();
-  private exportService = new ExportService();
   private observability = new ObservabilityService();
   private readonly persistence = createInMemoryPersistence();
+  private readonly exportAggregator = new ExportAggregator({
+    memories: this.persistence.memories,
+    beliefs: this.persistence.beliefs,
+    lessons: this.persistence.lessons,
+    valueProfiles: this.persistence.valueProfiles,
+    legacyMessages: this.persistence.legacyMessages,
+  });
+  private exportService = new ExportService(this.exportAggregator);
   private readonly securityConfig = loadSecurityConfig();
   private readonly authRateLimiter = new SlidingWindowRateLimiter(
     this.securityConfig.authRateLimitMaxAttempts,

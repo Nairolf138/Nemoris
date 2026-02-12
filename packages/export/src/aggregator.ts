@@ -6,6 +6,11 @@ import type {
   ValueProfileRepository,
 } from '@capsule/core';
 import type { CapsuleExportPayloadV1 } from './schema.js';
+import { renderExportPdf } from './pdf.js';
+
+declare const Buffer: {
+  from(input: string | Uint8Array, encoding?: string): { toString(encoding: string): string };
+};
 
 export interface ExportAggregatorDependencies {
   memories: MemoryRepository;
@@ -14,6 +19,34 @@ export interface ExportAggregatorDependencies {
   valueProfiles: ValueProfileRepository;
   legacyMessages: LegacyMessageRepository;
 }
+
+export type ExportFormat = 'json' | 'pdf';
+
+export interface SerializedExport {
+  mimeType: 'application/json' | 'application/pdf';
+  payloadBase64: string;
+}
+
+const encodeBase64 = (content: string | Uint8Array): string => {
+  if (typeof content === 'string') {
+    return Buffer.from(content, 'utf8').toString('base64');
+  }
+  return Buffer.from(content).toString('base64');
+};
+
+export const serializeExportPayload = (payload: CapsuleExportPayloadV1, format: ExportFormat): SerializedExport => {
+  if (format === 'pdf') {
+    return {
+      mimeType: 'application/pdf',
+      payloadBase64: encodeBase64(renderExportPdf(payload)),
+    };
+  }
+
+  return {
+    mimeType: 'application/json',
+    payloadBase64: encodeBase64(JSON.stringify(payload, null, 2)),
+  };
+};
 
 export class ExportAggregator {
   public constructor(private readonly deps: ExportAggregatorDependencies) {}

@@ -1,23 +1,7 @@
-declare const Buffer: {
-  from(input: string | Uint8Array, encoding?: string): { toString(encoding: string): string };
-};
+import type { ExportAggregator } from '../../../packages/export/dist/src/aggregator.js';
+import { serializeExportPayload, type ExportFormat } from '../../../packages/export/dist/src/aggregator.js';
 
-export type ExportFormat = 'json' | 'pdf';
-
-interface ExportPayload {
-  metadata: {
-    schema_version: '1.0.0';
-    exported_at: string;
-    owner_id: string;
-    generated_by_user_id: string;
-    timezone: string;
-  };
-  memories: Array<{ id: string; owner_id: string; title: string; description?: string }>;
-  beliefs: Array<{ id: string; owner_id: string; statement: string }>;
-  lessons: Array<{ id: string; owner_id: string; title: string; lesson_text: string }>;
-  value_profiles: Array<{ id: string; owner_id: string; profile_label: string }>;
-  legacy_messages: Array<{ id: string; owner_id: string; title: string; message: string; recipient_ids: string[] }>;
-}
+export type { ExportFormat };
 
 export interface ExportRecord {
   id: string;
@@ -38,64 +22,15 @@ export interface ExportAuditLog {
   created_at: string;
 }
 
-const encode = (content: string | Uint8Array): string => {
-  if (typeof content === 'string') {
-    return Buffer.from(content, 'utf8').toString('base64');
-  }
-  return Buffer.from(content).toString('base64');
-};
-
-const renderPdf = (payload: ExportPayload): Uint8Array => {
-  const lines = [
-    `Export Capsule - owner ${payload.metadata.owner_id}`,
-    `Generated at ${payload.metadata.exported_at}`,
-    '',
-    'Messages',
-    ...payload.legacy_messages.flatMap((message) => [`- ${message.title}`, `  ${message.message}`]),
-    '',
-    'Souvenirs',
-    ...payload.memories.map((memory) => `- ${memory.title}`),
-    '',
-    'Consignes',
-    ...payload.lessons.map((lesson) => `- ${lesson.title}: ${lesson.lesson_text}`),
-    '',
-    'Beneficiaires',
-    ...[...new Set(payload.legacy_messages.flatMap((message) => message.recipient_ids))].map((id) => `- ${id}`),
-  ];
-
-  const stream = ['BT', '/F1 11 Tf', '50 780 Td'];
-  for (let i = 0; i < lines.length; i += 1) {
-    if (i > 0) {
-      stream.push('0 -14 Td');
-    }
-    stream.push(`(${lines[i].replaceAll('(', '\\(').replaceAll(')', '\\)')}) Tj`);
-  }
-  stream.push('ET');
-
-  const content = stream.join('\n');
-  const pdf = `%PDF-1.4\n${content}\n%%EOF`;
-  return new TextEncoder().encode(pdf);
-};
-
 export class ExportService {
   private readonly exportsById = new Map<string, ExportRecord>();
   private readonly auditTrail: ExportAuditLog[] = [];
 
+  public constructor(private readonly aggregator: Pick<ExportAggregator, 'collectByOwner'>) {}
+
   public async createExport(ownerId: string, requestedByUserId: string, format: ExportFormat): Promise<ExportRecord> {
-    const payload: ExportPayload = {
-      metadata: {
-        schema_version: '1.0.0',
-        exported_at: new Date().toISOString(),
-        owner_id: ownerId,
-        generated_by_user_id: requestedByUserId,
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone ?? 'UTC',
-      },
-      memories: [],
-      beliefs: [],
-      lessons: [],
-      value_profiles: [],
-      legacy_messages: [],
-    };
+    const payload = await this.aggregator.collectByOwner(ownerId, requestedByUserId);
+    const serialized = serializeExportPayload(payload, format);
 
     const exportId = crypto.randomUUID();
     const createdAt = new Date().toISOString();
@@ -107,8 +42,8 @@ export class ExportService {
       requested_by_user_id: requestedByUserId,
       format,
       created_at: createdAt,
-      payload: isPdf ? encode(renderPdf(payload)) : encode(JSON.stringify(payload, null, 2)),
-      mime_type: isPdf ? 'application/pdf' : 'application/json',
+      payload: serialized.payloadBase64,
+      mime_type: serialized.mimeType,
       file_name: `capsule-export-${ownerId}-${createdAt}.${isPdf ? 'pdf' : 'json'}`,
     };
 
