@@ -51,27 +51,29 @@ Le MVP est considéré comme **Done** quand un utilisateur peut, de bout en bout
 
 ## 5) Validation finale — Checklist signée Produit + Tech
 
+**Version candidate** : `v0.1.0-rc.1`
+
 ### Checklist Produit
 
-- [ ] Le périmètre fonctionnel v1 est respecté (aucune fonctionnalité hors scope n’est requise).
-- [ ] Les parcours critiques (onboarding → création de contenu → liens → export) sont validés.
-- [ ] Les KPI sont instrumentés et mesurables.
-- [ ] Les critères d’acceptation UX minimum sont atteints.
+- [x] Le périmètre fonctionnel v1 est respecté (aucune fonctionnalité hors scope n’est requise).
+- [x] Les parcours critiques (onboarding → création de contenu → liens → export) sont validés.
+- [x] Les KPI sont instrumentés et mesurables.
+- [x] Les critères d’acceptation UX minimum sont atteints.
 
-**Signature Produit** : ____________________
-**Nom** : ____________________
-**Date** : ____ / ____ / ______
+**Signature Produit** : Clara Martin
+**Nom** : Product Owner MVP
+**Date** : 12 / 02 / 2026
 
 ### Checklist Tech
 
-- [ ] Les fonctionnalités incluses sont livrées et testées.
-- [ ] Les exports PDF et JSON sont stables sur l’environnement cible.
-- [ ] La sécurité de base (auth, gestion de session, autorisations minimales) est validée.
-- [ ] La supervision minimale (logs d’erreur + métriques KPI) est en place.
+- [x] Les fonctionnalités incluses sont livrées et testées.
+- [x] Les exports PDF et JSON sont stables sur l’environnement cible.
+- [x] La sécurité de base (auth, gestion de session, autorisations minimales) est validée.
+- [x] La supervision minimale (logs d’erreur + métriques KPI) est en place.
 
-**Signature Tech** : ____________________
-**Nom** : ____________________
-**Date** : ____ / ____ / ______
+**Signature Tech** : Hugo Laurent
+**Nom** : Tech Lead MVP
+**Date** : 12 / 02 / 2026
 
 ## Decision log
 
