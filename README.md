@@ -40,6 +40,32 @@ Vision long terme (séparée) : `docs/vision-cognitive/VISION.md`.
 
 ---
 
+## Roadmaps prioritaires
+
+1. **Piste Capsule Produit (prioritaire)** : `docs/product-capsule/ROADMAP.md`
+2. **Piste Vision Cognitive (R&D)** : `docs/vision-cognitive/ROADMAP-RD.md`
+
+## Reclassification des tâches existantes (README + mvp-scope)
+
+### Piste Capsule Produit
+
+- Authentification (inscription, connexion, déconnexion, session).
+- Export basique PDF/JSON et portabilité des données.
+- Traçabilité opérationnelle (logs d’erreur, métriques KPI, journal d’audit).
+- Sécurité de base (auth, session, autorisations minimales).
+- Workflows juridiques post-mortem complets : **Not in scope MVP**, traité en phase conformité élargie.
+
+### Piste Vision Cognitive (R&D)
+
+- Module Mémoire (création/édition/suppression + consultation chronologique).
+- Convictions, Leçons, Valeurs (création, édition, priorisation, archivage).
+- Liens simples entre éléments de connaissance.
+- Recherche avancée sémantique et filtres complexes : **Research / Later**.
+- IA complexe conversationnelle/contextuelle : **Research**.
+- Héritage cognitif autonome (formulation "Done MVP") comme cible de protocole d’évaluation et d’impact.
+
+---
+
 ## Documents du projet
 
 ### Documentation produit capsule (périmètre actuel)
