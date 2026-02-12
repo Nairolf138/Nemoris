@@ -3,6 +3,7 @@ import { runAuthServiceTests } from './auth-service.test.js';
 import { runExportIntegrationTests, runExportPersistenceIntegrationTests } from './export-integration.test.js';
 import { runDataIntegrationTests } from './data-integration.test.js';
 import { runPersistenceIntegrationTests } from './persistence-integration.test.js';
+import { runNarrativeIntegrationTests } from './narrative-integration.test.js';
 
 type RuntimeEnv = Record<string, string | undefined>;
 
@@ -31,6 +32,7 @@ const run = async () => {
   await runExportIntegrationTests();
   await runExportPersistenceIntegrationTests();
   await runDataIntegrationTests();
+  await runNarrativeIntegrationTests();
   await runPersistenceIntegrationTests();
   console.log('All capsule-api tests passed.');
 };

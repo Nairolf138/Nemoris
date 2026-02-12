@@ -15,6 +15,9 @@ import {
   updateMemory,
   updateValueProfile,
   type CapsulePersistence,
+  type NarrativeEdge,
+  type NarrativeNode,
+  type Visibility,
 } from '@capsule/core';
 import { ExportAggregator } from '@capsule/export';
 import { ObservabilityService } from '@capsule/observability';
@@ -24,11 +27,15 @@ import {
   mapCreateLegacyMessageInput,
   mapCreateLessonInput,
   mapCreateMemoryInput,
+  mapCreateNarrativeEdgeInput,
+  mapCreateNarrativeNodeInput,
   mapCreateValueProfileInput,
   mapUpdateBeliefInput,
   mapUpdateLegacyMessageInput,
   mapUpdateLessonInput,
   mapUpdateMemoryInput,
+  mapUpdateNarrativeEdgeInput,
+  mapUpdateNarrativeNodeInput,
   mapUpdateValueProfileInput,
 } from './data-route-adapters.js';
 import type { ExportRepository } from './export-repository.js';
@@ -103,6 +110,16 @@ const latencyBucket = (durationMs: number): string => {
   return 'gte_1000ms';
 };
 
+const DATA_COLLECTIONS: readonly DataCollection[] = [
+  'memories',
+  'beliefs',
+  'lessons',
+  'value_profiles',
+  'legacy_messages',
+  'narrative_nodes',
+  'narrative_edges',
+];
+
 const buildEventMetadata = (
   request: RequestLike,
   outcome: 'success' | 'failure' | 'denied' | 'alert',
@@ -126,7 +143,7 @@ const parseDataRoute = (path: string): { collection: DataCollection; id?: string
   if (!collection) {
     return null;
   }
-  if (!['memories', 'beliefs', 'lessons', 'value_profiles', 'legacy_messages'].includes(collection)) {
+  if (!DATA_COLLECTIONS.includes(collection)) {
     return null;
   }
   return { collection, id: parts[2] };
@@ -289,6 +306,61 @@ export class CapsuleApiApp {
     }
   }
 
+  private createEntityMetadata(ownerId: string, visibility: Visibility): Pick<NarrativeNode, 'id' | 'owner_id' | 'visibility' | 'created_at' | 'updated_at'> {
+    const now = new Date().toISOString();
+    return {
+      id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      owner_id: ownerId,
+      visibility,
+      created_at: now,
+      updated_at: now,
+    };
+  }
+
+  private async assertOwnedReferences(
+    ownerId: string,
+    field: string,
+    ids: string[],
+    getById: (id: string) => Promise<{ owner_id: string } | null>,
+  ): Promise<void> {
+    for (const id of ids) {
+      const record = await getById(id);
+      if (!record) {
+        throw new ValidationError('DOMAIN_VALIDATION_ERROR', {
+          message: `Field "${field}" contains unknown references.`,
+          details: { field, id },
+        });
+      }
+      if (record.owner_id !== ownerId) {
+        throw new ForbiddenError();
+      }
+    }
+  }
+
+  private async validateNarrativeNodeReferences(
+    ownerId: string,
+    input: Pick<NarrativeNode, 'memory_ids' | 'belief_ids' | 'lesson_ids' | 'value_profile_ids'>,
+  ): Promise<void> {
+    await this.assertOwnedReferences(ownerId, 'memory_ids', input.memory_ids, this.persistence.memories.getById);
+    await this.assertOwnedReferences(ownerId, 'belief_ids', input.belief_ids, this.persistence.beliefs.getById);
+    await this.assertOwnedReferences(ownerId, 'lesson_ids', input.lesson_ids, this.persistence.lessons.getById);
+    await this.assertOwnedReferences(ownerId, 'value_profile_ids', input.value_profile_ids, this.persistence.valueProfiles.getById);
+  }
+
+  private async validateNarrativeEdgeReferences(ownerId: string, input: Omit<NarrativeEdge, 'id' | 'owner_id' | 'created_at' | 'updated_at'>): Promise<void> {
+    if (input.from_node_id === input.to_node_id) {
+      throw new ValidationError('DOMAIN_VALIDATION_ERROR', {
+        message: 'Field "to_node_id" must differ from "from_node_id".',
+      });
+    }
+
+    await this.assertOwnedReferences(ownerId, 'from_node_id', [input.from_node_id], this.persistence.narrativeNodes.getById);
+    await this.assertOwnedReferences(ownerId, 'to_node_id', [input.to_node_id], this.persistence.narrativeNodes.getById);
+    await this.assertOwnedReferences(ownerId, 'evidence_memory_ids', input.evidence_memory_ids, this.persistence.memories.getById);
+    await this.assertOwnedReferences(ownerId, 'belief_ids', input.belief_ids, this.persistence.beliefs.getById);
+    await this.assertOwnedReferences(ownerId, 'lesson_ids', input.lesson_ids, this.persistence.lessons.getById);
+  }
+
   private async handleDataRoute(request: RequestLike): Promise<ResponseLike> {
     const token = parseBearer(request.headers?.authorization);
     if (!token) {
@@ -305,286 +377,167 @@ export class CapsuleApiApp {
 
     if (request.method === 'GET' && !route.id) {
       const query = parseDataListQuery(route.collection, request.path);
-      // Defaults are chronological descending: memories by occurred_at, others by created_at,
-      // and legacy messages by trigger_at when present.
       const sort = query.sort ?? getDefaultSortBy(route.collection);
 
       if (route.collection === 'memories') {
-        return {
-          status: 200,
-          body: await this.persistence.memories.listByOwnerPaginated(auth.user.id, {
-            limit: query.limit,
-            offset: query.offset,
-            sortBy: sort,
-            order: query.order,
-          }),
-        };
+        return { status: 200, body: await this.persistence.memories.listByOwnerPaginated(auth.user.id, { limit: query.limit, offset: query.offset, sortBy: sort, order: query.order }) };
       }
       if (route.collection === 'beliefs') {
-        return {
-          status: 200,
-          body: await this.persistence.beliefs.listByOwnerPaginated(auth.user.id, {
-            limit: query.limit,
-            offset: query.offset,
-            sortBy: sort,
-            order: query.order,
-          }),
-        };
+        return { status: 200, body: await this.persistence.beliefs.listByOwnerPaginated(auth.user.id, { limit: query.limit, offset: query.offset, sortBy: sort, order: query.order }) };
       }
       if (route.collection === 'lessons') {
-        return {
-          status: 200,
-          body: await this.persistence.lessons.listByOwnerPaginated(auth.user.id, {
-            limit: query.limit,
-            offset: query.offset,
-            sortBy: sort,
-            order: query.order,
-          }),
-        };
+        return { status: 200, body: await this.persistence.lessons.listByOwnerPaginated(auth.user.id, { limit: query.limit, offset: query.offset, sortBy: sort, order: query.order }) };
       }
       if (route.collection === 'value_profiles') {
-        return {
-          status: 200,
-          body: await this.persistence.valueProfiles.listByOwnerPaginated(auth.user.id, {
-            limit: query.limit,
-            offset: query.offset,
-            sortBy: sort,
-            order: query.order,
-          }),
-        };
+        return { status: 200, body: await this.persistence.valueProfiles.listByOwnerPaginated(auth.user.id, { limit: query.limit, offset: query.offset, sortBy: sort, order: query.order }) };
       }
-      return {
-        status: 200,
-        body: await this.persistence.legacyMessages.listByOwnerPaginated(auth.user.id, {
-          limit: query.limit,
-          offset: query.offset,
-          sortBy: sort,
-          order: query.order,
-        }),
-      };
+      if (route.collection === 'legacy_messages') {
+        return { status: 200, body: await this.persistence.legacyMessages.listByOwnerPaginated(auth.user.id, { limit: query.limit, offset: query.offset, sortBy: sort, order: query.order }) };
+      }
+      if (route.collection === 'narrative_nodes') {
+        return { status: 200, body: await this.persistence.narrativeNodes.listByOwnerPaginated(auth.user.id, { limit: query.limit, offset: query.offset, sortBy: sort, order: query.order }) };
+      }
+
+      return { status: 200, body: await this.persistence.narrativeEdges.listByOwnerPaginated(auth.user.id, { limit: query.limit, offset: query.offset, sortBy: sort, order: query.order }) };
     }
 
     if (request.method === 'POST' && !route.id) {
       if (route.collection === 'memories') {
-        const created = await createMemory(
-          {
-            memoryRepository: this.persistence.memories,
-            beliefRepository: this.persistence.beliefs,
-            lessonRepository: this.persistence.lessons,
-            valueProfileRepository: this.persistence.valueProfiles,
-            narrativeNodeRepository: this.persistence.narrativeNodes,
-            observer: { emitEvent: (event) => this.observability.emit(event) },
-          },
-          mapCreateMemoryInput(request.body, auth.user.id),
-        );
+        const created = await createMemory({ memoryRepository: this.persistence.memories, beliefRepository: this.persistence.beliefs, lessonRepository: this.persistence.lessons, valueProfileRepository: this.persistence.valueProfiles, narrativeNodeRepository: this.persistence.narrativeNodes, observer: { emitEvent: (event) => this.observability.emit(event) } }, mapCreateMemoryInput(request.body, auth.user.id));
         return { status: 201, body: created };
       }
-
       if (route.collection === 'beliefs') {
-        const created = await createBelief(
-          {
-            beliefRepository: this.persistence.beliefs,
-            memoryRepository: this.persistence.memories,
-            lessonRepository: this.persistence.lessons,
-          },
-          mapCreateBeliefInput(request.body, auth.user.id),
-        );
+        const created = await createBelief({ beliefRepository: this.persistence.beliefs, memoryRepository: this.persistence.memories, lessonRepository: this.persistence.lessons }, mapCreateBeliefInput(request.body, auth.user.id));
         return { status: 201, body: created };
       }
-
       if (route.collection === 'lessons') {
-        const created = await createLesson(
-          {
-            lessonRepository: this.persistence.lessons,
-            memoryRepository: this.persistence.memories,
-            beliefRepository: this.persistence.beliefs,
-            valueProfileRepository: this.persistence.valueProfiles,
-          },
-          mapCreateLessonInput(request.body, auth.user.id),
-        );
+        const created = await createLesson({ lessonRepository: this.persistence.lessons, memoryRepository: this.persistence.memories, beliefRepository: this.persistence.beliefs, valueProfileRepository: this.persistence.valueProfiles }, mapCreateLessonInput(request.body, auth.user.id));
         return { status: 201, body: created };
       }
-
       if (route.collection === 'value_profiles') {
-        const created = await createValueProfile(
-          {
-            valueProfileRepository: this.persistence.valueProfiles,
-            memoryRepository: this.persistence.memories,
-            narrativeNodeRepository: this.persistence.narrativeNodes,
-          },
-          mapCreateValueProfileInput(request.body, auth.user.id),
-        );
+        const created = await createValueProfile({ valueProfileRepository: this.persistence.valueProfiles, memoryRepository: this.persistence.memories, narrativeNodeRepository: this.persistence.narrativeNodes }, mapCreateValueProfileInput(request.body, auth.user.id));
         return { status: 201, body: created };
       }
+      if (route.collection === 'legacy_messages') {
+        const created = await createLegacyMessage({ legacyMessageRepository: this.persistence.legacyMessages, memoryRepository: this.persistence.memories, beliefRepository: this.persistence.beliefs, lessonRepository: this.persistence.lessons, valueProfileRepository: this.persistence.valueProfiles, narrativeNodeRepository: this.persistence.narrativeNodes, observer: { emitEvent: (event) => this.observability.emit(event) } }, mapCreateLegacyMessageInput(request.body, auth.user.id));
+        return { status: 201, body: created };
+      }
+      if (route.collection === 'narrative_nodes') {
+        const input = mapCreateNarrativeNodeInput(request.body, auth.user.id);
+        await this.validateNarrativeNodeReferences(auth.user.id, input);
+        const node: NarrativeNode = { ...this.createEntityMetadata(auth.user.id, input.visibility), ...input };
+        return { status: 201, body: await this.persistence.narrativeNodes.create(node) };
+      }
 
-      const created = await createLegacyMessage(
-        {
-          legacyMessageRepository: this.persistence.legacyMessages,
-          memoryRepository: this.persistence.memories,
-          beliefRepository: this.persistence.beliefs,
-          lessonRepository: this.persistence.lessons,
-          valueProfileRepository: this.persistence.valueProfiles,
-          narrativeNodeRepository: this.persistence.narrativeNodes,
-          observer: { emitEvent: (event) => this.observability.emit(event) },
-        },
-        mapCreateLegacyMessageInput(request.body, auth.user.id),
-      );
-      return { status: 201, body: created };
+      const input = mapCreateNarrativeEdgeInput(request.body, auth.user.id);
+      await this.validateNarrativeEdgeReferences(auth.user.id, input);
+      const edge: NarrativeEdge = { ...this.createEntityMetadata(auth.user.id, input.visibility), ...input };
+      return { status: 201, body: await this.persistence.narrativeEdges.create(edge) };
     }
 
     if (request.method === 'PATCH' && route.id) {
       if (route.collection === 'memories') {
-        const updated = await updateMemory(
-          {
-            memoryRepository: this.persistence.memories,
-            beliefRepository: this.persistence.beliefs,
-            lessonRepository: this.persistence.lessons,
-            valueProfileRepository: this.persistence.valueProfiles,
-            narrativeNodeRepository: this.persistence.narrativeNodes,
-            observer: { emitEvent: (event) => this.observability.emit(event) },
-          },
-          route.id,
-          mapUpdateMemoryInput(request.body),
-        );
+        const updated = await updateMemory({ memoryRepository: this.persistence.memories, beliefRepository: this.persistence.beliefs, lessonRepository: this.persistence.lessons, valueProfileRepository: this.persistence.valueProfiles, narrativeNodeRepository: this.persistence.narrativeNodes, observer: { emitEvent: (event) => this.observability.emit(event) } }, route.id, mapUpdateMemoryInput(request.body));
         if (!updated) throw new NotFoundError('RESOURCE_NOT_FOUND');
         if (updated.owner_id !== auth.user.id) throw new ForbiddenError();
         return { status: 200, body: updated };
       }
-
       if (route.collection === 'beliefs') {
-        const updated = await updateBelief(
-          {
-            beliefRepository: this.persistence.beliefs,
-            memoryRepository: this.persistence.memories,
-            lessonRepository: this.persistence.lessons,
-          },
-          route.id,
-          mapUpdateBeliefInput(request.body),
-        );
+        const updated = await updateBelief({ beliefRepository: this.persistence.beliefs, memoryRepository: this.persistence.memories, lessonRepository: this.persistence.lessons }, route.id, mapUpdateBeliefInput(request.body));
         if (!updated) throw new NotFoundError('RESOURCE_NOT_FOUND');
         if (updated.owner_id !== auth.user.id) throw new ForbiddenError();
         return { status: 200, body: updated };
       }
-
       if (route.collection === 'lessons') {
-        const updated = await updateLesson(
-          {
-            lessonRepository: this.persistence.lessons,
-            memoryRepository: this.persistence.memories,
-            beliefRepository: this.persistence.beliefs,
-            valueProfileRepository: this.persistence.valueProfiles,
-          },
-          route.id,
-          mapUpdateLessonInput(request.body),
-        );
+        const updated = await updateLesson({ lessonRepository: this.persistence.lessons, memoryRepository: this.persistence.memories, beliefRepository: this.persistence.beliefs, valueProfileRepository: this.persistence.valueProfiles }, route.id, mapUpdateLessonInput(request.body));
         if (!updated) throw new NotFoundError('RESOURCE_NOT_FOUND');
         if (updated.owner_id !== auth.user.id) throw new ForbiddenError();
         return { status: 200, body: updated };
       }
-
       if (route.collection === 'value_profiles') {
-        const updated = await updateValueProfile(
-          {
-            valueProfileRepository: this.persistence.valueProfiles,
-            memoryRepository: this.persistence.memories,
-            narrativeNodeRepository: this.persistence.narrativeNodes,
-          },
-          route.id,
-          mapUpdateValueProfileInput(request.body),
-        );
+        const updated = await updateValueProfile({ valueProfileRepository: this.persistence.valueProfiles, memoryRepository: this.persistence.memories, narrativeNodeRepository: this.persistence.narrativeNodes }, route.id, mapUpdateValueProfileInput(request.body));
         if (!updated) throw new NotFoundError('RESOURCE_NOT_FOUND');
         if (updated.owner_id !== auth.user.id) throw new ForbiddenError();
         return { status: 200, body: updated };
       }
+      if (route.collection === 'legacy_messages') {
+        const updated = await updateLegacyMessage({ legacyMessageRepository: this.persistence.legacyMessages, memoryRepository: this.persistence.memories, beliefRepository: this.persistence.beliefs, lessonRepository: this.persistence.lessons, valueProfileRepository: this.persistence.valueProfiles, narrativeNodeRepository: this.persistence.narrativeNodes, observer: { emitEvent: (event) => this.observability.emit(event) } }, route.id, mapUpdateLegacyMessageInput(request.body));
+        if (!updated) throw new NotFoundError('RESOURCE_NOT_FOUND');
+        if (updated.owner_id !== auth.user.id) throw new ForbiddenError();
+        return { status: 200, body: updated };
+      }
+      if (route.collection === 'narrative_nodes') {
+        const existing = await this.persistence.narrativeNodes.getById(route.id);
+        if (!existing) throw new NotFoundError('RESOURCE_NOT_FOUND');
+        if (existing.owner_id !== auth.user.id) throw new ForbiddenError();
+        const patch = mapUpdateNarrativeNodeInput(request.body);
+        await this.validateNarrativeNodeReferences(auth.user.id, {
+          memory_ids: patch.memory_ids ?? existing.memory_ids,
+          belief_ids: patch.belief_ids ?? existing.belief_ids,
+          lesson_ids: patch.lesson_ids ?? existing.lesson_ids,
+          value_profile_ids: patch.value_profile_ids ?? existing.value_profile_ids,
+        });
+        const updated = await this.persistence.narrativeNodes.update(route.id, { ...patch, updated_at: new Date().toISOString() });
+        return { status: 200, body: updated };
+      }
 
-      const updated = await updateLegacyMessage(
-        {
-          legacyMessageRepository: this.persistence.legacyMessages,
-          memoryRepository: this.persistence.memories,
-          beliefRepository: this.persistence.beliefs,
-          lessonRepository: this.persistence.lessons,
-          valueProfileRepository: this.persistence.valueProfiles,
-          narrativeNodeRepository: this.persistence.narrativeNodes,
-          observer: { emitEvent: (event) => this.observability.emit(event) },
-        },
-        route.id,
-        mapUpdateLegacyMessageInput(request.body),
-      );
-      if (!updated) throw new NotFoundError('RESOURCE_NOT_FOUND');
-      if (updated.owner_id !== auth.user.id) throw new ForbiddenError();
+      const existing = await this.persistence.narrativeEdges.getById(route.id);
+      if (!existing) throw new NotFoundError('RESOURCE_NOT_FOUND');
+      if (existing.owner_id !== auth.user.id) throw new ForbiddenError();
+      const patch = mapUpdateNarrativeEdgeInput(request.body);
+      const merged: Omit<NarrativeEdge, 'id' | 'owner_id' | 'created_at' | 'updated_at'> = {
+        visibility: patch.visibility ?? existing.visibility,
+        from_node_id: patch.from_node_id ?? existing.from_node_id,
+        to_node_id: patch.to_node_id ?? existing.to_node_id,
+        relation_type: patch.relation_type ?? existing.relation_type,
+        weight: patch.weight ?? existing.weight,
+        evidence_memory_ids: patch.evidence_memory_ids ?? existing.evidence_memory_ids,
+        belief_ids: patch.belief_ids ?? existing.belief_ids,
+        lesson_ids: patch.lesson_ids ?? existing.lesson_ids,
+      };
+      await this.validateNarrativeEdgeReferences(auth.user.id, merged);
+      const updated = await this.persistence.narrativeEdges.update(route.id, { ...patch, updated_at: new Date().toISOString() });
       return { status: 200, body: updated };
     }
 
     if (request.method === 'DELETE' && route.id) {
       let deleted = false;
+
       if (route.collection === 'memories') {
         const existing = await this.persistence.memories.getById(route.id);
         if (!existing) throw new NotFoundError('RESOURCE_NOT_FOUND');
         if (existing.owner_id !== auth.user.id) throw new ForbiddenError();
-        deleted = await deleteMemory(
-          {
-            memoryRepository: this.persistence.memories,
-            beliefRepository: this.persistence.beliefs,
-            lessonRepository: this.persistence.lessons,
-            valueProfileRepository: this.persistence.valueProfiles,
-            narrativeNodeRepository: this.persistence.narrativeNodes,
-            observer: { emitEvent: (event) => this.observability.emit(event) },
-          },
-          route.id,
-        );
+        deleted = await deleteMemory({ memoryRepository: this.persistence.memories, beliefRepository: this.persistence.beliefs, lessonRepository: this.persistence.lessons, valueProfileRepository: this.persistence.valueProfiles, narrativeNodeRepository: this.persistence.narrativeNodes, observer: { emitEvent: (event) => this.observability.emit(event) } }, route.id);
       } else if (route.collection === 'beliefs') {
         const existing = await this.persistence.beliefs.getById(route.id);
         if (!existing) throw new NotFoundError('RESOURCE_NOT_FOUND');
         if (existing.owner_id !== auth.user.id) throw new ForbiddenError();
-        deleted = await deleteBelief(
-          {
-            beliefRepository: this.persistence.beliefs,
-            memoryRepository: this.persistence.memories,
-            lessonRepository: this.persistence.lessons,
-          },
-          route.id,
-        );
+        deleted = await deleteBelief({ beliefRepository: this.persistence.beliefs, memoryRepository: this.persistence.memories, lessonRepository: this.persistence.lessons }, route.id);
       } else if (route.collection === 'lessons') {
         const existing = await this.persistence.lessons.getById(route.id);
         if (!existing) throw new NotFoundError('RESOURCE_NOT_FOUND');
         if (existing.owner_id !== auth.user.id) throw new ForbiddenError();
-        deleted = await deleteLesson(
-          {
-            lessonRepository: this.persistence.lessons,
-            memoryRepository: this.persistence.memories,
-            beliefRepository: this.persistence.beliefs,
-            valueProfileRepository: this.persistence.valueProfiles,
-          },
-          route.id,
-        );
+        deleted = await deleteLesson({ lessonRepository: this.persistence.lessons, memoryRepository: this.persistence.memories, beliefRepository: this.persistence.beliefs, valueProfileRepository: this.persistence.valueProfiles }, route.id);
       } else if (route.collection === 'value_profiles') {
         const existing = await this.persistence.valueProfiles.getById(route.id);
         if (!existing) throw new NotFoundError('RESOURCE_NOT_FOUND');
         if (existing.owner_id !== auth.user.id) throw new ForbiddenError();
-        deleted = await deleteValueProfile(
-          {
-            valueProfileRepository: this.persistence.valueProfiles,
-            memoryRepository: this.persistence.memories,
-            narrativeNodeRepository: this.persistence.narrativeNodes,
-          },
-          route.id,
-        );
-      } else {
+        deleted = await deleteValueProfile({ valueProfileRepository: this.persistence.valueProfiles, memoryRepository: this.persistence.memories, narrativeNodeRepository: this.persistence.narrativeNodes }, route.id);
+      } else if (route.collection === 'legacy_messages') {
         const existing = await this.persistence.legacyMessages.getById(route.id);
         if (!existing) throw new NotFoundError('RESOURCE_NOT_FOUND');
         if (existing.owner_id !== auth.user.id) throw new ForbiddenError();
-        deleted = await deleteLegacyMessage(
-          {
-            legacyMessageRepository: this.persistence.legacyMessages,
-            memoryRepository: this.persistence.memories,
-            beliefRepository: this.persistence.beliefs,
-            lessonRepository: this.persistence.lessons,
-            valueProfileRepository: this.persistence.valueProfiles,
-            narrativeNodeRepository: this.persistence.narrativeNodes,
-            observer: { emitEvent: (event) => this.observability.emit(event) },
-          },
-          route.id,
-        );
+        deleted = await deleteLegacyMessage({ legacyMessageRepository: this.persistence.legacyMessages, memoryRepository: this.persistence.memories, beliefRepository: this.persistence.beliefs, lessonRepository: this.persistence.lessons, valueProfileRepository: this.persistence.valueProfiles, narrativeNodeRepository: this.persistence.narrativeNodes, observer: { emitEvent: (event) => this.observability.emit(event) } }, route.id);
+      } else if (route.collection === 'narrative_nodes') {
+        const existing = await this.persistence.narrativeNodes.getById(route.id);
+        if (!existing) throw new NotFoundError('RESOURCE_NOT_FOUND');
+        if (existing.owner_id !== auth.user.id) throw new ForbiddenError();
+        deleted = await this.persistence.narrativeNodes.delete(route.id);
+      } else {
+        const existing = await this.persistence.narrativeEdges.getById(route.id);
+        if (!existing) throw new NotFoundError('RESOURCE_NOT_FOUND');
+        if (existing.owner_id !== auth.user.id) throw new ForbiddenError();
+        deleted = await this.persistence.narrativeEdges.delete(route.id);
       }
 
       if (!deleted) {

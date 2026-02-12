@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import type { Belief, LegacyMessage, Lesson, Memory, NarrativeNode, ValueProfile } from '../../domain/entities.js';
+import type { Belief, LegacyMessage, Lesson, Memory, NarrativeEdge, NarrativeNode, ValueProfile } from '../../domain/entities.js';
 import type {
   BeliefRepository,
   CapsulePersistence,
@@ -7,6 +7,7 @@ import type {
   LessonRepository,
   ListByOwnerQuery,
   MemoryRepository,
+  NarrativeEdgeRepository,
   NarrativeNodeRepository,
   PaginatedListResult,
   RepositorySortOrder,
@@ -118,6 +119,7 @@ export class SqliteLessonRepository extends SqliteEntityStore<Lesson> implements
 export class SqliteValueProfileRepository extends SqliteEntityStore<ValueProfile> implements ValueProfileRepository {}
 export class SqliteLegacyMessageRepository extends SqliteEntityStore<LegacyMessage> implements LegacyMessageRepository {}
 export class SqliteNarrativeNodeRepository extends SqliteEntityStore<NarrativeNode> implements NarrativeNodeRepository {}
+export class SqliteNarrativeEdgeRepository extends SqliteEntityStore<NarrativeEdge> implements NarrativeEdgeRepository {}
 
 const setupSchema = (dbPath: string): void => {
   runSql(
@@ -129,6 +131,7 @@ const setupSchema = (dbPath: string): void => {
     CREATE TABLE IF NOT EXISTS value_profiles (id TEXT PRIMARY KEY, owner_id TEXT NOT NULL, payload TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS legacy_messages (id TEXT PRIMARY KEY, owner_id TEXT NOT NULL, payload TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS narrative_nodes (id TEXT PRIMARY KEY, owner_id TEXT NOT NULL, payload TEXT NOT NULL);
+    CREATE TABLE IF NOT EXISTS narrative_edges (id TEXT PRIMARY KEY, owner_id TEXT NOT NULL, payload TEXT NOT NULL);
 
     CREATE INDEX IF NOT EXISTS idx_memories_owner ON memories(owner_id);
     CREATE INDEX IF NOT EXISTS idx_beliefs_owner ON beliefs(owner_id);
@@ -136,6 +139,7 @@ const setupSchema = (dbPath: string): void => {
     CREATE INDEX IF NOT EXISTS idx_value_profiles_owner ON value_profiles(owner_id);
     CREATE INDEX IF NOT EXISTS idx_legacy_messages_owner ON legacy_messages(owner_id);
     CREATE INDEX IF NOT EXISTS idx_narrative_nodes_owner ON narrative_nodes(owner_id);
+    CREATE INDEX IF NOT EXISTS idx_narrative_edges_owner ON narrative_edges(owner_id);
   `,
   );
 };
@@ -149,5 +153,6 @@ export const createSqlitePersistence = (path: string): CapsulePersistence => {
     valueProfiles: new SqliteValueProfileRepository(path, 'value_profiles'),
     legacyMessages: new SqliteLegacyMessageRepository(path, 'legacy_messages'),
     narrativeNodes: new SqliteNarrativeNodeRepository(path, 'narrative_nodes'),
+    narrativeEdges: new SqliteNarrativeEdgeRepository(path, 'narrative_edges'),
   };
 };

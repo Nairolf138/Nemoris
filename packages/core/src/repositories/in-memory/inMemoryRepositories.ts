@@ -1,10 +1,11 @@
-import type { Belief, LegacyMessage, Lesson, Memory, NarrativeNode, ValueProfile } from '../../domain/entities.js';
+import type { Belief, LegacyMessage, Lesson, Memory, NarrativeEdge, NarrativeNode, ValueProfile } from '../../domain/entities.js';
 import type {
   BeliefRepository,
   ListByOwnerQuery,
   LegacyMessageRepository,
   LessonRepository,
   MemoryRepository,
+  NarrativeEdgeRepository,
   NarrativeNodeRepository,
   PaginatedListResult,
   RepositorySortOrder,
@@ -92,6 +93,8 @@ export class InMemoryLegacyMessageRepository
 
 export class InMemoryNarrativeNodeRepository extends InMemoryEntityStore<NarrativeNode> implements NarrativeNodeRepository {}
 
+export class InMemoryNarrativeEdgeRepository extends InMemoryEntityStore<NarrativeEdge> implements NarrativeEdgeRepository {}
+
 export const createInMemoryPersistence = (): CapsulePersistence => ({
   memories: new InMemoryMemoryRepository(),
   beliefs: new InMemoryBeliefRepository(),
@@ -99,4 +102,5 @@ export const createInMemoryPersistence = (): CapsulePersistence => ({
   valueProfiles: new InMemoryValueProfileRepository(),
   legacyMessages: new InMemoryLegacyMessageRepository(),
   narrativeNodes: new InMemoryNarrativeNodeRepository(),
+  narrativeEdges: new InMemoryNarrativeEdgeRepository(),
 });

@@ -6,7 +6,14 @@ const assert = (condition: unknown, message: string): void => {
   }
 };
 
-type DataResource = 'memories' | 'beliefs' | 'lessons' | 'value_profiles' | 'legacy_messages';
+type DataResource =
+  | 'memories'
+  | 'beliefs'
+  | 'lessons'
+  | 'value_profiles'
+  | 'legacy_messages'
+  | 'narrative_nodes'
+  | 'narrative_edges';
 
 type PaginatedResponse<T> = {
   items: T[];
@@ -63,6 +70,24 @@ const createPayloadByResource: Record<DataResource, Record<string, unknown>> = {
     related_narrative_node_ids: [],
     delivery_status: 'draft',
   },
+  narrative_nodes: {
+    visibility: 'private',
+    node_type: 'event',
+    label: 'Key event',
+    memory_ids: [],
+    belief_ids: [],
+    lesson_ids: [],
+    value_profile_ids: [],
+  },
+  narrative_edges: {
+    visibility: 'private',
+    from_node_id: '__SETUP_NODE_A__',
+    to_node_id: '__SETUP_NODE_B__',
+    relation_type: 'causes',
+    evidence_memory_ids: [],
+    belief_ids: [],
+    lesson_ids: [],
+  },
 };
 
 const patchPayloadByResource: Record<DataResource, Record<string, unknown>> = {
@@ -71,6 +96,8 @@ const patchPayloadByResource: Record<DataResource, Record<string, unknown>> = {
   lessons: { lesson_text: 'Always verify and test' },
   value_profiles: { profile_label: 'Updated values' },
   legacy_messages: { title: 'Updated final note' },
+  narrative_nodes: { label: 'Updated key event' },
+  narrative_edges: { relation_type: 'supports' },
 };
 
 const registerAndLogin = async (app: CapsuleApiApp, email: string, password: string, ip: string) => {
@@ -195,7 +222,7 @@ export const runDataIntegrationTests = async (): Promise<void> => {
   const owner = await registerAndLogin(app, 'data-owner@example.com', 'Secret123!', '203.0.113.21');
   const outsider = await registerAndLogin(app, 'data-outsider@example.com', 'Secret123!', '203.0.113.22');
 
-  const resources: DataResource[] = ['memories', 'beliefs', 'lessons', 'value_profiles', 'legacy_messages'];
+  const resources: DataResource[] = ['memories', 'beliefs', 'lessons', 'value_profiles', 'legacy_messages', 'narrative_nodes'];
 
   for (const resource of resources) {
     const createdResponse = await app.handle({
@@ -258,6 +285,59 @@ export const runDataIntegrationTests = async (): Promise<void> => {
     const afterDeleteEntries = afterDelete.body as PaginatedResponse<{ id: string }>;
     assert(!afterDeleteEntries.items.some((entry) => entry.id === createdEntity.id), `${resource}: deleted record should disappear`);
   }
+
+
+
+  const firstNodeResponse = await app.handle({
+    method: 'POST',
+    path: '/data/narrative_nodes',
+    headers: { authorization: `Bearer ${owner.token}`, 'x-owner-id': owner.userId },
+    body: createPayloadByResource.narrative_nodes,
+  });
+  assert(firstNodeResponse.status === 201, 'narrative_edges setup first node should return 201');
+  const secondNodeResponse = await app.handle({
+    method: 'POST',
+    path: '/data/narrative_nodes',
+    headers: { authorization: `Bearer ${owner.token}`, 'x-owner-id': owner.userId },
+    body: { ...createPayloadByResource.narrative_nodes, label: 'Second event node' },
+  });
+  assert(secondNodeResponse.status === 201, 'narrative_edges setup second node should return 201');
+
+  const firstNodeId = (firstNodeResponse.body as { id: string }).id;
+  const secondNodeId = (secondNodeResponse.body as { id: string }).id;
+
+  const edgeCreateResponse = await app.handle({
+    method: 'POST',
+    path: '/data/narrative_edges',
+    headers: { authorization: `Bearer ${owner.token}`, 'x-owner-id': owner.userId },
+    body: { ...createPayloadByResource.narrative_edges, from_node_id: firstNodeId, to_node_id: secondNodeId },
+  });
+  assert(edgeCreateResponse.status === 201, 'narrative_edges: create should return 201');
+  const edgeId = (edgeCreateResponse.body as { id: string }).id;
+
+  const invalidEdge = await app.handle({
+    method: 'POST',
+    path: '/data/narrative_edges',
+    headers: { authorization: `Bearer ${owner.token}`, 'x-owner-id': owner.userId },
+    body: { ...createPayloadByResource.narrative_edges, from_node_id: firstNodeId, to_node_id: firstNodeId },
+  });
+  assert(invalidEdge.status === 400, 'narrative_edges: self-loop should be rejected');
+
+  const updatedEdgeResponse = await app.handle({
+    method: 'PATCH',
+    path: `/data/narrative_edges/${edgeId}`,
+    headers: { authorization: `Bearer ${owner.token}`, 'x-owner-id': owner.userId },
+    body: patchPayloadByResource.narrative_edges,
+  });
+  assert(updatedEdgeResponse.status === 200, 'narrative_edges: update should return 200');
+
+  const deleteEdge = await app.handle({
+    method: 'DELETE',
+    path: `/data/narrative_edges/${edgeId}`,
+    headers: { authorization: `Bearer ${owner.token}`, 'x-owner-id': owner.userId },
+  });
+  assert(deleteEdge.status === 204, 'narrative_edges: delete should return 204');
+
 
   await runPaginationAndSortingTests(app, owner);
 };

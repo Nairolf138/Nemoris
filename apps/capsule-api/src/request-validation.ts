@@ -11,7 +11,14 @@ interface ExportPayload {
   owner_id?: string;
 }
 
-export type DataCollection = 'memories' | 'beliefs' | 'lessons' | 'value_profiles' | 'legacy_messages';
+export type DataCollection =
+  | 'memories'
+  | 'beliefs'
+  | 'lessons'
+  | 'value_profiles'
+  | 'legacy_messages'
+  | 'narrative_nodes'
+  | 'narrative_edges';
 
 type SortOrder = 'asc' | 'desc';
 
@@ -21,6 +28,8 @@ type DataCollectionSortBy = {
   lessons: 'created_at' | 'updated_at';
   value_profiles: 'created_at' | 'updated_at';
   legacy_messages: 'trigger_at' | 'created_at' | 'updated_at';
+  narrative_nodes: 'created_at' | 'updated_at';
+  narrative_edges: 'created_at' | 'updated_at';
 };
 
 export type DataListSortBy<C extends DataCollection> = DataCollectionSortBy[C];
@@ -46,6 +55,8 @@ const DEFAULT_SORT_BY: { [K in DataCollection]: DataListSortBy<K> } = {
   lessons: 'created_at',
   value_profiles: 'created_at',
   legacy_messages: 'trigger_at',
+  narrative_nodes: 'created_at',
+  narrative_edges: 'created_at',
 };
 
 const allowedSortBy: { [K in DataCollection]: readonly DataListSortBy<K>[] } = {
@@ -54,6 +65,8 @@ const allowedSortBy: { [K in DataCollection]: readonly DataListSortBy<K>[] } = {
   lessons: ['created_at', 'updated_at'],
   value_profiles: ['created_at', 'updated_at'],
   legacy_messages: ['trigger_at', 'created_at', 'updated_at'],
+  narrative_nodes: ['created_at', 'updated_at'],
+  narrative_edges: ['created_at', 'updated_at'],
 };
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
