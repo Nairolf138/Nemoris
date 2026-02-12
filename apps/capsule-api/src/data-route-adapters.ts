@@ -232,7 +232,7 @@ export const mapCreateLegacyMessageInput = (body: unknown, ownerId: string): Cre
     related_lesson_ids: asStringArray(payload, 'related_lesson_ids'),
     related_value_profile_ids: asStringArray(payload, 'related_value_profile_ids'),
     related_narrative_node_ids: asStringArray(payload, 'related_narrative_node_ids'),
-    delivery_status: asString(payload, 'delivery_status', true) as LegacyMessage['delivery_status'],
+    state: asString(payload, 'state', true) as LegacyMessage['state'],
   };
 };
 
@@ -253,7 +253,7 @@ export const mapUpdateLegacyMessageInput = (body: unknown): UpdateLegacyMessageI
       payload.related_value_profile_ids === undefined ? undefined : asStringArray(payload, 'related_value_profile_ids'),
     related_narrative_node_ids:
       payload.related_narrative_node_ids === undefined ? undefined : asStringArray(payload, 'related_narrative_node_ids'),
-    delivery_status: asString(payload, 'delivery_status') as LegacyMessage['delivery_status'],
+    state: asString(payload, 'state') as LegacyMessage['state'],
   };
 };
 

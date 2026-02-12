@@ -104,5 +104,14 @@ export interface LegacyMessage extends BaseEntity {
   related_lesson_ids: string[];
   related_value_profile_ids: string[];
   related_narrative_node_ids: string[];
-  delivery_status: 'draft' | 'armed' | 'sent' | 'revoked';
+  state: 'draft' | 'armed' | 'triggered' | 'sent' | 'revoked' | 'failed';
+}
+
+export interface LegacyMessageDeliveryAttempt {
+  id: string;
+  legacy_message_id: string;
+  owner_id: string;
+  attempted_at: string;
+  status: 'success' | 'failed';
+  error_message?: string;
 }

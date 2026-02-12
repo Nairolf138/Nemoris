@@ -41,7 +41,7 @@ const buildFixture = () => {
       {
         id: 'msg-1', owner_id: ownerId, visibility: 'posthumous', created_at: '2026-01-01T00:00:00.000Z', updated_at: '2026-01-01T00:00:00.000Z',
         title: 'Message testamentaire', message: 'Prenez soin de vous.', trigger_type: 'manual', recipient_ids: ['benef-1', 'benef-2'], attachment_memory_ids: ['mem-1'],
-        related_belief_ids: ['belief-1'], related_lesson_ids: ['lesson-1'], related_value_profile_ids: ['vp-1'], related_narrative_node_ids: [], delivery_status: 'armed',
+        related_belief_ids: ['belief-1'], related_lesson_ids: ['lesson-1'], related_value_profile_ids: ['vp-1'], related_narrative_node_ids: [], state: 'armed',
       },
     ],
   };

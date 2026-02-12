@@ -11,7 +11,7 @@ import { VISIBILITIES, defaultedMetadata, ensureEnum, ensureRelatedIds, ensureRe
 import type { UseCaseObserver } from './observability.js';
 
 const TRIGGER_TYPES = ['manual', 'date', 'inactivity', 'verified_death'] as const;
-const DELIVERY_STATUS = ['draft', 'armed', 'sent', 'revoked'] as const;
+const LEGACY_MESSAGE_STATES = ['draft', 'armed', 'triggered', 'sent', 'revoked', 'failed'] as const;
 
 export interface CreateLegacyMessageInput {
   id?: string;
@@ -29,7 +29,7 @@ export interface CreateLegacyMessageInput {
   related_lesson_ids: string[];
   related_value_profile_ids: string[];
   related_narrative_node_ids: string[];
-  delivery_status: LegacyMessage['delivery_status'];
+  state: LegacyMessage['state'];
 }
 
 export type UpdateLegacyMessageInput = Partial<Omit<CreateLegacyMessageInput, 'owner_id' | 'created_at'>>;
@@ -44,15 +44,12 @@ export interface LegacyMessageUseCaseDeps {
   observer?: UseCaseObserver;
 }
 
-const validateCreateLegacyMessage = async (
-  deps: LegacyMessageUseCaseDeps,
-  input: CreateLegacyMessageInput,
-): Promise<LegacyMessage> => {
+const validateCreateLegacyMessage = async (deps: LegacyMessageUseCaseDeps, input: CreateLegacyMessageInput): Promise<LegacyMessage> => {
   const metadata = defaultedMetadata(input);
   ensureRequiredString(input.title, 'title');
   ensureRequiredString(input.message, 'message');
   ensureEnum(input.trigger_type, TRIGGER_TYPES, 'trigger_type');
-  ensureEnum(input.delivery_status, DELIVERY_STATUS, 'delivery_status');
+  ensureEnum(input.state, LEGACY_MESSAGE_STATES, 'state');
 
   return {
     ...metadata,
@@ -61,24 +58,16 @@ const validateCreateLegacyMessage = async (
     trigger_type: input.trigger_type,
     trigger_at: input.trigger_at,
     recipient_ids: input.recipient_ids,
-    attachment_memory_ids: await ensureRelatedIds(
-      input.attachment_memory_ids,
-      'attachment_memory_ids',
-      deps.memoryRepository.existsByIds,
-    ),
+    attachment_memory_ids: await ensureRelatedIds(input.attachment_memory_ids, 'attachment_memory_ids', deps.memoryRepository.existsByIds),
     related_belief_ids: await ensureRelatedIds(input.related_belief_ids, 'related_belief_ids', deps.beliefRepository.existsByIds),
     related_lesson_ids: await ensureRelatedIds(input.related_lesson_ids, 'related_lesson_ids', deps.lessonRepository.existsByIds),
-    related_value_profile_ids: await ensureRelatedIds(
-      input.related_value_profile_ids,
-      'related_value_profile_ids',
-      deps.valueProfileRepository.existsByIds,
-    ),
+    related_value_profile_ids: await ensureRelatedIds(input.related_value_profile_ids, 'related_value_profile_ids', deps.valueProfileRepository.existsByIds),
     related_narrative_node_ids: await ensureRelatedIds(
       input.related_narrative_node_ids,
       'related_narrative_node_ids',
       deps.narrativeNodeRepository.existsByIds,
     ),
-    delivery_status: input.delivery_status,
+    state: input.state,
   };
 };
 
@@ -94,15 +83,9 @@ const validateUpdateLegacyMessage = async (
   if (input.trigger_type !== undefined) patch.trigger_type = ensureEnum(input.trigger_type, TRIGGER_TYPES, 'trigger_type');
   if (input.trigger_at !== undefined) patch.trigger_at = input.trigger_at;
   if (input.recipient_ids !== undefined) patch.recipient_ids = input.recipient_ids;
-  if (input.delivery_status !== undefined) {
-    patch.delivery_status = ensureEnum(input.delivery_status, DELIVERY_STATUS, 'delivery_status');
-  }
+  if (input.state !== undefined) patch.state = ensureEnum(input.state, LEGACY_MESSAGE_STATES, 'state');
   if (input.attachment_memory_ids !== undefined) {
-    patch.attachment_memory_ids = await ensureRelatedIds(
-      input.attachment_memory_ids,
-      'attachment_memory_ids',
-      deps.memoryRepository.existsByIds,
-    );
+    patch.attachment_memory_ids = await ensureRelatedIds(input.attachment_memory_ids, 'attachment_memory_ids', deps.memoryRepository.existsByIds);
   }
   if (input.related_belief_ids !== undefined) {
     patch.related_belief_ids = await ensureRelatedIds(input.related_belief_ids, 'related_belief_ids', deps.beliefRepository.existsByIds);
@@ -111,11 +94,7 @@ const validateUpdateLegacyMessage = async (
     patch.related_lesson_ids = await ensureRelatedIds(input.related_lesson_ids, 'related_lesson_ids', deps.lessonRepository.existsByIds);
   }
   if (input.related_value_profile_ids !== undefined) {
-    patch.related_value_profile_ids = await ensureRelatedIds(
-      input.related_value_profile_ids,
-      'related_value_profile_ids',
-      deps.valueProfileRepository.existsByIds,
-    );
+    patch.related_value_profile_ids = await ensureRelatedIds(input.related_value_profile_ids, 'related_value_profile_ids', deps.valueProfileRepository.existsByIds);
   }
   if (input.related_narrative_node_ids !== undefined) {
     patch.related_narrative_node_ids = await ensureRelatedIds(
@@ -128,16 +107,13 @@ const validateUpdateLegacyMessage = async (
   return patch;
 };
 
-export const createLegacyMessage = async (
-  deps: LegacyMessageUseCaseDeps,
-  input: CreateLegacyMessageInput,
-): Promise<LegacyMessage> => {
+export const createLegacyMessage = async (deps: LegacyMessageUseCaseDeps, input: CreateLegacyMessageInput): Promise<LegacyMessage> => {
   const created = await deps.legacyMessageRepository.create(await validateCreateLegacyMessage(deps, input));
   deps.observer?.emitEvent({
     event_name: 'legacy_message.created',
     user_id: created.owner_id,
     entity_id: created.id,
-    metadata: { delivery_status: created.delivery_status },
+    metadata: { state: created.state },
   });
   return created;
 };
@@ -148,34 +124,14 @@ export const updateLegacyMessage = async (
   input: UpdateLegacyMessageInput,
 ): Promise<LegacyMessage | null> => {
   const updated = await deps.legacyMessageRepository.update(id, await validateUpdateLegacyMessage(deps, input));
-  if (!updated) {
-    return null;
-  }
+  if (!updated) return null;
 
   deps.observer?.emitEvent({
     event_name: 'legacy_message.updated',
     user_id: updated.owner_id,
     entity_id: updated.id,
-    metadata: { delivery_status: updated.delivery_status },
+    metadata: { state: updated.state },
   });
-
-  if (input.delivery_status === 'armed') {
-    deps.observer?.emitEvent({
-      event_name: 'legacy_message.armed',
-      user_id: updated.owner_id,
-      entity_id: updated.id,
-      metadata: { trigger_type: updated.trigger_type },
-    });
-  }
-
-  if (input.delivery_status === 'revoked') {
-    deps.observer?.emitEvent({
-      event_name: 'legacy_message.revoked',
-      user_id: updated.owner_id,
-      entity_id: updated.id,
-      metadata: { trigger_type: updated.trigger_type },
-    });
-  }
 
   return updated;
 };
@@ -183,12 +139,7 @@ export const updateLegacyMessage = async (
 export const deleteLegacyMessage = async (deps: LegacyMessageUseCaseDeps, id: string): Promise<boolean> => {
   const deleted = await deps.legacyMessageRepository.delete(id);
   if (deleted) {
-    deps.observer?.emitEvent({
-      event_name: 'legacy_message.deleted',
-      user_id: 'system',
-      entity_id: id,
-      metadata: {},
-    });
+    deps.observer?.emitEvent({ event_name: 'legacy_message.deleted', user_id: 'system', entity_id: id, metadata: {} });
   }
   return deleted;
 };
