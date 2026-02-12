@@ -1,6 +1,6 @@
 import { runAuthIntegrationTests } from './auth-integration.test.js';
 import { runAuthServiceTests } from './auth-service.test.js';
-import { runExportIntegrationTests } from './export-integration.test.js';
+import { runExportIntegrationTests, runExportPersistenceIntegrationTests } from './export-integration.test.js';
 import { runDataIntegrationTests } from './data-integration.test.js';
 import { runPersistenceIntegrationTests } from './persistence-integration.test.js';
 
@@ -29,6 +29,7 @@ const run = async () => {
   await runAuthServiceTests();
   await runAuthIntegrationTests();
   await runExportIntegrationTests();
+  await runExportPersistenceIntegrationTests();
   await runDataIntegrationTests();
   await runPersistenceIntegrationTests();
   console.log('All capsule-api tests passed.');

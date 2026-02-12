@@ -37,6 +37,7 @@ import {
   mapUpdateMemoryInput,
   mapUpdateValueProfileInput,
 } from './data-route-adapters.js';
+import type { ExportRepository } from './export-repository.js';
 import { ExportService } from './export-service.js';
 import { createPersistenceProviders, type PersistenceProviders } from './persistence-config.js';
 import { SlidingWindowRateLimiter } from './rate-limiter.js';
@@ -126,6 +127,7 @@ const parseDataRoute = (path: string): { collection: DataCollection; id?: string
 export interface CapsuleApiAppDependencies {
   authService?: AuthService;
   persistence?: CapsulePersistence;
+  exportRepository?: ExportRepository;
 }
 
 export class CapsuleApiApp {
@@ -158,7 +160,7 @@ export class CapsuleApiApp {
       valueProfiles: this.persistence.valueProfiles,
       legacyMessages: this.persistence.legacyMessages,
     });
-    this.exportService = new ExportService(this.exportAggregator);
+    this.exportService = new ExportService(this.exportAggregator, dependencies.exportRepository ?? providers.exportRepository);
   }
 
   public async handle(request: RequestLike): Promise<ResponseLike> {

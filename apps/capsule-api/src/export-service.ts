@@ -1,5 +1,6 @@
 import type { ExportAggregator } from '@capsule/export';
 import { serializeExportPayload, type ExportFormat } from '@capsule/export';
+import type { ExportRepository } from './export-repository.js';
 
 export type { ExportFormat };
 
@@ -23,10 +24,10 @@ export interface ExportAuditLog {
 }
 
 export class ExportService {
-  private readonly exportsById = new Map<string, ExportRecord>();
-  private readonly auditTrail: ExportAuditLog[] = [];
-
-  public constructor(private readonly aggregator: Pick<ExportAggregator, 'collectByOwner'>) {}
+  public constructor(
+    private readonly aggregator: Pick<ExportAggregator, 'collectByOwner'>,
+    private readonly repository: ExportRepository,
+  ) {}
 
   public async createExport(ownerId: string, requestedByUserId: string, format: ExportFormat): Promise<ExportRecord> {
     const payload = await this.aggregator.collectByOwner(ownerId, requestedByUserId);
@@ -47,27 +48,18 @@ export class ExportService {
       file_name: `capsule-export-${ownerId}-${createdAt}.${isPdf ? 'pdf' : 'json'}`,
     };
 
-    this.exportsById.set(record.id, record);
-    this.auditTrail.push({
-      export_id: record.id,
-      owner_id: ownerId,
-      requested_by_user_id: requestedByUserId,
-      format,
-      created_at: createdAt,
-    });
-
-    return record;
+    return this.repository.create(record);
   }
 
   public getExport(ownerId: string, exportId: string): ExportRecord {
-    const record = this.exportsById.get(exportId);
-    if (!record || record.owner_id !== ownerId) {
+    const record = this.repository.getByIdForOwner(ownerId, exportId);
+    if (!record) {
       throw new Error('EXPORT_NOT_FOUND');
     }
     return record;
   }
 
   public listAuditByOwner(ownerId: string): ExportAuditLog[] {
-    return this.auditTrail.filter((entry) => entry.owner_id === ownerId);
+    return this.repository.listAuditByOwner(ownerId);
   }
 }

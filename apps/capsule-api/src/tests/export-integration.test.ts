@@ -4,6 +4,11 @@ declare const Buffer: {
   from(input: string, encoding: 'base64'): { toString(encoding: 'utf8'): string };
 };
 
+type RuntimeEnv = Record<string, string | undefined>;
+
+const runtimeEnv: RuntimeEnv =
+  ((globalThis as { process?: { env?: RuntimeEnv } }).process?.env ?? {}) as RuntimeEnv;
+
 const assert = (condition: unknown, message: string): void => {
   if (!condition) {
     throw new Error(message);
@@ -65,7 +70,6 @@ export const runExportIntegrationTests = async (): Promise<void> => {
 
   const denied = await app.handle({ method: 'POST', path: '/exports', body: { format: 'json', owner_id: ownerId } });
   assert(denied.status === 401, 'exports endpoint should require auth');
-
 
   const invalidFormat = await app.handle({
     method: 'POST',
@@ -154,4 +158,67 @@ export const runExportIntegrationTests = async (): Promise<void> => {
   assert(body.json.metrics.export_rate >= 0, 'dashboard should expose export rate metric');
   assert(body.csv.includes('export_total,'), 'dashboard csv should include export total metric');
   assert(body.csv.includes('export_rate,'), 'dashboard csv should include export rate metric');
+};
+
+export const runExportPersistenceIntegrationTests = async (): Promise<void> => {
+  const unique = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  runtimeEnv.CAPSULE_AUTH_STORE_BACKEND = 'sqlite';
+  runtimeEnv.CAPSULE_EXPORT_STORE_BACKEND = 'sqlite';
+  runtimeEnv.CAPSULE_AUTH_DB_PATH = `./tmp-export-auth-${unique}.sqlite`;
+  runtimeEnv.CAPSULE_EXPORT_DB_PATH = `./tmp-export-data-${unique}.sqlite`;
+
+  const firstInstance = new CapsuleApiApp();
+  const register = await firstInstance.handle({
+    method: 'POST',
+    path: '/auth/register',
+    body: { email: 'export-persist@example.com', password: 'Secret123!' },
+    headers: { 'x-forwarded-for': '203.0.113.55' },
+  });
+
+  assert(register.status === 201, 'register should succeed for export persistence test');
+  const registerBody = register.body as { user: { id: string }; session: { token: string } };
+
+  const createdExport = await firstInstance.handle({
+    method: 'POST',
+    path: '/exports',
+    headers: { authorization: `Bearer ${registerBody.session.token}` },
+    body: { format: 'json', owner_id: registerBody.user.id },
+  });
+
+  assert(createdExport.status === 201, 'export creation should succeed before restart');
+  const exportId = (createdExport.body as { export_id: string }).export_id;
+
+  const secondInstance = new CapsuleApiApp();
+  const login = await secondInstance.handle({
+    method: 'POST',
+    path: '/auth/login',
+    body: { email: 'export-persist@example.com', password: 'Secret123!' },
+    headers: { 'x-forwarded-for': '203.0.113.55' },
+  });
+
+  assert(login.status === 200, 'login should succeed after restart');
+  const loginBody = login.body as { session: { token: string }; user: { id: string } };
+
+  const downloaded = await secondInstance.handle({
+    method: 'GET',
+    path: `/exports/${exportId}/download`,
+    headers: { authorization: `Bearer ${loginBody.session.token}`, 'x-owner-id': loginBody.user.id },
+  });
+
+  assert(downloaded.status === 200, 'export should be downloadable after restart');
+
+  const audit = await secondInstance.handle({
+    method: 'GET',
+    path: '/exports/audit',
+    headers: { authorization: `Bearer ${loginBody.session.token}`, 'x-owner-id': loginBody.user.id },
+  });
+
+  assert(audit.status === 200, 'audit should be available after restart');
+  const entries = (audit.body as { entries: Array<{ export_id: string }> }).entries;
+  assert(entries.some((entry) => entry.export_id === exportId), 'audit should contain export created before restart');
+
+  runtimeEnv.CAPSULE_AUTH_STORE_BACKEND = 'memory';
+  runtimeEnv.CAPSULE_EXPORT_STORE_BACKEND = 'memory';
+  runtimeEnv.CAPSULE_AUTH_DB_PATH = undefined;
+  runtimeEnv.CAPSULE_EXPORT_DB_PATH = undefined;
 };
