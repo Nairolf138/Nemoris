@@ -17,8 +17,12 @@ export interface DashboardSnapshot {
 }
 
 export interface MetricsSnapshot {
+  schema_version: 1;
   onboarding_completed: number;
-  capsule_creations: number;
-  exports: number;
+  capsule_activity: number;
+  export_total: number;
+  export_rate: number;
+  auth_errors: number;
+  security_alerts: number;
   weekly_active_users: number;
 }

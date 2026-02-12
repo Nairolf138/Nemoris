@@ -84,6 +84,27 @@ const parseClientFingerprint = (request: RequestLike): string => {
   return ip || request.headers?.['x-client-id'] || 'unknown-client';
 };
 
+
+const latencyBucket = (durationMs: number): string => {
+  if (durationMs < 100) return 'lt_100ms';
+  if (durationMs < 300) return '100_299ms';
+  if (durationMs < 1000) return '300_999ms';
+  return 'gte_1000ms';
+};
+
+const buildEventMetadata = (
+  request: RequestLike,
+  outcome: 'success' | 'failure' | 'denied' | 'alert',
+  durationMs: number,
+  metadata: Record<string, unknown> = {},
+): Record<string, unknown> => ({
+  actor_type: 'user',
+  route: pathWithoutQuery(request.path),
+  outcome,
+  latency_bucket: latencyBucket(durationMs),
+  ...metadata,
+});
+
 type DataCollection = 'memories' | 'beliefs' | 'lessons' | 'value_profiles' | 'legacy_messages';
 
 const parseDataRoute = (path: string): { collection: DataCollection; id?: string } | null => {
@@ -141,6 +162,7 @@ export class CapsuleApiApp {
   }
 
   public async handle(request: RequestLike): Promise<ResponseLike> {
+    const requestStartMs = Date.now();
     try {
       if (request.method === 'POST' && request.path === '/auth/register') {
         this.enforceAuthRateLimits(request);
@@ -150,7 +172,7 @@ export class CapsuleApiApp {
           event_name: 'onboarding.completed',
           user_id: auth.user.id,
           entity_id: auth.user.id,
-          metadata: { email: auth.user.email },
+          metadata: buildEventMetadata(request, 'success', Date.now() - requestStartMs, { email: auth.user.email }),
         });
         return { status: 201, body: auth };
       }
@@ -161,7 +183,7 @@ export class CapsuleApiApp {
         const bruteForceKey = `${parseClientFingerprint(request)}:${creds.email}`;
         const bruteForceStatus = this.bruteForceLimiter.check(bruteForceKey);
         if (!bruteForceStatus.allowed) {
-          this.securityMonitor.logFailedAuth(creds.email, request.path, 'BRUTE_FORCE_BLOCKED');
+          this.securityMonitor.logFailedAuth(creds.email, request.path, 'BRUTE_FORCE_BLOCKED', Date.now() - requestStartMs);
           return { status: 429, body: { error: 'RATE_LIMITED', retry_after_ms: bruteForceStatus.retryAfterMs } };
         }
 
@@ -170,7 +192,7 @@ export class CapsuleApiApp {
           event_name: 'auth.login',
           user_id: auth.user.id,
           entity_id: auth.session.token,
-          metadata: {},
+          metadata: buildEventMetadata(request, 'success', Date.now() - requestStartMs),
         });
         return { status: 200, body: auth };
       }
@@ -187,7 +209,7 @@ export class CapsuleApiApp {
           event_name: 'auth.logout',
           user_id: auth.user.id,
           entity_id: token,
-          metadata: {},
+          metadata: buildEventMetadata(request, 'success', Date.now() - requestStartMs),
         });
         return { status: 204, body: null };
       }
@@ -204,7 +226,7 @@ export class CapsuleApiApp {
           event_name: 'auth.refresh',
           user_id: auth.user.id,
           entity_id: session.token,
-          metadata: { previous_session: token },
+          metadata: buildEventMetadata(request, 'success', Date.now() - requestStartMs, { previous_session: token }),
         });
         return { status: 200, body: { session } };
       }
@@ -235,7 +257,7 @@ export class CapsuleApiApp {
 
       return { status: 404, body: { error: 'NOT_FOUND' } };
     } catch (error) {
-      this.trackSecurityFailure(request, error);
+      this.trackSecurityFailure(request, error, Date.now() - requestStartMs);
       return this.mapError(error);
     }
   }
@@ -528,6 +550,7 @@ export class CapsuleApiApp {
   }
 
   private async generateExport(request: RequestLike): Promise<ResponseLike> {
+    const requestStartMs = Date.now();
     const token = parseBearer(request.headers?.authorization);
     if (!token) {
       return { status: 401, body: { error: 'UNAUTHENTICATED' } };
@@ -542,7 +565,7 @@ export class CapsuleApiApp {
       event_name: 'export.created',
       user_id: auth.user.id,
       entity_id: generated.id,
-      metadata: { format: generated.format },
+      metadata: buildEventMetadata(request, 'success', Date.now() - requestStartMs, { format: generated.format }),
     });
 
     return {
@@ -557,6 +580,7 @@ export class CapsuleApiApp {
   }
 
   private downloadExport(request: RequestLike): ResponseLike {
+    const requestStartMs = Date.now();
     const token = parseBearer(request.headers?.authorization);
     if (!token) {
       return { status: 401, body: { error: 'UNAUTHENTICATED' } };
@@ -570,7 +594,7 @@ export class CapsuleApiApp {
       event_name: 'export.downloaded',
       user_id: auth.user.id,
       entity_id: record.id,
-      metadata: { format: record.format },
+      metadata: buildEventMetadata(request, 'success', Date.now() - requestStartMs, { format: record.format }),
     });
 
     return {
@@ -625,7 +649,7 @@ export class CapsuleApiApp {
     };
   }
 
-  private trackSecurityFailure(request: RequestLike, error: unknown): void {
+  private trackSecurityFailure(request: RequestLike, error: unknown, durationMs: number): void {
     if (!(error instanceof Error)) {
       return;
     }
@@ -636,11 +660,11 @@ export class CapsuleApiApp {
         const bruteForceKey = `${parseClientFingerprint(request)}:${creds.email}`;
         this.bruteForceLimiter.registerFailure(bruteForceKey);
       }
-      this.securityMonitor.logFailedAuth(creds?.email ?? 'unknown', request.path, error.message);
+      this.securityMonitor.logFailedAuth(creds?.email ?? 'unknown', request.path, error.message, durationMs);
     }
 
     if (error.message === 'FORBIDDEN') {
-      this.securityMonitor.logDeniedAccess('authenticated-user', request.path, 'OWNER_ID_MISMATCH');
+      this.securityMonitor.logDeniedAccess('authenticated-user', request.path, 'OWNER_ID_MISMATCH', durationMs);
     }
   }
 

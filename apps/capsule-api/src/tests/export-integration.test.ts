@@ -149,7 +149,9 @@ export const runExportIntegrationTests = async (): Promise<void> => {
   });
 
   assert(dashboard.status === 200, 'dashboard endpoint should return 200');
-  const body = dashboard.body as { json: { metrics: { exports: number } }; csv: string };
-  assert(body.json.metrics.exports >= 1, 'dashboard should expose export metric');
-  assert(body.csv.includes('exports,'), 'dashboard csv should include exports metric');
+  const body = dashboard.body as { json: { metrics: { export_total: number; export_rate: number } }; csv: string };
+  assert(body.json.metrics.export_total >= 1, 'dashboard should expose export total metric');
+  assert(body.json.metrics.export_rate >= 0, 'dashboard should expose export rate metric');
+  assert(body.csv.includes('export_total,'), 'dashboard csv should include export total metric');
+  assert(body.csv.includes('export_rate,'), 'dashboard csv should include export rate metric');
 };
