@@ -10,10 +10,24 @@
     "skipLibCheck": true,
     "baseUrl": ".",
     "paths": {
-      "@capsule/core": ["packages/core/src/index.ts"],
-      "@capsule/core/*": ["packages/core/src/*"],
-      "@capsule/ui": ["packages/ui/src/index.ts"],
-      "@capsule/ui/*": ["packages/ui/src/*"]
+      "@capsule/core": [
+        "packages/core/src/index.ts"
+      ],
+      "@capsule/core/*": [
+        "packages/core/src/*"
+      ],
+      "@capsule/ui": [
+        "packages/ui/src/index.ts"
+      ],
+      "@capsule/ui/*": [
+        "packages/ui/src/*"
+      ],
+      "@capsule/export": [
+        "packages/export/src/index.ts"
+      ],
+      "@capsule/export/*": [
+        "packages/export/src/*"
+      ]
     }
   }
 }
