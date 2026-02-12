@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "declaration": true,
+    "declarationMap": true,
+    "composite": true,
+    "skipLibCheck": true,
+    "baseUrl": ".",
+    "paths": {
+      "@capsule/core": ["packages/core/src/index.ts"],
+      "@capsule/core/*": ["packages/core/src/*"],
+      "@capsule/ui": ["packages/ui/src/index.ts"],
+      "@capsule/ui/*": ["packages/ui/src/*"]
+    }
+  }
+}
