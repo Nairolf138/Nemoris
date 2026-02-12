@@ -1,6 +1,6 @@
 import type { AuthContext, AuthUser, Session } from '@capsule/core';
 import { generateToken, hashPassword, verifyPassword } from './security.js';
-import { InMemoryAuthStore } from './store.js';
+import { InMemoryAuthStore, type AuthStore } from './store.js';
 
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24;
 
@@ -20,7 +20,7 @@ const createTimestamps = () => {
 };
 
 export class AuthService {
-  public constructor(private readonly store = new InMemoryAuthStore()) {}
+  public constructor(private readonly store: AuthStore = new InMemoryAuthStore()) {}
 
   public async register(email: string, password: string): Promise<AuthContext> {
     if (this.store.findUserByEmail(email)) {

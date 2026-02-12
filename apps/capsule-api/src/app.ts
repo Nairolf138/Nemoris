@@ -1,7 +1,6 @@
 import {
   ValidationError,
   createBelief,
-  createInMemoryPersistence,
   createLegacyMessage,
   createLesson,
   createMemory,
@@ -21,6 +20,7 @@ import {
   updateLesson,
   updateMemory,
   updateValueProfile,
+  type CapsulePersistence,
 } from '../../../packages/core/dist/index.js';
 import { ExportAggregator } from '../../../packages/export/dist/src/aggregator.js';
 import { ObservabilityService } from '../../../packages/observability/dist/src/index.js';
@@ -38,6 +38,7 @@ import {
   mapUpdateValueProfileInput,
 } from './data-route-adapters.js';
 import { ExportService, type ExportFormat } from './export-service.js';
+import { createPersistenceProviders, type PersistenceProviders } from './persistence-config.js';
 import { SlidingWindowRateLimiter } from './rate-limiter.js';
 import { loadSecurityConfig } from './security-config.js';
 import { SecurityMonitor } from './security-monitor.js';
@@ -123,18 +124,17 @@ const parseDataRoute = (path: string): { collection: DataCollection; id?: string
   return { collection, id: parts[2] };
 };
 
+export interface CapsuleApiAppDependencies {
+  authService?: AuthService;
+  persistence?: CapsulePersistence;
+}
+
 export class CapsuleApiApp {
-  private authService = new AuthService();
+  private readonly authService: AuthService;
   private observability = new ObservabilityService();
-  private readonly persistence = createInMemoryPersistence();
-  private readonly exportAggregator = new ExportAggregator({
-    memories: this.persistence.memories,
-    beliefs: this.persistence.beliefs,
-    lessons: this.persistence.lessons,
-    valueProfiles: this.persistence.valueProfiles,
-    legacyMessages: this.persistence.legacyMessages,
-  });
-  private exportService = new ExportService(this.exportAggregator);
+  private readonly persistence: CapsulePersistence;
+  private readonly exportAggregator: ExportAggregator;
+  private readonly exportService: ExportService;
   private readonly securityConfig = loadSecurityConfig();
   private readonly authRateLimiter = new SlidingWindowRateLimiter(
     this.securityConfig.authRateLimitMaxAttempts,
@@ -147,6 +147,20 @@ export class CapsuleApiApp {
     this.securityConfig.bruteForceBlockMs,
   );
   private readonly securityMonitor = new SecurityMonitor(this.observability, this.securityConfig.anomalyAlertThreshold);
+
+  public constructor(dependencies: CapsuleApiAppDependencies = {}) {
+    const providers: PersistenceProviders = createPersistenceProviders();
+    this.persistence = dependencies.persistence ?? providers.capsulePersistence;
+    this.authService = dependencies.authService ?? new AuthService(providers.authStore);
+    this.exportAggregator = new ExportAggregator({
+      memories: this.persistence.memories,
+      beliefs: this.persistence.beliefs,
+      lessons: this.persistence.lessons,
+      valueProfiles: this.persistence.valueProfiles,
+      legacyMessages: this.persistence.legacyMessages,
+    });
+    this.exportService = new ExportService(this.exportAggregator);
+  }
 
   public async handle(request: RequestLike): Promise<ResponseLike> {
     try {

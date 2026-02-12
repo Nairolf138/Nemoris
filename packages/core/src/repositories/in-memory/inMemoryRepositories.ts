@@ -6,6 +6,7 @@ import type {
   MemoryRepository,
   NarrativeNodeRepository,
   ValueProfileRepository,
+  CapsulePersistence,
 } from '../contracts.js';
 
 const asArray = <T>(records: Map<string, T>): T[] => [...records.values()];
@@ -59,7 +60,7 @@ export class InMemoryLegacyMessageRepository
 
 export class InMemoryNarrativeNodeRepository extends InMemoryEntityStore<NarrativeNode> implements NarrativeNodeRepository {}
 
-export const createInMemoryPersistence = () => ({
+export const createInMemoryPersistence = (): CapsulePersistence => ({
   memories: new InMemoryMemoryRepository(),
   beliefs: new InMemoryBeliefRepository(),
   lessons: new InMemoryLessonRepository(),
