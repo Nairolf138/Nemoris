@@ -1,5 +1,8 @@
-import { ExportAggregator } from '../src/aggregator.js';
-import { renderExportPdf } from '../src/pdf.js';
+declare const Buffer: {
+  from(input: string, encoding: 'base64' | 'utf8'): { toString(encoding: 'utf8'): string };
+};
+
+import { ExportAggregator, serializeExportPayload } from '../src/aggregator.js';
 
 const assert = (condition: unknown, message: string): void => {
   if (!condition) throw new Error(message);
@@ -74,7 +77,14 @@ export const runExportContractTests = async (): Promise<void> => {
     'JSON contract snapshot changed',
   );
 
-  const pdfText = new TextDecoder().decode(renderExportPdf(payload));
+  const serializedJson = serializeExportPayload(payload, 'json');
+  assert(serializedJson.mimeType === 'application/json', 'JSON export should expose JSON mimetype');
+  const decodedJson = JSON.parse(Buffer.from(serializedJson.payloadBase64, 'base64').toString('utf8')) as typeof payload;
+  assert(decodedJson.legacy_messages[0]?.title === 'Message testamentaire', 'JSON serialization should preserve message title');
+
+  const serializedPdf = serializeExportPayload(payload, 'pdf');
+  assert(serializedPdf.mimeType === 'application/pdf', 'PDF export should expose PDF mimetype');
+  const pdfText = Buffer.from(serializedPdf.payloadBase64, 'base64').toString('utf8');
   assert(pdfText.startsWith('%PDF-1.4'), 'invalid PDF header');
   assert(pdfText.includes('(Messages) Tj'), 'missing messages section');
   assert(pdfText.includes('(Souvenirs) Tj'), 'missing souvenirs section');

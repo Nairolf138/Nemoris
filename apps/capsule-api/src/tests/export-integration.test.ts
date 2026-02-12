@@ -1,5 +1,9 @@
 import { CapsuleApiApp } from '../app.js';
 
+declare const Buffer: {
+  from(input: string, encoding: 'base64'): { toString(encoding: 'utf8'): string };
+};
+
 const assert = (condition: unknown, message: string): void => {
   if (!condition) {
     throw new Error(message);
@@ -19,6 +23,46 @@ export const runExportIntegrationTests = async (): Promise<void> => {
   const token = (register.body as { session: { token: string } }).session.token;
   const ownerId = (register.body as { user: { id: string } }).user.id;
 
+  const memoryTitle = 'Souvenir exportable';
+  const messageTitle = 'Message exportable';
+
+  const createdMemory = await app.handle({
+    method: 'POST',
+    path: '/data/memories',
+    headers: { authorization: `Bearer ${token}`, 'x-owner-id': ownerId },
+    body: {
+      visibility: 'private',
+      occurred_at: '2024-01-01T10:00:00.000Z',
+      title: memoryTitle,
+      description: 'description export',
+      related_belief_ids: [],
+      related_lesson_ids: [],
+      related_value_profile_ids: [],
+      related_narrative_node_ids: [],
+    },
+  });
+  assert(createdMemory.status === 201, 'memory setup should return 201');
+
+  const createdMessage = await app.handle({
+    method: 'POST',
+    path: '/data/legacy_messages',
+    headers: { authorization: `Bearer ${token}`, 'x-owner-id': ownerId },
+    body: {
+      visibility: 'private',
+      title: messageTitle,
+      message: 'Ce message doit apparaître dans l’export.',
+      trigger_type: 'manual',
+      recipient_ids: ['recipient-1'],
+      attachment_memory_ids: [],
+      related_belief_ids: [],
+      related_lesson_ids: [],
+      related_value_profile_ids: [],
+      related_narrative_node_ids: [],
+      delivery_status: 'draft',
+    },
+  });
+  assert(createdMessage.status === 201, 'legacy message setup should return 201');
+
   const denied = await app.handle({ method: 'POST', path: '/exports', body: { format: 'json', owner_id: ownerId } });
   assert(denied.status === 401, 'exports endpoint should require auth');
 
@@ -26,7 +70,7 @@ export const runExportIntegrationTests = async (): Promise<void> => {
     method: 'POST',
     path: '/exports',
     headers: { authorization: `Bearer ${token}` },
-    body: { format: 'pdf', owner_id: ownerId },
+    body: { format: 'json', owner_id: ownerId },
   });
 
   assert(created.status === 201, 'export creation should return 201');
@@ -40,8 +84,19 @@ export const runExportIntegrationTests = async (): Promise<void> => {
 
   assert(downloaded.status === 200, 'download should return 200');
   const payload = downloaded.body as { mime_type: string; content_base64: string };
-  assert(payload.mime_type === 'application/pdf', 'download should be a PDF');
+  assert(payload.mime_type === 'application/json', 'download should be a JSON export');
   assert(payload.content_base64.length > 0, 'download should contain payload');
+
+  const decoded = JSON.parse(Buffer.from(payload.content_base64, 'base64').toString('utf8')) as {
+    memories: Array<{ title: string }>;
+    legacy_messages: Array<{ title: string }>;
+  };
+
+  assert(decoded.memories.some((memory) => memory.title === memoryTitle), 'created memory should appear in export payload');
+  assert(
+    decoded.legacy_messages.some((message) => message.title === messageTitle),
+    'created legacy message should appear in export payload',
+  );
 
   const audit = await app.handle({
     method: 'GET',
@@ -52,7 +107,7 @@ export const runExportIntegrationTests = async (): Promise<void> => {
   assert(audit.status === 200, 'audit route should return 200');
   const entries = (audit.body as { entries: Array<{ format: string }> }).entries;
   assert(entries.length === 1, 'audit should contain one entry');
-  assert(entries[0]?.format === 'pdf', 'audit should keep the format');
+  assert(entries[0]?.format === 'json', 'audit should keep the format');
 
   const observabilityAudit = await app.handle({
     method: 'GET',
