@@ -1,0 +1,12 @@
+{
+  "environment": "dev",
+  "api_port": 3000,
+  "log_level": "debug",
+  "observability": {
+    "enabled": true,
+    "retention_days": 7
+  },
+  "features": {
+    "strict_contract_checks": true
+  }
+}

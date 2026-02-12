@@ -1,0 +1,12 @@
+{
+  "environment": "staging",
+  "api_port": 3000,
+  "log_level": "info",
+  "observability": {
+    "enabled": true,
+    "retention_days": 30
+  },
+  "features": {
+    "strict_contract_checks": true
+  }
+}
