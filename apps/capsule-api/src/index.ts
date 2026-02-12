@@ -3,3 +3,6 @@ export * from './auth-service.js';
 export * from './security.js';
 export * from './store.js';
 export * from './types.js';
+export * from './security-config.js';
+export * from './rate-limiter.js';
+export * from './security-monitor.js';
