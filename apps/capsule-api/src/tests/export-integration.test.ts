@@ -15,6 +15,17 @@ const assert = (condition: unknown, message: string): void => {
   }
 };
 
+
+const grantConsent = async (app: CapsuleApiApp, token: string, ownerId: string, scope: 'data_export' | 'post_mortem_transmission' | 'posthumous_visibility'): Promise<void> => {
+  const response = await app.handle({
+    method: 'POST',
+    path: '/consent/grant',
+    headers: { authorization: `Bearer ${token}`, 'x-owner-id': ownerId },
+    body: { owner_id: ownerId, scope, legal_basis: 'explicit_opt_in' },
+  });
+  assert(response.status === 201, `consent grant should return 201 for scope ${scope}`);
+};
+
 export const runExportIntegrationTests = async (): Promise<void> => {
   const app = new CapsuleApiApp();
 
@@ -84,6 +95,7 @@ export const runExportIntegrationTests = async (): Promise<void> => {
     },
   });
   assert(createdMessage.status === 201, 'legacy message setup should return 201');
+  const legacyMessageId = (createdMessage.body as { id: string }).id;
 
   const denied = await app.handle({ method: 'POST', path: '/exports', body: { format: 'json', owner_id: ownerId } });
   assert(denied.status === 401, 'exports endpoint should require auth');
@@ -108,6 +120,16 @@ export const runExportIntegrationTests = async (): Promise<void> => {
     (invalidOwnerScope.body as { error: string }).error === 'INVALID_OWNER_SCOPE',
     'invalid owner scope should expose INVALID_OWNER_SCOPE',
   );
+
+  const deniedWithoutConsent = await app.handle({
+    method: 'POST',
+    path: '/exports',
+    headers: { authorization: `Bearer ${token}` },
+    body: { format: 'json', owner_id: ownerId },
+  });
+  assert(deniedWithoutConsent.status === 403, 'exports endpoint should deny when consent is absent');
+
+  await grantConsent(app, token, ownerId, 'data_export');
 
   const created = await app.handle({
     method: 'POST',
@@ -179,6 +201,47 @@ export const runExportIntegrationTests = async (): Promise<void> => {
   assert(body.json.metrics.export_rate >= 0, 'dashboard should expose export rate metric');
   assert(body.csv.includes('export_total,'), 'dashboard csv should include export total metric');
   assert(body.csv.includes('export_rate,'), 'dashboard csv should include export rate metric');
+
+
+  const revokedConsent = await app.handle({
+    method: 'POST',
+    path: '/consent/revoke',
+    headers: { authorization: `Bearer ${token}`, 'x-owner-id': ownerId },
+    body: { owner_id: ownerId, scope: 'data_export', legal_basis: 'user_request' },
+  });
+  assert(revokedConsent.status === 200, 'consent revoke should succeed');
+
+  const deniedAfterRevocation = await app.handle({
+    method: 'POST',
+    path: '/exports',
+    headers: { authorization: `Bearer ${token}` },
+    body: { format: 'json', owner_id: ownerId },
+  });
+  assert(deniedAfterRevocation.status === 403, 'exports endpoint should deny when consent is revoked');
+
+  const deniedPostMortem = await app.handle({
+    method: 'POST',
+    path: `/legacy-messages/${legacyMessageId}/trigger`,
+    headers: { authorization: `Bearer ${token}`, 'x-owner-id': ownerId },
+    body: { owner_id: ownerId },
+  });
+  assert(deniedPostMortem.status === 403, 'post-mortem transmission should be denied without consent');
+
+  const deniedPosthumous = await app.handle({
+    method: 'POST',
+    path: '/data/memories',
+    headers: { authorization: `Bearer ${token}`, 'x-owner-id': ownerId },
+    body: {
+      visibility: 'posthumous',
+      occurred_at: '2024-01-02T10:00:00.000Z',
+      title: 'Souvenir posthumous',
+      related_belief_ids: [],
+      related_lesson_ids: [],
+      related_value_profile_ids: [],
+      related_narrative_node_ids: [],
+    },
+  });
+  assert(deniedPosthumous.status === 403, 'posthumous visibility should be denied without consent');
 };
 
 export const runExportPersistenceIntegrationTests = async (): Promise<void> => {
@@ -198,6 +261,8 @@ export const runExportPersistenceIntegrationTests = async (): Promise<void> => {
 
   assert(register.status === 201, 'register should succeed for export persistence test');
   const registerBody = register.body as { user: { id: string }; session: { token: string } };
+
+  await grantConsent(firstInstance, registerBody.session.token, registerBody.user.id, 'data_export');
 
   const createdExport = await firstInstance.handle({
     method: 'POST',
@@ -219,6 +284,9 @@ export const runExportPersistenceIntegrationTests = async (): Promise<void> => {
 
   assert(login.status === 200, 'login should succeed after restart');
   const loginBody = login.body as { session: { token: string }; user: { id: string } };
+
+
+  await grantConsent(secondInstance, loginBody.session.token, loginBody.user.id, 'data_export');
 
   const downloaded = await secondInstance.handle({
     method: 'GET',

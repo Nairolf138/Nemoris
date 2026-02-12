@@ -1,6 +1,8 @@
 import type {
   Beneficiary,
   Belief,
+  ConsentRecord,
+  ConsentScope,
   LegacyMessage,
   LegacyMessageDeliveryAttempt,
   Lesson,
@@ -110,6 +112,14 @@ export interface NarrativeEdgeRepository {
   existsByIds(ids: string[]): Promise<boolean>;
 }
 
+export interface ConsentRepository {
+  grant(input: { owner_id: string; scope: ConsentScope; granted_at: string; legal_basis: string }): Promise<ConsentRecord>;
+  revoke(input: { owner_id: string; scope: ConsentScope; revoked_at: string; legal_basis: string }): Promise<ConsentRecord>;
+  listByOwner(ownerId: string): Promise<ConsentRecord[]>;
+  getLatestByScope(ownerId: string, scope: ConsentScope): Promise<ConsentRecord | null>;
+  isGranted(ownerId: string, scope: ConsentScope): Promise<boolean>;
+}
+
 export type PersistenceBackend = 'memory' | 'sqlite';
 
 export interface CapsulePersistence {
@@ -122,4 +132,5 @@ export interface CapsulePersistence {
   legacyMessageDeliveryAttempts: LegacyMessageDeliveryAttemptRepository;
   narrativeNodes: NarrativeNodeRepository;
   narrativeEdges: NarrativeEdgeRepository;
+  consents: ConsentRepository;
 }

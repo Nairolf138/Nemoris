@@ -23,6 +23,7 @@ import {
   type NarrativeEdge,
   type NarrativeNode,
   type Visibility,
+  type ConsentScope,
 } from '@capsule/core';
 import { ExportAggregator } from '@capsule/export';
 import { ObservabilityService } from '@capsule/observability';
@@ -60,6 +61,7 @@ import { createPersistenceProviders, type PersistenceProviders } from './persist
 import { SlidingWindowRateLimiter } from './rate-limiter.js';
 import {
   getDefaultSortBy,
+  parseConsentPayload,
   parseCredentials,
   parseDataListQuery,
   parseExportPayload,
@@ -267,16 +269,29 @@ export class CapsuleApiApp {
         return { status: 200, body: { session } };
       }
 
+
+      if (request.method === 'POST' && request.path === '/consent/grant') {
+        return await this.grantConsent(request);
+      }
+
+      if (request.method === 'POST' && request.path === '/consent/revoke') {
+        return await this.revokeConsent(request);
+      }
+
+      if (request.method === 'GET' && request.path.startsWith('/consent/history')) {
+        return await this.consentHistory(request);
+      }
+
       if (request.method === 'POST' && request.path === '/exports') {
         return await this.generateExport(request);
       }
 
       if (request.method === 'GET' && request.path.startsWith('/exports/') && request.path.endsWith('/download')) {
-        return this.downloadExport(request);
+        return await this.downloadExport(request);
       }
 
       if (request.method === 'GET' && request.path === '/exports/audit') {
-        return this.listExportAuditLogs(request);
+        return await this.listExportAuditLogs(request);
       }
 
       if (request.method === 'GET' && request.path === '/observability/audit') {
@@ -444,6 +459,8 @@ export class CapsuleApiApp {
       throw new NotFoundError('NOT_FOUND');
     }
 
+    await this.assertConsentScope(request, auth.user.id, 'post_mortem_transmission');
+
     try {
       if (route.action === 'arm') {
         return { status: 200, body: await armLegacyMessage({ legacyMessageRepository: this.persistence.legacyMessages }, route.id) };
@@ -524,39 +541,71 @@ export class CapsuleApiApp {
 
     if (request.method === 'POST' && !route.id) {
       if (route.collection === 'memories') {
+        const payload = request.body as { visibility?: Visibility } | undefined;
+        if (payload?.visibility === 'posthumous') {
+          await this.assertConsentScope(request, auth.user.id, 'posthumous_visibility');
+        }
         const created = await createMemory({ memoryRepository: this.persistence.memories, beliefRepository: this.persistence.beliefs, lessonRepository: this.persistence.lessons, valueProfileRepository: this.persistence.valueProfiles, narrativeNodeRepository: this.persistence.narrativeNodes, observer: { emitEvent: (event) => this.observability.emit(event) } }, mapCreateMemoryInput(request.body, auth.user.id));
         return { status: 201, body: created };
       }
       if (route.collection === 'beliefs') {
+        const payload = request.body as { visibility?: Visibility } | undefined;
+        if (payload?.visibility === 'posthumous') {
+          await this.assertConsentScope(request, auth.user.id, 'posthumous_visibility');
+        }
         const created = await createBelief({ beliefRepository: this.persistence.beliefs, memoryRepository: this.persistence.memories, lessonRepository: this.persistence.lessons }, mapCreateBeliefInput(request.body, auth.user.id));
         return { status: 201, body: created };
       }
       if (route.collection === 'lessons') {
+        const payload = request.body as { visibility?: Visibility } | undefined;
+        if (payload?.visibility === 'posthumous') {
+          await this.assertConsentScope(request, auth.user.id, 'posthumous_visibility');
+        }
         const created = await createLesson({ lessonRepository: this.persistence.lessons, memoryRepository: this.persistence.memories, beliefRepository: this.persistence.beliefs, valueProfileRepository: this.persistence.valueProfiles }, mapCreateLessonInput(request.body, auth.user.id));
         return { status: 201, body: created };
       }
       if (route.collection === 'value_profiles') {
+        const payload = request.body as { visibility?: Visibility } | undefined;
+        if (payload?.visibility === 'posthumous') {
+          await this.assertConsentScope(request, auth.user.id, 'posthumous_visibility');
+        }
         const created = await createValueProfile({ valueProfileRepository: this.persistence.valueProfiles, memoryRepository: this.persistence.memories, narrativeNodeRepository: this.persistence.narrativeNodes }, mapCreateValueProfileInput(request.body, auth.user.id));
         return { status: 201, body: created };
       }
       if (route.collection === 'legacy_messages') {
+        const payload = request.body as { visibility?: Visibility } | undefined;
+        if (payload?.visibility === 'posthumous') {
+          await this.assertConsentScope(request, auth.user.id, 'posthumous_visibility');
+        }
         const input = mapCreateLegacyMessageInput(request.body, auth.user.id);
         input.beneficiary_ids = await this.validateLegacyMessageBeneficiaries(auth.user.id, input.beneficiary_ids);
         const created = await createLegacyMessage({ legacyMessageRepository: this.persistence.legacyMessages, memoryRepository: this.persistence.memories, beliefRepository: this.persistence.beliefs, lessonRepository: this.persistence.lessons, valueProfileRepository: this.persistence.valueProfiles, narrativeNodeRepository: this.persistence.narrativeNodes, beneficiaryRepository: this.persistence.beneficiaries, observer: { emitEvent: (event) => this.observability.emit(event) } }, input);
         return { status: 201, body: created };
       }
       if (route.collection === 'beneficiaries') {
+        const payload = request.body as { visibility?: Visibility } | undefined;
+        if (payload?.visibility === 'posthumous') {
+          await this.assertConsentScope(request, auth.user.id, 'posthumous_visibility');
+        }
         const input = mapCreateBeneficiaryInput(request.body, auth.user.id);
         const beneficiary: Beneficiary = { ...this.createEntityMetadata(auth.user.id, input.visibility), ...input };
         return { status: 201, body: await this.persistence.beneficiaries.create(beneficiary) };
       }
       if (route.collection === 'narrative_nodes') {
+        const payload = request.body as { visibility?: Visibility } | undefined;
+        if (payload?.visibility === 'posthumous') {
+          await this.assertConsentScope(request, auth.user.id, 'posthumous_visibility');
+        }
         const input = mapCreateNarrativeNodeInput(request.body, auth.user.id);
         await this.validateNarrativeNodeReferences(auth.user.id, input);
         const node: NarrativeNode = { ...this.createEntityMetadata(auth.user.id, input.visibility), ...input };
         return { status: 201, body: await this.persistence.narrativeNodes.create(node) };
       }
 
+      const payload = request.body as { visibility?: Visibility } | undefined;
+      if (payload?.visibility === 'posthumous') {
+        await this.assertConsentScope(request, auth.user.id, 'posthumous_visibility');
+      }
       const input = mapCreateNarrativeEdgeInput(request.body, auth.user.id);
       await this.validateNarrativeEdgeReferences(auth.user.id, input);
       const edge: NarrativeEdge = { ...this.createEntityMetadata(auth.user.id, input.visibility), ...input };
@@ -590,6 +639,9 @@ export class CapsuleApiApp {
       }
       if (route.collection === 'legacy_messages') {
         const patch = mapUpdateLegacyMessageInput(request.body);
+        if (patch.visibility === 'posthumous') {
+          await this.assertConsentScope(request, auth.user.id, 'posthumous_visibility');
+        }
         if (patch.beneficiary_ids !== undefined) {
           patch.beneficiary_ids = await this.validateLegacyMessageBeneficiaries(auth.user.id, patch.beneficiary_ids);
         }
@@ -603,6 +655,9 @@ export class CapsuleApiApp {
         if (!existing) throw new NotFoundError('RESOURCE_NOT_FOUND');
         if (existing.owner_id !== auth.user.id) throw new ForbiddenError();
         const patch = mapUpdateBeneficiaryInput(request.body);
+        if (patch.visibility === 'posthumous') {
+          await this.assertConsentScope(request, auth.user.id, 'posthumous_visibility');
+        }
         const updated = await this.persistence.beneficiaries.update(route.id, { ...patch, updated_at: new Date().toISOString() });
         return { status: 200, body: updated };
       }
@@ -611,6 +666,9 @@ export class CapsuleApiApp {
         if (!existing) throw new NotFoundError('RESOURCE_NOT_FOUND');
         if (existing.owner_id !== auth.user.id) throw new ForbiddenError();
         const patch = mapUpdateNarrativeNodeInput(request.body);
+        if (patch.visibility === 'posthumous') {
+          await this.assertConsentScope(request, auth.user.id, 'posthumous_visibility');
+        }
         await this.validateNarrativeNodeReferences(auth.user.id, {
           memory_ids: patch.memory_ids ?? existing.memory_ids,
           belief_ids: patch.belief_ids ?? existing.belief_ids,
@@ -625,6 +683,9 @@ export class CapsuleApiApp {
       if (!existing) throw new NotFoundError('RESOURCE_NOT_FOUND');
       if (existing.owner_id !== auth.user.id) throw new ForbiddenError();
       const patch = mapUpdateNarrativeEdgeInput(request.body);
+      if (patch.visibility === 'posthumous') {
+        await this.assertConsentScope(request, auth.user.id, 'posthumous_visibility');
+      }
       const merged: Omit<NarrativeEdge, 'id' | 'owner_id' | 'created_at' | 'updated_at'> = {
         visibility: patch.visibility ?? existing.visibility,
         from_node_id: patch.from_node_id ?? existing.from_node_id,
@@ -695,6 +756,95 @@ export class CapsuleApiApp {
     throw new NotFoundError('NOT_FOUND');
   }
 
+
+  private async assertConsentScope(request: RequestLike, userId: string, scope: ConsentScope): Promise<void> {
+    const granted = await this.persistence.consents.isGranted(userId, scope);
+    if (granted) {
+      return;
+    }
+
+    this.observability.emit({
+      event_name: 'consent.denied',
+      user_id: userId,
+      entity_id: userId,
+      metadata: {
+        route: pathWithoutQuery(request.path),
+        scope,
+      },
+    });
+    throw new ForbiddenError();
+  }
+
+  private async grantConsent(request: RequestLike): Promise<ResponseLike> {
+    const token = parseBearer(request.headers?.authorization);
+    if (!token) {
+      throw new AuthError('UNAUTHENTICATED');
+    }
+    const auth = this.authService.authenticate(token);
+    const payload = parseConsentPayload(request.body);
+    this.enforceOwnerAccess(request, auth.user.id);
+    if (payload.owner_id !== auth.user.id) {
+      throw new ForbiddenError();
+    }
+
+    const granted = await this.persistence.consents.grant({
+      owner_id: auth.user.id,
+      scope: payload.scope,
+      granted_at: new Date().toISOString(),
+      legal_basis: payload.legal_basis,
+    });
+
+    this.observability.emit({
+      event_name: 'consent.granted',
+      user_id: auth.user.id,
+      entity_id: granted.id,
+      metadata: { scope: granted.scope, legal_basis: granted.legal_basis },
+    });
+
+    return { status: 201, body: granted };
+  }
+
+  private async revokeConsent(request: RequestLike): Promise<ResponseLike> {
+    const token = parseBearer(request.headers?.authorization);
+    if (!token) {
+      throw new AuthError('UNAUTHENTICATED');
+    }
+    const auth = this.authService.authenticate(token);
+    const payload = parseConsentPayload(request.body);
+    this.enforceOwnerAccess(request, auth.user.id);
+    if (payload.owner_id !== auth.user.id) {
+      throw new ForbiddenError();
+    }
+
+    const revoked = await this.persistence.consents.revoke({
+      owner_id: auth.user.id,
+      scope: payload.scope,
+      revoked_at: new Date().toISOString(),
+      legal_basis: payload.legal_basis,
+    });
+
+    this.observability.emit({
+      event_name: 'consent.revoked',
+      user_id: auth.user.id,
+      entity_id: revoked.id,
+      metadata: { scope: revoked.scope, legal_basis: revoked.legal_basis },
+    });
+
+    return { status: 200, body: revoked };
+  }
+
+  private async consentHistory(request: RequestLike): Promise<ResponseLike> {
+    const token = parseBearer(request.headers?.authorization);
+    if (!token) {
+      throw new AuthError('UNAUTHENTICATED');
+    }
+
+    const auth = this.authService.authenticate(token);
+    this.enforceOwnerAccess(request, auth.user.id);
+
+    return { status: 200, body: { entries: await this.persistence.consents.listByOwner(auth.user.id) } };
+  }
+
   private async generateExport(request: RequestLike): Promise<ResponseLike> {
     const requestStartMs = Date.now();
     const token = parseBearer(request.headers?.authorization);
@@ -705,6 +855,7 @@ export class CapsuleApiApp {
     const auth = this.authService.authenticate(token);
     const exportPayload = parseExportPayload(request.body);
     this.enforceOwnerAccess(request, auth.user.id);
+    await this.assertConsentScope(request, auth.user.id, 'data_export');
     const format = exportPayload.format ?? 'json';
     const generated = await this.exportService.createExport(auth.user.id, auth.user.id, format);
     this.observability.emit({
@@ -725,7 +876,7 @@ export class CapsuleApiApp {
     };
   }
 
-  private downloadExport(request: RequestLike): ResponseLike {
+  private async downloadExport(request: RequestLike): Promise<ResponseLike> {
     const requestStartMs = Date.now();
     const token = parseBearer(request.headers?.authorization);
     if (!token) {
@@ -734,6 +885,7 @@ export class CapsuleApiApp {
 
     const auth = this.authService.authenticate(token);
     this.enforceOwnerAccess(request, auth.user.id);
+    await this.assertConsentScope(request, auth.user.id, 'data_export');
     const exportId = pathWithoutQuery(request.path).replace('/exports/', '').replace('/download', '');
     const record = this.exportService.getExport(auth.user.id, exportId);
     this.observability.emit({
@@ -754,7 +906,7 @@ export class CapsuleApiApp {
     };
   }
 
-  private listExportAuditLogs(request: RequestLike): ResponseLike {
+  private async listExportAuditLogs(request: RequestLike): Promise<ResponseLike> {
     const token = parseBearer(request.headers?.authorization);
     if (!token) {
       throw new AuthError('UNAUTHENTICATED');
@@ -762,6 +914,7 @@ export class CapsuleApiApp {
 
     const auth = this.authService.authenticate(token);
     this.enforceOwnerAccess(request, auth.user.id);
+    await this.assertConsentScope(request, auth.user.id, 'data_export');
     const entries = this.exportService.listAuditByOwner(auth.user.id);
     return { status: 200, body: { entries } };
   }

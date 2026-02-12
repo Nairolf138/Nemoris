@@ -1,3 +1,4 @@
+import type { ConsentScope } from '@capsule/core';
 import { type ExportFormat } from './export-service.js';
 import { ValidationError } from './errors.js';
 
@@ -10,6 +11,9 @@ interface ExportPayload {
   format?: ExportFormat;
   owner_id?: string;
 }
+
+
+const CONSENT_SCOPES: ConsentScope[] = ['data_export', 'post_mortem_transmission', 'posthumous_visibility'];
 
 export type DataCollection =
   | 'memories'
@@ -164,6 +168,30 @@ export const parseOwnerScope = (value: unknown): string | undefined => {
   }
 
   return normalized;
+};
+
+
+export const parseConsentPayload = (body: unknown): { owner_id: string; scope: ConsentScope; legal_basis: string } => {
+  if (!isRecord(body)) {
+    throw new ValidationError('INVALID_PAYLOAD');
+  }
+
+  assertAllowedKeys(body, ['owner_id', 'scope', 'legal_basis']);
+
+  const owner_id = parseOwnerScope(body.owner_id);
+  if (!owner_id) {
+    throw new ValidationError('OWNER_SCOPE_REQUIRED');
+  }
+
+  if (typeof body.scope !== 'string' || !CONSENT_SCOPES.includes(body.scope as ConsentScope)) {
+    throw new ValidationError('INVALID_PAYLOAD');
+  }
+
+  if (typeof body.legal_basis !== 'string' || body.legal_basis.trim().length === 0) {
+    throw new ValidationError('INVALID_PAYLOAD');
+  }
+
+  return { owner_id, scope: body.scope as ConsentScope, legal_basis: body.legal_basis.trim() };
 };
 
 export const parseDataListQuery = <C extends DataCollection>(collection: C, path: string): DataListQueryDto<C> => {
