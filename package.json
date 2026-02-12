@@ -10,7 +10,10 @@
     "typecheck": "tsc -b",
     "test": "npm run -w @capsule/api test",
     "check:no-dist-imports": "node scripts/check-no-dist-imports.mjs",
-    "lint:openapi": "ruby scripts/lint-openapi.rb"
+    "lint:openapi": "ruby scripts/lint-openapi.rb",
+    "docs:contract:check": "node scripts/check-contract-docs.mjs",
+    "build:artifacts": "node scripts/build-artifacts.mjs",
+    "version:plan": "node scripts/plan-version.mjs"
   },
   "devDependencies": {
     "typescript": "^5.6.3"

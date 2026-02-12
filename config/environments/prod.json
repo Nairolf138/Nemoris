@@ -1,0 +1,12 @@
+{
+  "environment": "prod",
+  "api_port": 3000,
+  "log_level": "warn",
+  "observability": {
+    "enabled": true,
+    "retention_days": 90
+  },
+  "features": {
+    "strict_contract_checks": true
+  }
+}
