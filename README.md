@@ -1,7 +1,7 @@
 # Nemoris
 
 **Nemoris** est un produit de **capsule numérique post-mortem**.
-Il permet à une personne d’organiser ses contenus importants (messages, documents, instructions) et d’en planifier la transmission à ses proches selon des règles explicites et vérifiables.
+Il permet à une personne d’organiser ses contenus importants (messages, documents, photos, vidéos, enregistrements audio, instructions, souhaits post-mortem, heritage, comptes de reseaux sociaux) et d’en planifier la transmission à ses proches selon des règles explicites et vérifiables.
 
 ## Proposition de valeur
 
