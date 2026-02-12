@@ -7,6 +7,9 @@
   "references": [
     {
       "path": "../../packages/core"
+    },
+    {
+      "path": "../../packages/export"
     }
   ],
   "include": [
