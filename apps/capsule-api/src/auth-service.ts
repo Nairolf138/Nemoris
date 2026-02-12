@@ -1,5 +1,5 @@
 import type { AuthContext, AuthUser, Session } from '@capsule/core';
-import { generateToken, hashPassword, verifyPassword } from './security.js';
+import { hashPassword, SessionTokenManager, verifyPassword } from './security.js';
 import { AuthError, ConflictError } from './errors.js';
 import { InMemoryAuthStore, type AuthStore } from './store.js';
 
@@ -21,7 +21,11 @@ const createTimestamps = () => {
 };
 
 export class AuthService {
-  public constructor(private readonly store: AuthStore = new InMemoryAuthStore()) {}
+  private readonly tokenManager: SessionTokenManager;
+
+  public constructor(private readonly store: AuthStore = new InMemoryAuthStore(), sessionTokenSecret = 'test-session-secret') {
+    this.tokenManager = new SessionTokenManager(sessionTokenSecret);
+  }
 
   public async register(email: string, password: string): Promise<AuthContext> {
     if (this.store.findUserByEmail(email)) {
@@ -39,7 +43,7 @@ export class AuthService {
 
     this.store.createUser(user);
     const session = this.store.saveSession({
-      token: generateToken(),
+      token: await this.tokenManager.mint(),
       user_id: user.id,
       expires_at: expiresAt,
     });
@@ -55,7 +59,7 @@ export class AuthService {
 
     const { expiresAt } = createTimestamps();
     const session = this.store.saveSession({
-      token: generateToken(),
+      token: await this.tokenManager.mint(),
       user_id: user.id,
       expires_at: expiresAt,
     });
@@ -63,11 +67,17 @@ export class AuthService {
     return { user: sanitizeUser(user), session };
   }
 
-  public logout(token: string): void {
+  public async logout(token: string): Promise<void> {
+    if (!(await this.tokenManager.verify(token)).valid) {
+      return;
+    }
     this.store.revokeSession(token, new Date().toISOString());
   }
 
-  public refresh(token: string): Session {
+  public async refresh(token: string): Promise<Session> {
+    if (!(await this.tokenManager.verify(token)).valid) {
+      throw new AuthError('SESSION_INVALID');
+    }
     const session = this.store.findSessionByToken(token);
     if (!session) {
       throw new AuthError('SESSION_NOT_FOUND');
@@ -81,13 +91,16 @@ export class AuthService {
     const { expiresAt } = createTimestamps();
 
     return this.store.saveSession({
-      token: generateToken(),
+      token: await this.tokenManager.mint(),
       user_id: session.user_id,
       expires_at: expiresAt,
     });
   }
 
-  public authenticate(token: string): AuthContext {
+  public async authenticate(token: string): Promise<AuthContext> {
+    if (!(await this.tokenManager.verify(token)).valid) {
+      throw new AuthError('UNAUTHENTICATED');
+    }
     const session = this.store.findSessionByToken(token);
     if (!session || session.revoked_at || new Date(session.expires_at).getTime() <= Date.now()) {
       throw new AuthError('UNAUTHENTICATED');

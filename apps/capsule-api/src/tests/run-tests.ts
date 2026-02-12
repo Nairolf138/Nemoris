@@ -4,6 +4,7 @@ import { runExportIntegrationTests, runExportPersistenceIntegrationTests } from 
 import { runDataIntegrationTests } from './data-integration.test.js';
 import { runPersistenceIntegrationTests } from './persistence-integration.test.js';
 import { runNarrativeIntegrationTests } from './narrative-integration.test.js';
+import { runSecurityRegressionTests } from './security-regression.test.js';
 
 type RuntimeEnv = Record<string, string | undefined>;
 
@@ -17,7 +18,7 @@ const ensureEnv = (key: string, value: string): void => {
 const bootstrapSecurityEnv = (): void => {
   ensureEnv('CAPSULE_TLS_MODE', 'terminated-by-infra');
   ensureEnv('CAPSULE_SESSION_TOKEN_SECRET', 'test-session-secret');
-  ensureEnv('CAPSULE_DATA_ENCRYPTION_STRATEGY', 'AES-256 envelope encryption managed by infra KMS');
+  ensureEnv('CAPSULE_DATA_ENCRYPTION_STRATEGY', 'aes-256-gcm');
   ensureEnv('CAPSULE_AUTH_RATE_LIMIT_MAX_ATTEMPTS', '10');
   ensureEnv('CAPSULE_AUTH_RATE_LIMIT_WINDOW_MS', '60000');
   ensureEnv('CAPSULE_BRUTE_FORCE_MAX_FAILURES', '3');
@@ -34,6 +35,7 @@ const run = async () => {
   await runDataIntegrationTests();
   await runNarrativeIntegrationTests();
   await runPersistenceIntegrationTests();
+  await runSecurityRegressionTests();
   console.log('All capsule-api tests passed.');
 };
 
