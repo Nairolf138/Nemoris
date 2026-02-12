@@ -33,6 +33,21 @@
       ],
       "@capsule/observability/*": [
         "packages/observability/src/*"
+      ],
+      "@capsule/export/aggregator": [
+        "packages/export/src/aggregator.ts"
+      ],
+      "@capsule/export/schema": [
+        "packages/export/src/schema.ts"
+      ],
+      "@capsule/export/pdf": [
+        "packages/export/src/pdf.ts"
+      ],
+      "@capsule/observability/service": [
+        "packages/observability/src/service.ts"
+      ],
+      "@capsule/observability/types": [
+        "packages/observability/src/types.ts"
       ]
     }
   }

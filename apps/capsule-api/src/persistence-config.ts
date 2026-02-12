@@ -1,5 +1,5 @@
-import type { CapsulePersistence, PersistenceBackend } from '../../../packages/core/dist/index.js';
-import { createInMemoryPersistence, createSqlitePersistence } from '../../../packages/core/dist/index.js';
+import type { CapsulePersistence, PersistenceBackend } from '@capsule/core';
+import { createInMemoryPersistence, createSqlitePersistence } from '@capsule/core';
 import type { AuthStore } from './store.js';
 import { InMemoryAuthStore, SqliteAuthStore } from './store.js';
 

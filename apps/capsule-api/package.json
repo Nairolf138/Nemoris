@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@capsule/observability": "0.1.0",
-    "@capsule/core": "0.1.0"
+    "@capsule/core": "0.1.0",
+    "@capsule/export": "0.1.0"
   }
 }
