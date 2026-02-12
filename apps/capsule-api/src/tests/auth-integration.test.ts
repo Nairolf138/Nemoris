@@ -131,4 +131,61 @@ export const runAuthIntegrationTests = async (): Promise<void> => {
   assert(entries.some((entry) => entry.event_name === 'auth.login'), 'login should emit auth.login event');
   assert(entries.some((entry) => entry.event_name === 'auth.logout'), 'logout should emit auth.logout event');
   assert(entries.some((entry) => entry.event_name === 'security.alert.triggered'), 'repeated anomalies should trigger alert');
+
+  const concurrentRegisterResults = await Promise.all(
+    Array.from({ length: 4 }, (_, index) =>
+      app.handle({
+        method: 'POST',
+        path: '/auth/register',
+        body: { email: `batch-user-${index}@example.com`, password: 'Secret123!' },
+        headers: { 'x-forwarded-for': `203.0.113.${10 + index}` },
+      }),
+    ),
+  );
+  assert(
+    concurrentRegisterResults.every((result) => result.status === 201),
+    'concurrent register attempts should all succeed',
+  );
+
+  const concurrentLoginResults = await Promise.all(
+    Array.from({ length: 4 }, (_, index) =>
+      app.handle({
+        method: 'POST',
+        path: '/auth/login',
+        body: { email: `batch-user-${index}@example.com`, password: 'Secret123!' },
+        headers: { 'x-forwarded-for': `198.51.100.${20 + index}` },
+      }),
+    ),
+  );
+  assert(concurrentLoginResults.every((result) => result.status === 200), 'concurrent login attempts should all succeed');
+
+  const sessionToken = (concurrentLoginResults[0]?.body as { session: { token: string } }).session.token;
+  const refreshed = await app.handle({
+    method: 'POST',
+    path: '/auth/refresh',
+    headers: { authorization: `Bearer ${sessionToken}`, 'x-forwarded-for': '198.51.100.30' },
+  });
+  assert(refreshed.status === 200, 'refresh should issue a new session');
+  const refreshedToken = (refreshed.body as { session: { token: string } }).session.token;
+
+  const oldTokenAfterRefresh = await app.handle({
+    method: 'GET',
+    path: '/data/memories',
+    headers: { authorization: `Bearer ${sessionToken}` },
+  });
+  assert(oldTokenAfterRefresh.status === 401, 'refresh should revoke previous session token');
+
+  const revokeRefreshed = await app.handle({
+    method: 'POST',
+    path: '/auth/logout',
+    headers: { authorization: `Bearer ${refreshedToken}`, 'x-forwarded-for': '198.51.100.30' },
+  });
+  assert(revokeRefreshed.status === 204, 'logout should revoke refreshed session');
+
+  const refreshedAfterRevoke = await app.handle({
+    method: 'GET',
+    path: '/data/memories',
+    headers: { authorization: `Bearer ${refreshedToken}` },
+  });
+  assert(refreshedAfterRevoke.status === 401, 'revoked refreshed token should not authenticate');
 };

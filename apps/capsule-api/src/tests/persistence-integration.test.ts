@@ -68,6 +68,60 @@ export const runPersistenceIntegrationTests = async (): Promise<void> => {
 
   assert(loginAfterRestart.status === 200, 'user should be recoverable after restart');
 
+  const sqliteConcurrentRegisters = await Promise.all(
+    Array.from({ length: 3 }, (_, index) =>
+      secondInstance.handle({
+        method: 'POST',
+        path: '/auth/register',
+        body: { email: `sqlite-burst-${index}@example.com`, password: 'Secret123!' },
+        headers: { 'x-forwarded-for': `198.51.100.${40 + index}` },
+      }),
+    ),
+  );
+  assert(sqliteConcurrentRegisters.every((entry) => entry.status === 201), 'sqlite store should handle burst registration');
+
+  const sqliteConcurrentLogins = await Promise.all(
+    Array.from({ length: 3 }, (_, index) =>
+      secondInstance.handle({
+        method: 'POST',
+        path: '/auth/login',
+        body: { email: `sqlite-burst-${index}@example.com`, password: 'Secret123!' },
+        headers: { 'x-forwarded-for': `198.51.100.${50 + index}` },
+      }),
+    ),
+  );
+  assert(sqliteConcurrentLogins.every((entry) => entry.status === 200), 'sqlite store should handle burst login');
+
+  const sqliteSessionToken = (sqliteConcurrentLogins[0]?.body as { session: { token: string } }).session.token;
+  const sqliteRefresh = await secondInstance.handle({
+    method: 'POST',
+    path: '/auth/refresh',
+    headers: { authorization: `Bearer ${sqliteSessionToken}`, 'x-forwarded-for': '198.51.100.60' },
+  });
+  assert(sqliteRefresh.status === 200, 'sqlite refresh should return a new token');
+  const sqliteRefreshedToken = (sqliteRefresh.body as { session: { token: string } }).session.token;
+
+  const sqliteOldTokenDenied = await secondInstance.handle({
+    method: 'GET',
+    path: '/data/memories',
+    headers: { authorization: `Bearer ${sqliteSessionToken}` },
+  });
+  assert(sqliteOldTokenDenied.status === 401, 'old sqlite token should be revoked after refresh');
+
+  const sqliteLogout = await secondInstance.handle({
+    method: 'POST',
+    path: '/auth/logout',
+    headers: { authorization: `Bearer ${sqliteRefreshedToken}`, 'x-forwarded-for': '198.51.100.60' },
+  });
+  assert(sqliteLogout.status === 204, 'sqlite logout should succeed for refreshed token');
+
+  const sqliteRevokedDenied = await secondInstance.handle({
+    method: 'GET',
+    path: '/data/memories',
+    headers: { authorization: `Bearer ${sqliteRefreshedToken}` },
+  });
+  assert(sqliteRevokedDenied.status === 401, 'sqlite revoked token should be denied');
+
   runtimeEnv.CAPSULE_AUTH_STORE_BACKEND = 'memory';
   runtimeEnv.CAPSULE_DATA_STORE_BACKEND = 'memory';
   runtimeEnv.CAPSULE_AUTH_DB_PATH = undefined;
