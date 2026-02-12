@@ -1,0 +1,39 @@
+import { AuthService } from '../auth-service.js';
+import { hashPassword, verifyPassword } from '../security.js';
+
+const assert = (condition: unknown, message: string): void => {
+  if (!condition) {
+    throw new Error(message);
+  }
+};
+
+export const runAuthServiceTests = async (): Promise<void> => {
+  const password = 'Tr0ub4dor&3';
+  const hash = await hashPassword(password);
+  assert(hash !== password, 'password must be hashed');
+  assert((await verifyPassword(password, hash)) === true, 'valid password should verify');
+  assert((await verifyPassword('wrong-password', hash)) === false, 'invalid password should fail');
+
+  const service = new AuthService();
+  const auth = await service.register('alice@example.com', 'secret123');
+  const rotated = service.refresh(auth.session.token);
+
+  assert(rotated.token !== auth.session.token, 'refresh should rotate token');
+  let oldTokenRejected = false;
+  try {
+    service.authenticate(auth.session.token);
+  } catch {
+    oldTokenRejected = true;
+  }
+  assert(oldTokenRejected, 'previous token should be invalidated after refresh');
+
+  const authLogout = await service.register('bob@example.com', 'secret123');
+  service.logout(authLogout.session.token);
+  let revokedRejected = false;
+  try {
+    service.authenticate(authLogout.session.token);
+  } catch {
+    revokedRejected = true;
+  }
+  assert(revokedRejected, 'logout should revoke session');
+};
