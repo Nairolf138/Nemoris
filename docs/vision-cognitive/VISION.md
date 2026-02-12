@@ -50,3 +50,10 @@ Une initiative issue de cette vision ne passe en phase produit que si tous les c
 ## Gouvernance de cette vision
 
 Cette vision est un cadre d'exploration, pas un engagement de livraison. Toute évolution de statut doit être validée par revue produit + éthique + sécurité.
+
+## Rappel discipline de périmètre
+
+- Ce document relève exclusivement de la piste **Cognitive R&D**.
+- Le `README.md` principal doit rester centré sur la **Capsule** et ne pas présenter cette vision comme disponible.
+- Toute initiative future doit rester taguée **Phase 2**, **Research** ou **Not in scope**.
+- En PR, préciser explicitement la piste impactée : **Capsule** ou **Cognitive R&D**.
