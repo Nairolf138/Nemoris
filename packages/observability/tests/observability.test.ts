@@ -29,13 +29,15 @@ export const runObservabilityTests = (): void => {
   service.emit({ event_name: 'export.created', user_id: 'user-1', entity_id: 'export-1', timestamp: now });
   service.emit({ event_name: 'security.auth_failed', user_id: 'user-1', entity_id: '/auth/login', timestamp: now });
   service.emit({ event_name: 'security.alert.triggered', user_id: 'user-1', entity_id: '/auth/login', timestamp: now });
+  service.emit({ event_name: 'link.created', user_id: 'user-1', entity_id: 'link-1', timestamp: now });
+  service.emit({ event_name: 'retention.weekly', user_id: 'user-1', entity_id: 'retention-1', timestamp: now });
 
   const events = service.listEvents();
-  assert(events.length === 6, 'should capture emitted events');
+  assert(events.length === 8, 'should capture emitted events');
 
   const audit = service.listAuditLog();
-  assert(audit.length === 6, 'should append immutable audit entries');
-  assert(audit[0]?.sequence === 1 && audit[5]?.sequence === 6, 'audit log should be append-only sequence');
+  assert(audit.length === 8, 'should append immutable audit entries');
+  assert(audit[0]?.sequence === 1 && audit[7]?.sequence === 8, 'audit log should be append-only sequence');
 
   const dashboard = service.dashboardJson();
   assert(dashboard.metrics.schema_version === 1, 'dashboard json schema version should be stable');
@@ -46,6 +48,12 @@ export const runObservabilityTests = (): void => {
   assert(dashboard.metrics.auth_errors === 1, 'auth errors KPI should increment');
   assert(dashboard.metrics.security_alerts === 1, 'security alerts KPI should increment');
   assert(dashboard.metrics.weekly_active_users === 1, 'weekly activity should track unique users');
+
+  const dashboardV2 = service.dashboardJsonV2();
+  assert(dashboardV2.schema_version === 2, 'v2 dashboard should expose versioned schema');
+  assert(dashboardV2.backward_compatible_with.includes(1), 'v2 dashboard should expose backward compatibility target');
+  assert(dashboardV2.metrics.link_created_total === 1, 'link.created must be tracked in KPI metrics');
+  assert(dashboardV2.metrics.retention_weekly_total === 1, 'retention.weekly must be tracked in KPI metrics');
 
   const csv = service.dashboardCsv();
   const parsedCsv = parseCsv(csv);
@@ -69,4 +77,29 @@ export const runObservabilityTests = (): void => {
   assert(parsedCsv.export_rate === '0.5', 'csv should include export rate KPI');
   assert(parsedCsv.auth_errors === '1', 'csv should include auth errors KPI');
   assert(parsedCsv.security_alerts === '1', 'csv should include security alerts KPI');
+
+  const edgeService = new ObservabilityService();
+  edgeService.emit({ event_name: 'onboarding.started', user_id: 'lead-1', entity_id: '/auth/register', timestamp: now });
+  edgeService.emit({ event_name: 'onboarding.started', user_id: 'lead-2', entity_id: '/auth/register', timestamp: now });
+  edgeService.emit({ event_name: 'onboarding.started', user_id: 'lead-3', entity_id: '/auth/register', timestamp: now });
+  edgeService.emit({ event_name: 'onboarding.started', user_id: 'lead-4', entity_id: '/auth/register', timestamp: now });
+  edgeService.emit({ event_name: 'onboarding.started', user_id: 'lead-5', entity_id: '/auth/register', timestamp: now });
+  edgeService.emit({ event_name: 'onboarding.completed', user_id: 'lead-1', entity_id: 'lead-1', timestamp: now });
+  edgeService.emit({ event_name: 'export.failed', user_id: 'lead-1', entity_id: 'lead-1', timestamp: now });
+  edgeService.emit({ event_name: 'export.failed', user_id: 'lead-1', entity_id: 'lead-1', timestamp: now });
+  edgeService.emit({ event_name: 'export.created', user_id: 'lead-1', entity_id: 'export-1', timestamp: now });
+  edgeService.emit({ event_name: 'export.created', user_id: 'lead-1', entity_id: 'export-2', timestamp: now });
+  edgeService.emit({ event_name: 'export.failed', user_id: 'lead-1', entity_id: 'lead-1', timestamp: now });
+  edgeService.emit({ event_name: 'security.auth_failed', user_id: 'lead-1', entity_id: '/auth/login', timestamp: now });
+  edgeService.emit({ event_name: 'security.auth_failed', user_id: 'lead-1', entity_id: '/auth/login', timestamp: now });
+  edgeService.emit({ event_name: 'security.auth_failed', user_id: 'lead-1', entity_id: '/auth/login', timestamp: now });
+  edgeService.emit({ event_name: 'security.auth_failed', user_id: 'lead-1', entity_id: '/auth/login', timestamp: now });
+  edgeService.emit({ event_name: 'security.auth_failed', user_id: 'lead-1', entity_id: '/auth/login', timestamp: now });
+
+  const edgeDashboard = edgeService.dashboardJsonV2();
+  assert(edgeDashboard.metrics.export_failure_rate === 0.6, 'export failure rate should be rounded to 4 decimals');
+  assert(edgeDashboard.metrics.onboarding_completion_rate === 0.2, 'onboarding completion rate should track start/completion ratio');
+  assert(edgeDashboard.alerts.find((alert) => alert.id === 'export_failure_rate')?.status === 'triggered', 'export failure alert should trigger when threshold exceeded');
+  assert(edgeDashboard.alerts.find((alert) => alert.id === 'auth_anomalies')?.status === 'triggered', 'auth anomaly alert should trigger at threshold');
+  assert(edgeDashboard.alerts.find((alert) => alert.id === 'onboarding_drop')?.status === 'triggered', 'onboarding drop alert should trigger with low conversion and sample size');
 };
