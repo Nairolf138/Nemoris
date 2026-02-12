@@ -5,8 +5,11 @@ import type {
   CapsulePersistence,
   LegacyMessageRepository,
   LessonRepository,
+  ListByOwnerQuery,
   MemoryRepository,
   NarrativeNodeRepository,
+  PaginatedListResult,
+  RepositorySortOrder,
   ValueProfileRepository,
 } from '../contracts.js';
 
@@ -17,6 +20,8 @@ const quote = (value: string): string => `'${value.replace(/'/g, "''")}'`;
 const runSql = (dbPath: string, sql: string): string => {
   return execFileSync('sqlite3', [dbPath, sql], { encoding: 'utf8' });
 };
+
+const normalizeOrder = (order: RepositorySortOrder): 'ASC' | 'DESC' => (order === 'asc' ? 'ASC' : 'DESC');
 
 class SqliteEntityStore<T extends Entity> {
   public constructor(
@@ -56,6 +61,40 @@ class SqliteEntityStore<T extends Entity> {
       .split('\n')
       .filter(Boolean);
     return rows.map((payload) => JSON.parse(payload) as T);
+  };
+
+  public listByOwnerPaginated = async (ownerId: string, query: ListByOwnerQuery): Promise<PaginatedListResult<T>> => {
+    const direction = normalizeOrder(query.order);
+    const ownerCondition = `json_extract(payload, '$.owner_id') = ${quote(ownerId)}`;
+    const escapedPath = query.sortBy.replace(/'/g, "''");
+    const sortExpr = `COALESCE(json_extract(payload, '$.${escapedPath}'), '')`;
+
+    const rows = runSql(
+      this.dbPath,
+      `
+      SELECT payload
+      FROM ${this.tableName}
+      WHERE ${ownerCondition}
+      ORDER BY ${sortExpr} ${direction}, id ${direction}
+      LIMIT ${query.limit}
+      OFFSET ${query.offset};
+      `,
+    )
+      .split('\n')
+      .filter(Boolean)
+      .map((payload) => JSON.parse(payload) as T);
+
+    const totalRaw = runSql(
+      this.dbPath,
+      `SELECT count(1) FROM ${this.tableName} WHERE ${ownerCondition};`,
+    ).trim();
+
+    return {
+      items: rows,
+      total: Number(totalRaw),
+      limit: query.limit,
+      offset: query.offset,
+    };
   };
 
   public getById = async (id: string): Promise<T | null> => {

@@ -1,10 +1,27 @@
 import type { Belief, LegacyMessage, Lesson, Memory, NarrativeNode, ValueProfile } from '../domain/entities.js';
 
+export type RepositorySortOrder = 'asc' | 'desc';
+
+export interface ListByOwnerQuery {
+  limit: number;
+  offset: number;
+  sortBy: string;
+  order: RepositorySortOrder;
+}
+
+export interface PaginatedListResult<T> {
+  items: T[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
 export interface MemoryRepository {
   create(memory: Memory): Promise<Memory>;
   update(id: string, patch: Partial<Memory>): Promise<Memory | null>;
   delete(id: string): Promise<boolean>;
   listByOwner(ownerId: string): Promise<Memory[]>;
+  listByOwnerPaginated(ownerId: string, query: ListByOwnerQuery): Promise<PaginatedListResult<Memory>>;
   getById(id: string): Promise<Memory | null>;
   existsByIds(ids: string[]): Promise<boolean>;
 }
@@ -14,6 +31,7 @@ export interface BeliefRepository {
   update(id: string, patch: Partial<Belief>): Promise<Belief | null>;
   delete(id: string): Promise<boolean>;
   listByOwner(ownerId: string): Promise<Belief[]>;
+  listByOwnerPaginated(ownerId: string, query: ListByOwnerQuery): Promise<PaginatedListResult<Belief>>;
   getById(id: string): Promise<Belief | null>;
   existsByIds(ids: string[]): Promise<boolean>;
 }
@@ -23,6 +41,7 @@ export interface LessonRepository {
   update(id: string, patch: Partial<Lesson>): Promise<Lesson | null>;
   delete(id: string): Promise<boolean>;
   listByOwner(ownerId: string): Promise<Lesson[]>;
+  listByOwnerPaginated(ownerId: string, query: ListByOwnerQuery): Promise<PaginatedListResult<Lesson>>;
   getById(id: string): Promise<Lesson | null>;
   existsByIds(ids: string[]): Promise<boolean>;
 }
@@ -32,6 +51,7 @@ export interface ValueProfileRepository {
   update(id: string, patch: Partial<ValueProfile>): Promise<ValueProfile | null>;
   delete(id: string): Promise<boolean>;
   listByOwner(ownerId: string): Promise<ValueProfile[]>;
+  listByOwnerPaginated(ownerId: string, query: ListByOwnerQuery): Promise<PaginatedListResult<ValueProfile>>;
   getById(id: string): Promise<ValueProfile | null>;
   existsByIds(ids: string[]): Promise<boolean>;
 }
@@ -41,6 +61,7 @@ export interface LegacyMessageRepository {
   update(id: string, patch: Partial<LegacyMessage>): Promise<LegacyMessage | null>;
   delete(id: string): Promise<boolean>;
   listByOwner(ownerId: string): Promise<LegacyMessage[]>;
+  listByOwnerPaginated(ownerId: string, query: ListByOwnerQuery): Promise<PaginatedListResult<LegacyMessage>>;
   getById(id: string): Promise<LegacyMessage | null>;
 }
 

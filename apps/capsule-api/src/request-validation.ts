@@ -10,9 +10,50 @@ interface ExportPayload {
   owner_id?: string;
 }
 
+export type DataCollection = 'memories' | 'beliefs' | 'lessons' | 'value_profiles' | 'legacy_messages';
+
+type SortOrder = 'asc' | 'desc';
+
+type DataCollectionSortBy = {
+  memories: 'occurred_at' | 'created_at' | 'updated_at';
+  beliefs: 'created_at' | 'updated_at';
+  lessons: 'created_at' | 'updated_at';
+  value_profiles: 'created_at' | 'updated_at';
+  legacy_messages: 'trigger_at' | 'created_at' | 'updated_at';
+};
+
+export type DataListSortBy<C extends DataCollection> = DataCollectionSortBy[C];
+
+export interface DataListQueryDto<C extends DataCollection = DataCollection> {
+  limit: number;
+  offset: number;
+  cursor?: string;
+  sort: DataListSortBy<C>;
+  order: SortOrder;
+}
+
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_PASSWORD_LENGTH = 8;
 const PASSWORD_COMPLEXITY_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).+$/;
+const DEFAULT_LIMIT = 50;
+const MAX_LIMIT = 100;
+const MIN_LIMIT = 1;
+
+const DEFAULT_SORT_BY: { [K in DataCollection]: DataListSortBy<K> } = {
+  memories: 'occurred_at',
+  beliefs: 'created_at',
+  lessons: 'created_at',
+  value_profiles: 'created_at',
+  legacy_messages: 'trigger_at',
+};
+
+const allowedSortBy: { [K in DataCollection]: readonly DataListSortBy<K>[] } = {
+  memories: ['occurred_at', 'created_at', 'updated_at'],
+  beliefs: ['created_at', 'updated_at'],
+  lessons: ['created_at', 'updated_at'],
+  value_profiles: ['created_at', 'updated_at'],
+  legacy_messages: ['trigger_at', 'created_at', 'updated_at'],
+};
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -24,6 +65,16 @@ const assertAllowedKeys = (payload: Record<string, unknown>, allowedKeys: readon
       throw new Error('INVALID_PAYLOAD');
     }
   }
+};
+
+const parseInteger = (value: string | null): number | undefined => {
+  if (value === null) {
+    return undefined;
+  }
+  if (!/^\d+$/.test(value)) {
+    throw new Error('INVALID_QUERY_PARAMS');
+  }
+  return Number(value);
 };
 
 export const normalizeEmail = (value: string): string => value.trim().toLowerCase();
@@ -96,3 +147,53 @@ export const parseOwnerScope = (value: unknown): string | undefined => {
 
   return normalized;
 };
+
+export const parseDataListQuery = <C extends DataCollection>(collection: C, path: string): DataListQueryDto<C> => {
+  const [, queryString] = path.split('?');
+  const params = new URLSearchParams(queryString ?? '');
+
+  const limit = parseInteger(params.get('limit')) ?? DEFAULT_LIMIT;
+  if (limit < MIN_LIMIT || limit > MAX_LIMIT) {
+    throw new Error('INVALID_QUERY_PARAMS');
+  }
+
+  const offsetParam = parseInteger(params.get('offset'));
+  const cursorParam = params.get('cursor');
+  let offset = offsetParam ?? 0;
+
+  if (cursorParam !== null) {
+    const decodedCursor = parseInteger(cursorParam);
+    if (decodedCursor === undefined) {
+      throw new Error('INVALID_QUERY_PARAMS');
+    }
+    if (offsetParam !== undefined && offsetParam !== decodedCursor) {
+      throw new Error('INVALID_QUERY_PARAMS');
+    }
+    offset = decodedCursor;
+  }
+
+  if (offset < 0) {
+    throw new Error('INVALID_QUERY_PARAMS');
+  }
+
+  const sortParam = params.get('sort') as DataListSortBy<C> | null;
+  const sort = sortParam ?? DEFAULT_SORT_BY[collection];
+  if (!allowedSortBy[collection].includes(sort)) {
+    throw new Error('INVALID_QUERY_PARAMS');
+  }
+
+  const orderParam = params.get('order');
+  if (orderParam !== null && orderParam !== 'asc' && orderParam !== 'desc') {
+    throw new Error('INVALID_QUERY_PARAMS');
+  }
+
+  return {
+    limit,
+    offset,
+    cursor: cursorParam ?? undefined,
+    sort,
+    order: orderParam ?? 'desc',
+  };
+};
+
+export const getDefaultSortBy = <C extends DataCollection>(collection: C): DataListSortBy<C> => DEFAULT_SORT_BY[collection];
