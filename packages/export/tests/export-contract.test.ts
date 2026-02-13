@@ -40,7 +40,7 @@ const buildFixture = () => {
     legacyMessages: [
       {
         id: 'msg-1', owner_id: ownerId, visibility: 'posthumous', created_at: '2026-01-01T00:00:00.000Z', updated_at: '2026-01-01T00:00:00.000Z',
-        title: 'Message testamentaire', message: 'Prenez soin de vous.', trigger_type: 'manual', beneficiary_ids: ['benef-1', 'benef-2'], attachment_memory_ids: ['mem-1'],
+        title: 'Message testamentaire', message: 'Prenez soin de vous.', trigger_type: 'manual', beneficiary_ids: ['benef-1', 'benef-2', 'benef-1'], attachment_memory_ids: ['mem-1'],
         related_belief_ids: ['belief-1'], related_lesson_ids: ['lesson-1'], related_value_profile_ids: ['vp-1'], related_narrative_node_ids: [], state: 'armed',
       },
     ],
@@ -65,6 +65,9 @@ export const runExportContractTests = async (): Promise<void> => {
   const payload = await aggregator.collectByOwner(ownerId, ownerId);
 
   assert(payload.metadata.schema_version === '1.0.0', 'schema version must be v1');
+  assert(payload.metadata.generated_by_user_id === ownerId, 'generator user id should be set in metadata');
+  assert(payload.metadata.exported_at.length > 0, 'export timestamp should be set in metadata');
+  assert(payload.metadata.timezone.length > 0, 'timezone should be set in metadata');
   const snapshot = JSON.stringify({
     schema_version: payload.metadata.schema_version,
     owner_id: payload.metadata.owner_id,
@@ -82,6 +85,11 @@ export const runExportContractTests = async (): Promise<void> => {
   assert(
     snapshot === JSON.stringify({ schema_version: '1.0.0', owner_id: 'owner-1', counts: { memories: 1, beliefs: 1, lessons: 1, value_profiles: 1, legacy_messages: 1, beneficiaries: 2, transmission_rules: 2 } }),
     'JSON contract snapshot changed',
+  );
+  assert(
+    payload.transmission_rules[0]?.legacy_message_id === 'msg-1' && payload.transmission_rules[0]?.beneficiary_id === 'benef-1'
+      && payload.transmission_rules[1]?.legacy_message_id === 'msg-1' && payload.transmission_rules[1]?.beneficiary_id === 'benef-2',
+    'transmission rules should be sorted and deduplicated by message and beneficiary',
   );
 
   const serializedJson = serializeExportPayload(payload, 'json');
