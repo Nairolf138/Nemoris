@@ -6,8 +6,10 @@ export interface CapsuleState {
   data: CapsuleCollections;
   exports: ExportJob[];
   ui: {
+    status: 'idle' | 'loading' | 'ready' | 'empty' | 'error';
     loading: boolean;
     error?: string;
+    message?: string;
   };
 }
 
@@ -39,7 +41,7 @@ export class CapsuleStore {
         narrativeEdges: [],
       },
       exports: [],
-      ui: { loading: false },
+      ui: { status: 'idle', loading: false },
       ...initialState,
     };
   }

@@ -17,7 +17,7 @@ export interface FrontendArchitecture {
   timeline: TimelineService;
   exports: CapsuleExportService;
   navigate(route: AppRouteName): string;
-  run<T>(action: () => Promise<T>): Promise<T>;
+  run<T>(action: () => Promise<T>, options?: { emptyWhen?: (result: T) => boolean; successMessage?: string }): Promise<T>;
 }
 
 export const createCapsuleFrontend = (baseUrl: string, storage: SessionStorageLike): FrontendArchitecture => {
@@ -46,15 +46,27 @@ export const createCapsuleFrontend = (baseUrl: string, storage: SessionStorageLi
         hasCompletedOnboarding: state.onboardingCompleted,
       });
     },
-    async run<T>(action: () => Promise<T>): Promise<T> {
-      store.setState({ ui: { loading: true, error: undefined } });
+    async run<T>(action: () => Promise<T>, options?: { emptyWhen?: (result: T) => boolean; successMessage?: string }): Promise<T> {
+      store.setState({ ui: { status: 'loading', loading: true, error: undefined, message: undefined } });
       try {
-        return await action();
+        const result = await action();
+        store.setState({
+          ui: {
+            status: options?.emptyWhen?.(result) ? 'empty' : 'ready',
+            message: options?.successMessage,
+          },
+        });
+        return result;
       } catch (error) {
         if (error instanceof CapsuleApiError) {
-          store.setState({ ui: { error: `${error.code}${error.retryAfterMs ? ` (retry in ${error.retryAfterMs}ms)` : ''}` } });
+          store.setState({
+            ui: {
+              status: 'error',
+              error: `${error.code}${error.retryAfterMs ? ` (retry in ${error.retryAfterMs}ms)` : ''}`,
+            },
+          });
         } else {
-          store.setState({ ui: { error: 'INTERNAL_ERROR' } });
+          store.setState({ ui: { status: 'error', error: 'INTERNAL_ERROR' } });
         }
         throw error;
       } finally {

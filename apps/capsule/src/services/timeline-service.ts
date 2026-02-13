@@ -33,14 +33,26 @@ export class TimelineService {
 
   public async loadTimeline(): Promise<TimelineEvent[]> {
     const { token, ownerId } = this.getAuth();
-    const [nodes, edges, memories] = await Promise.all([
+    const [nodesResult, edgesResult, memoriesResult] = await Promise.allSettled([
       this.api.listCollection('narrativeNodes', token, ownerId),
       this.api.listCollection('narrativeEdges', token, ownerId),
       this.api.listCollection('memories', token, ownerId),
     ]);
 
+    if (nodesResult.status === 'rejected') throw nodesResult.reason;
+    if (edgesResult.status === 'rejected') throw edgesResult.reason;
+
+    const nodes = nodesResult.value;
+    const edges = edgesResult.value;
+    const memories = memoriesResult.status === 'fulfilled' ? memoriesResult.value : this.store.getState().data.memories;
+
     this.store.setState({ data: { narrativeNodes: nodes, narrativeEdges: edges, memories } });
     return this.buildTimeline(nodes, edges);
+  }
+
+  private toTimestamp(date: string): number {
+    const parsed = Date.parse(date);
+    return Number.isNaN(parsed) ? Number.MAX_SAFE_INTEGER : parsed;
   }
 
   public buildTimeline(nodes: NarrativeNode[], edges: NarrativeEdge[]): TimelineEvent[] {
@@ -57,7 +69,11 @@ export class TimelineService {
         label: node.label,
         links: linksByNode.get(node.id) ?? [],
       }))
-      .sort((a, b) => a.date.localeCompare(b.date));
+      .sort((a, b) => {
+        const dateOrder = this.toTimestamp(a.date) - this.toTimestamp(b.date);
+        if (dateOrder !== 0) return dateOrder;
+        return a.id.localeCompare(b.id);
+      });
   }
 
   public async addManualLink(input: ManualLinkInput): Promise<NarrativeEdge> {
