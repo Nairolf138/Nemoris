@@ -1,0 +1,35 @@
+name: Release Artifacts
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-and-upload-artifacts:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build artifacts
+        run: npm run build:artifacts
+
+      - name: Verify manifest exists
+        run: test -f artifacts/manifest.json
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-artifacts-${{ github.ref_name }}
+          path: artifacts/*
+          if-no-files-found: error
