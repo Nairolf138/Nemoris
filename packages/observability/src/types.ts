@@ -53,10 +53,19 @@ export interface MetricsSnapshot {
 export interface MetricsSnapshotV2 extends MetricsSnapshot {
   onboarding_started_total: number;
   onboarding_completion_rate: number;
+  entries_created_total: number;
+  entries_per_active_user_30d: number;
   export_failure_total: number;
   export_failure_rate: number;
+  export_success_rate: number;
+  export_pdf_success_total: number;
+  export_json_success_total: number;
+  export_pdf_success_rate: number;
+  export_json_success_rate: number;
   link_created_total: number;
+  link_creation_rate: number;
   retention_weekly_total: number;
+  retention_j7_rate: number;
   auth_rejected_401_total: number;
   auth_rejected_403_total: number;
   auth_rate_limited_429_total: number;

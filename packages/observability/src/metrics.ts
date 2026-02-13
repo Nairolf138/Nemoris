@@ -21,14 +21,39 @@ const CAPSULE_ACTIVITY_EVENTS = new Set<string>([
   'legacy_message.deleted',
 ]);
 
+const ENTRY_CREATED_EVENTS = new Set<string>(['memory.created', 'belief.created', 'lesson.created', 'value_profile.created']);
+const THIRTY_DAYS_MS = 1000 * 60 * 60 * 24 * 30;
+
+interface RollingEvent {
+  timestampMs: number;
+  userId: string;
+  entryCreated: boolean;
+}
+
+const readExportFormat = (event: StandardEvent): 'pdf' | 'json' | 'unknown' => {
+  const format = event.metadata.format;
+  if (typeof format !== 'string') {
+    return 'unknown';
+  }
+  if (format === 'pdf' || format === 'json') {
+    return format;
+  }
+  return 'unknown';
+};
+
 export class ProductMetrics {
   private onboardingUsers = new Set<string>();
   private onboardingStarted = 0;
   private onboardingCompletedTotal = 0;
   private capsuleActivity = 0;
+  private entriesCreatedTotal = 0;
   private exports = 0;
   private exportFailures = 0;
   private exportAttempts = 0;
+  private exportPdfSuccess = 0;
+  private exportJsonSuccess = 0;
+  private exportPdfAttempts = 0;
+  private exportJsonAttempts = 0;
   private weeklyUsers = new Set<string>();
   private retentionWeeklyUsers = new Set<string>();
   private linksCreated = 0;
@@ -38,12 +63,15 @@ export class ProductMetrics {
   private authRejected403 = 0;
   private authRateLimited429 = 0;
   private revokedSessions = 0;
+  private rolling30dEvents: RollingEvent[] = [];
 
   public ingest(event: StandardEvent): void {
     const parsed = new Date(event.timestamp);
     if (Number.isNaN(parsed.getTime())) {
       return;
     }
+
+    const eventTimestampMs = parsed.getTime();
 
     if (event.event_name === 'onboarding.started') {
       this.onboardingStarted += 1;
@@ -58,14 +86,35 @@ export class ProductMetrics {
       this.capsuleActivity += 1;
     }
 
+    const entryCreated = ENTRY_CREATED_EVENTS.has(event.event_name);
+    if (entryCreated) {
+      this.entriesCreatedTotal += 1;
+    }
+
     if (event.event_name === 'export.created') {
       this.exports += 1;
       this.exportAttempts += 1;
+      const format = readExportFormat(event);
+      if (format === 'pdf') {
+        this.exportPdfSuccess += 1;
+        this.exportPdfAttempts += 1;
+      }
+      if (format === 'json') {
+        this.exportJsonSuccess += 1;
+        this.exportJsonAttempts += 1;
+      }
     }
 
     if (event.event_name === 'export.failed') {
       this.exportFailures += 1;
       this.exportAttempts += 1;
+      const format = readExportFormat(event);
+      if (format === 'pdf') {
+        this.exportPdfAttempts += 1;
+      }
+      if (format === 'json') {
+        this.exportJsonAttempts += 1;
+      }
     }
 
     if (event.event_name === 'link.created') {
@@ -101,11 +150,14 @@ export class ProductMetrics {
     }
 
     const now = Date.now();
-    const ageMs = now - parsed.getTime();
+    const ageMs = now - eventTimestampMs;
     const withinWeek = ageMs >= 0 && ageMs <= 1000 * 60 * 60 * 24 * 7;
     if (withinWeek) {
       this.weeklyUsers.add(event.user_id);
     }
+
+    this.rolling30dEvents.push({ timestampMs: eventTimestampMs, userId: event.user_id, entryCreated });
+    this.pruneRolling30d(now);
   }
 
   public snapshot(): MetricsSnapshot {
@@ -127,19 +179,42 @@ export class ProductMetrics {
     const legacy = this.snapshot();
     const completionRate = this.onboardingStarted === 0 ? 0 : Number((this.onboardingCompletedTotal / this.onboardingStarted).toFixed(4));
     const exportFailureRate = this.exportAttempts === 0 ? 0 : Number((this.exportFailures / this.exportAttempts).toFixed(4));
+    const exportSuccessRate = this.exportAttempts === 0 ? 0 : Number((this.exports / this.exportAttempts).toFixed(4));
+    const exportPdfSuccessRate = this.exportPdfAttempts === 0 ? 0 : Number((this.exportPdfSuccess / this.exportPdfAttempts).toFixed(4));
+    const exportJsonSuccessRate = this.exportJsonAttempts === 0 ? 0 : Number((this.exportJsonSuccess / this.exportJsonAttempts).toFixed(4));
+    const linkCreationRate = this.entriesCreatedTotal === 0 ? 0 : Number((this.linksCreated / this.entriesCreatedTotal).toFixed(4));
+    const activeUsers30d = new Set(this.rolling30dEvents.map((event) => event.userId)).size;
+    const entries30dTotal = this.rolling30dEvents.reduce((total, event) => total + (event.entryCreated ? 1 : 0), 0);
+    const entriesPerActiveUser30d = activeUsers30d === 0 ? 0 : Number((entries30dTotal / activeUsers30d).toFixed(4));
+    const retentionJ7Rate =
+      this.onboardingUsers.size === 0 ? 0 : Number((this.retentionWeeklyUsers.size / this.onboardingUsers.size).toFixed(4));
 
     return {
       ...legacy,
       onboarding_started_total: this.onboardingStarted,
       onboarding_completion_rate: completionRate,
+      entries_created_total: this.entriesCreatedTotal,
+      entries_per_active_user_30d: entriesPerActiveUser30d,
       export_failure_total: this.exportFailures,
       export_failure_rate: exportFailureRate,
+      export_success_rate: exportSuccessRate,
+      export_pdf_success_total: this.exportPdfSuccess,
+      export_json_success_total: this.exportJsonSuccess,
+      export_pdf_success_rate: exportPdfSuccessRate,
+      export_json_success_rate: exportJsonSuccessRate,
       link_created_total: this.linksCreated,
+      link_creation_rate: linkCreationRate,
       retention_weekly_total: this.retentionWeeklyUsers.size,
+      retention_j7_rate: retentionJ7Rate,
       auth_rejected_401_total: this.authRejected401,
       auth_rejected_403_total: this.authRejected403,
       auth_rate_limited_429_total: this.authRateLimited429,
       session_revoked_total: this.revokedSessions,
     };
+  }
+
+  private pruneRolling30d(nowMs: number): void {
+    const threshold = nowMs - THIRTY_DAYS_MS;
+    this.rolling30dEvents = this.rolling30dEvents.filter((event) => event.timestampMs >= threshold && event.timestampMs <= nowMs);
   }
 }
