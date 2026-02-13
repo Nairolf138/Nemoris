@@ -12,6 +12,18 @@ export interface AuthStore {
 
 type SqlRow = Record<string, string | null>;
 
+
+const SQLITE_BINARY = 'sqlite3';
+const SQLITE_SPAWN_OPTIONS = { encoding: 'utf8' } as const;
+
+const runSqlite = (args: string[]): string => {
+  const result = spawnSync(SQLITE_BINARY, args, SQLITE_SPAWN_OPTIONS);
+  if (result.status !== 0) {
+    throw new Error(result.stderr.trim() || 'sqlite command failed');
+  }
+  return result.stdout;
+};
+
 const sqliteLiteral = (value: string | null): string => {
   if (value === null) {
     return 'NULL';
@@ -64,18 +76,11 @@ class SqliteClient {
   }
 
   public exec(sql: string): void {
-    const result = spawnSync('sqlite3', [this.path, sql], { encoding: 'utf8' });
-    if (result.status !== 0) {
-      throw new Error(result.stderr.trim() || 'sqlite command failed');
-    }
+    runSqlite([this.path, sql]);
   }
 
   public query(sql: string): SqlRow[] {
-    const result = spawnSync('sqlite3', ['-json', this.path, sql], { encoding: 'utf8' });
-    if (result.status !== 0) {
-      throw new Error(result.stderr.trim() || 'sqlite command failed');
-    }
-    const raw = result.stdout.trim();
+    const raw = runSqlite(['-json', this.path, sql]).trim();
     if (!raw) {
       return [];
     }

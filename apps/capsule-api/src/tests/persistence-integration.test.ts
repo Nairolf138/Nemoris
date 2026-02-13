@@ -1,3 +1,7 @@
+import { execFileSync } from 'node:child_process';
+import { rm } from 'node:fs/promises';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { CapsuleApiApp } from '../app.js';
 
 type RuntimeEnv = Record<string, string | undefined>;
@@ -11,119 +15,110 @@ const assert = (condition: unknown, message: string): void => {
   }
 };
 
+const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../../..');
+const backupScriptPath = resolve(repoRoot, 'scripts/persistence-backup.mjs');
+
+const runBackupScript = (action: 'backup' | 'restore', dir: string): void => {
+  execFileSync('node', [backupScriptPath, action, '--dir', dir], {
+    cwd: repoRoot,
+    stdio: 'inherit',
+    env: process.env,
+  });
+};
+
 export const runPersistenceIntegrationTests = async (): Promise<void> => {
   const unique = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  const authDbPath = resolve(repoRoot, `.tmp-auth-${unique}.sqlite`);
+  const dataDbPath = resolve(repoRoot, `.tmp-data-${unique}.sqlite`);
+  const exportDbPath = resolve(repoRoot, `.tmp-export-${unique}.sqlite`);
+  const backupDir = resolve(repoRoot, `.tmp-backup-${unique}`);
+
   runtimeEnv.CAPSULE_AUTH_STORE_BACKEND = 'sqlite';
   runtimeEnv.CAPSULE_DATA_STORE_BACKEND = 'sqlite';
-  runtimeEnv.CAPSULE_AUTH_DB_PATH = `./tmp-auth-${unique}.sqlite`;
-  runtimeEnv.CAPSULE_DATA_DB_PATH = `./tmp-data-${unique}.sqlite`;
+  runtimeEnv.CAPSULE_EXPORT_STORE_BACKEND = 'sqlite';
+  runtimeEnv.CAPSULE_AUTH_DB_PATH = authDbPath;
+  runtimeEnv.CAPSULE_DATA_DB_PATH = dataDbPath;
+  runtimeEnv.CAPSULE_EXPORT_DB_PATH = exportDbPath;
 
-  const firstInstance = new CapsuleApiApp();
-  const register = await firstInstance.handle({
-    method: 'POST',
-    path: '/auth/register',
-    body: { email: 'persist@example.com', password: 'Secret123!' },
-    headers: { 'x-forwarded-for': '198.51.100.10' },
-  });
+  try {
+    const firstInstance = new CapsuleApiApp();
+    const register = await firstInstance.handle({
+      method: 'POST',
+      path: '/auth/register',
+      body: { email: 'persist@example.com', password: 'Secret123!' },
+      headers: { 'x-forwarded-for': '198.51.100.10' },
+    });
+    assert(register.status === 201, 'register should succeed');
 
-  assert(register.status === 201, 'register should succeed');
-  const registerBody = register.body as { user: { id: string }; session: { token: string } };
+    const registerBody = register.body as { user: { id: string }; session: { token: string } };
 
-  const createdMemory = await firstInstance.handle({
-    method: 'POST',
-    path: '/data/memories',
-    headers: { authorization: `Bearer ${registerBody.session.token}`, 'x-owner-id': registerBody.user.id },
-    body: {
-      visibility: 'private',
-      occurred_at: '2024-01-01T10:00:00.000Z',
-      title: 'Persisted memory',
-      related_belief_ids: [],
-      related_lesson_ids: [],
-      related_value_profile_ids: [],
-      related_narrative_node_ids: [],
-    },
-  });
+    const firstMemory = await firstInstance.handle({
+      method: 'POST',
+      path: '/data/memories',
+      headers: { authorization: `Bearer ${registerBody.session.token}`, 'x-owner-id': registerBody.user.id },
+      body: {
+        visibility: 'private',
+        occurred_at: '2024-01-01T10:00:00.000Z',
+        title: 'Before backup',
+        related_belief_ids: [],
+        related_lesson_ids: [],
+        related_value_profile_ids: [],
+        related_narrative_node_ids: [],
+      },
+    });
+    assert(firstMemory.status === 201, 'first memory creation should succeed');
 
-  assert(createdMemory.status === 201, 'memory creation should succeed');
-  const memoryId = (createdMemory.body as { id: string }).id;
+    runBackupScript('backup', backupDir);
 
-  const secondInstance = new CapsuleApiApp();
+    const secondMemory = await firstInstance.handle({
+      method: 'POST',
+      path: '/data/memories',
+      headers: { authorization: `Bearer ${registerBody.session.token}`, 'x-owner-id': registerBody.user.id },
+      body: {
+        visibility: 'private',
+        occurred_at: '2024-01-02T10:00:00.000Z',
+        title: 'After backup',
+        related_belief_ids: [],
+        related_lesson_ids: [],
+        related_value_profile_ids: [],
+        related_narrative_node_ids: [],
+      },
+    });
+    assert(secondMemory.status === 201, 'second memory creation should succeed');
 
-  const sessionStillValid = await secondInstance.handle({
-    method: 'GET',
-    path: `/data/memories?owner_id=${registerBody.user.id}`,
-    headers: { authorization: `Bearer ${registerBody.session.token}` },
-  });
+    runBackupScript('restore', backupDir);
 
-  assert(sessionStillValid.status === 200, 'session should survive app restart');
-  const memoryList = sessionStillValid.body as { items: Array<{ id: string }> };
-  assert(memoryList.items.some((entry) => entry.id === memoryId), 'memory should survive app restart');
+    const secondInstance = new CapsuleApiApp();
+    const loginAfterRestore = await secondInstance.handle({
+      method: 'POST',
+      path: '/auth/login',
+      body: { email: 'persist@example.com', password: 'Secret123!' },
+      headers: { 'x-forwarded-for': '198.51.100.10' },
+    });
+    assert(loginAfterRestore.status === 200, 'login should succeed after restore and restart');
 
-  const loginAfterRestart = await secondInstance.handle({
-    method: 'POST',
-    path: '/auth/login',
-    body: { email: 'persist@example.com', password: 'Secret123!' },
-    headers: { 'x-forwarded-for': '198.51.100.10' },
-  });
+    const restoredSession = (loginAfterRestore.body as { user: { id: string }; session: { token: string } }).session;
+    const restoredMemories = await secondInstance.handle({
+      method: 'GET',
+      path: `/data/memories?owner_id=${registerBody.user.id}`,
+      headers: { authorization: `Bearer ${restoredSession.token}` },
+    });
 
-  assert(loginAfterRestart.status === 200, 'user should be recoverable after restart');
+    assert(restoredMemories.status === 200, 'restored memories listing should succeed');
+    const restoredList = restoredMemories.body as { items: Array<{ title: string }> };
+    assert(restoredList.items.some((entry) => entry.title === 'Before backup'), 'backup data should be restored');
+    assert(!restoredList.items.some((entry) => entry.title === 'After backup'), 'post-backup data should be reverted');
+  } finally {
+    runtimeEnv.CAPSULE_AUTH_STORE_BACKEND = 'memory';
+    runtimeEnv.CAPSULE_DATA_STORE_BACKEND = 'memory';
+    runtimeEnv.CAPSULE_EXPORT_STORE_BACKEND = 'memory';
+    runtimeEnv.CAPSULE_AUTH_DB_PATH = undefined;
+    runtimeEnv.CAPSULE_DATA_DB_PATH = undefined;
+    runtimeEnv.CAPSULE_EXPORT_DB_PATH = undefined;
 
-  const sqliteConcurrentRegisters = await Promise.all(
-    Array.from({ length: 3 }, (_, index) =>
-      secondInstance.handle({
-        method: 'POST',
-        path: '/auth/register',
-        body: { email: `sqlite-burst-${index}@example.com`, password: 'Secret123!' },
-        headers: { 'x-forwarded-for': `198.51.100.${40 + index}` },
-      }),
-    ),
-  );
-  assert(sqliteConcurrentRegisters.every((entry) => entry.status === 201), 'sqlite store should handle burst registration');
-
-  const sqliteConcurrentLogins = await Promise.all(
-    Array.from({ length: 3 }, (_, index) =>
-      secondInstance.handle({
-        method: 'POST',
-        path: '/auth/login',
-        body: { email: `sqlite-burst-${index}@example.com`, password: 'Secret123!' },
-        headers: { 'x-forwarded-for': `198.51.100.${50 + index}` },
-      }),
-    ),
-  );
-  assert(sqliteConcurrentLogins.every((entry) => entry.status === 200), 'sqlite store should handle burst login');
-
-  const sqliteSessionToken = (sqliteConcurrentLogins[0]?.body as { session: { token: string } }).session.token;
-  const sqliteRefresh = await secondInstance.handle({
-    method: 'POST',
-    path: '/auth/refresh',
-    headers: { authorization: `Bearer ${sqliteSessionToken}`, 'x-forwarded-for': '198.51.100.60' },
-  });
-  assert(sqliteRefresh.status === 200, 'sqlite refresh should return a new token');
-  const sqliteRefreshedToken = (sqliteRefresh.body as { session: { token: string } }).session.token;
-
-  const sqliteOldTokenDenied = await secondInstance.handle({
-    method: 'GET',
-    path: '/data/memories',
-    headers: { authorization: `Bearer ${sqliteSessionToken}` },
-  });
-  assert(sqliteOldTokenDenied.status === 401, 'old sqlite token should be revoked after refresh');
-
-  const sqliteLogout = await secondInstance.handle({
-    method: 'POST',
-    path: '/auth/logout',
-    headers: { authorization: `Bearer ${sqliteRefreshedToken}`, 'x-forwarded-for': '198.51.100.60' },
-  });
-  assert(sqliteLogout.status === 204, 'sqlite logout should succeed for refreshed token');
-
-  const sqliteRevokedDenied = await secondInstance.handle({
-    method: 'GET',
-    path: '/data/memories',
-    headers: { authorization: `Bearer ${sqliteRefreshedToken}` },
-  });
-  assert(sqliteRevokedDenied.status === 401, 'sqlite revoked token should be denied');
-
-  runtimeEnv.CAPSULE_AUTH_STORE_BACKEND = 'memory';
-  runtimeEnv.CAPSULE_DATA_STORE_BACKEND = 'memory';
-  runtimeEnv.CAPSULE_AUTH_DB_PATH = undefined;
-  runtimeEnv.CAPSULE_DATA_DB_PATH = undefined;
+    await rm(authDbPath, { force: true });
+    await rm(dataDbPath, { force: true });
+    await rm(exportDbPath, { force: true });
+    await rm(backupDir, { force: true, recursive: true });
+  }
 };

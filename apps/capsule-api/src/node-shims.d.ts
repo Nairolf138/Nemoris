@@ -1,5 +1,5 @@
 declare module 'node:child_process' {
-  export function execFileSync(command: string, args?: string[], options?: { encoding?: string }): string;
+  export function execFileSync(command: string, args?: string[], options?: { encoding?: string; cwd?: string; stdio?: string; env?: Record<string, string | undefined> }): string;
   export function spawnSync(
     command: string,
     args?: string[],
@@ -54,6 +54,7 @@ declare function setTimeout(handler: () => void, timeout?: number): { unref(): v
 declare module 'node:fs/promises' {
   export function mkdir(path: string, options?: { recursive?: boolean }): Promise<void>;
   export function writeFile(path: string, data: string, encoding: 'utf8'): Promise<void>;
+  export function rm(path: string, options?: { force?: boolean; recursive?: boolean }): Promise<void>;
 }
 
 declare module 'node:path' {

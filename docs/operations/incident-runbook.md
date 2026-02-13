@@ -31,13 +31,36 @@ Préconditions:
 
 Quand appliquer: corruption/suppression confirmée.
 
-Étapes:
-1. Geler les écritures.
-2. Sélectionner le dernier backup cohérent (RPO cible).
-3. Restaurer sur environnement isolé.
-4. Vérifier intégrité fonctionnelle et structurelle.
-5. Rejouer les événements éventuels entre backup et incident si possible.
-6. Basculer la production restaurée puis rouvrir les écritures.
+Pré-requis opératoires:
+- Arrêter les écritures API (maintenance ou scale-to-zero).
+- Positionner les backends en SQLite pour toutes les briques concernées.
+
+```bash
+export CAPSULE_AUTH_STORE_BACKEND=sqlite
+export CAPSULE_DATA_STORE_BACKEND=sqlite
+export CAPSULE_EXPORT_STORE_BACKEND=sqlite
+export CAPSULE_AUTH_DB_PATH=./capsule-auth.sqlite
+export CAPSULE_DATA_DB_PATH=./capsule-data.sqlite
+export CAPSULE_EXPORT_DB_PATH=./capsule-export.sqlite
+```
+
+Sauvegarde (local/CI):
+
+```bash
+node scripts/persistence-backup.mjs backup --dir ./.backups/incident-$(date +%Y%m%d-%H%M%S)
+```
+
+Restauration (local/CI):
+
+```bash
+node scripts/persistence-backup.mjs restore --dir ./.backups/incident-YYYYMMDD-HHMMSS
+```
+
+Validation post-restauration:
+
+```bash
+npm run -w @capsule/api test
+```
 
 ## 5. Validation de reprise
 
