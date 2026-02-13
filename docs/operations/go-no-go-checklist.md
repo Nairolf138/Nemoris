@@ -44,3 +44,13 @@ Référence d'alignement: `docs/product-capsule/roadmap-shipping.md`.
 - [ ] Artefacts de build générés et tracés (`artifacts/manifest.json`).
 - [ ] Version SemVer décidée et tag prêt.
 - [ ] Go confirmé par Product Owner + Tech Lead + On-call.
+
+## Workflow de validation release readiness
+
+Avant le Go / No-Go final, exécuter localement la vérification consolidée:
+
+```bash
+npm run release:readiness:check
+```
+
+Ce contrôle valide la présence des documents contractuels, la présence de `docs/operations/release-recette-report.md`, et la cohérence de version avec `artifacts/manifest.json` si ce manifeste est disponible.

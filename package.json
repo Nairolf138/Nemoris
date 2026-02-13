@@ -13,7 +13,8 @@
     "lint:openapi": "ruby scripts/lint-openapi.rb",
     "docs:contract:check": "node scripts/check-contract-docs.mjs",
     "build:artifacts": "node scripts/build-artifacts.mjs",
-    "version:plan": "node scripts/plan-version.mjs"
+    "version:plan": "node scripts/plan-version.mjs",
+    "release:readiness:check": "node scripts/check-release-readiness.mjs"
   },
   "devDependencies": {
     "typescript": "^5.6.3"
