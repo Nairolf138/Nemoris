@@ -1,3 +1,4 @@
+// Commande dédiée CI: npm run -w @capsule/api test:dod-e2e
 import { CapsuleApiApp } from '../app.js';
 
 export interface E2EScenarioResult {

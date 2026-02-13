@@ -1,13 +1,6 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { runAuthIntegrationTests } from './auth-integration.test.js';
-import { runAuthServiceTests } from './auth-service.test.js';
-import { runExportIntegrationTests, runExportPersistenceIntegrationTests } from './export-integration.test.js';
-import { runDataIntegrationTests } from './data-integration.test.js';
-import { runPersistenceIntegrationTests } from './persistence-integration.test.js';
-import { runNarrativeIntegrationTests } from './narrative-integration.test.js';
-import { runSecurityRegressionTests } from './security-regression.test.js';
 import { runDodE2EScenarios, type E2EScenarioResult } from './dod-e2e.test.js';
 
 type RuntimeEnv = Record<string, string | undefined>;
@@ -62,15 +55,6 @@ const writeReleaseReport = async (results: E2EScenarioResult[]): Promise<void> =
 
 const run = async () => {
   bootstrapSecurityEnv();
-  await runAuthServiceTests();
-  await runAuthIntegrationTests();
-  await runExportIntegrationTests();
-  await runExportPersistenceIntegrationTests();
-  await runDataIntegrationTests();
-  await runNarrativeIntegrationTests();
-  await runPersistenceIntegrationTests();
-  await runSecurityRegressionTests();
-
   const dodE2EResults = await runDodE2EScenarios();
   await writeReleaseReport(dodE2EResults);
 
@@ -79,7 +63,7 @@ const run = async () => {
     throw new Error(`DoD E2E scenarios failed: ${failures.map((failure) => failure.id).join(', ')}`);
   }
 
-  console.log('All capsule-api tests passed.');
+  console.log('DoD E2E scenarios passed.');
 };
 
 void run();

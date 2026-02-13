@@ -53,6 +53,25 @@ jobs:
       - name: Run tests (${{ matrix.workspace }})
         run: npm run -w "${{ matrix.workspace }}" test
 
+
+  dod-e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run DoD E2E tests
+        run: npm run -w @capsule/api test:dod-e2e
+
   docs-contract:
     runs-on: ubuntu-latest
     steps:
