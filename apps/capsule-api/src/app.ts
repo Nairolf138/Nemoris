@@ -395,6 +395,84 @@ export class CapsuleApiApp {
     await this.assertOwnedReferences(ownerId, 'lesson_ids', input.lesson_ids, this.persistence.lessons.getById);
   }
 
+  private async assertNoBrokenLinksOnDelete(
+    ownerId: string,
+    target: { collection: 'memories' | 'beliefs' | 'lessons' | 'value_profiles'; id: string },
+  ): Promise<void> {
+    const [memories, beliefs, lessons, valueProfiles, legacyMessages, narrativeNodes, narrativeEdges] = await Promise.all([
+      this.persistence.memories.listByOwner(ownerId),
+      this.persistence.beliefs.listByOwner(ownerId),
+      this.persistence.lessons.listByOwner(ownerId),
+      this.persistence.valueProfiles.listByOwner(ownerId),
+      this.persistence.legacyMessages.listByOwner(ownerId),
+      this.persistence.narrativeNodes.listByOwner(ownerId),
+      this.persistence.narrativeEdges.listByOwner(ownerId),
+    ]);
+
+    const references: string[] = [];
+    const pushReference = (source: string, field: string): void => {
+      references.push(`${source}.${field}`);
+    };
+
+    if (target.collection === 'memories') {
+      beliefs.filter((entry) => entry.evidence_memory_ids.includes(target.id)).forEach((entry) => pushReference(`belief:${entry.id}`, 'evidence_memory_ids'));
+      lessons.filter((entry) => entry.source_memory_ids.includes(target.id)).forEach((entry) => pushReference(`lesson:${entry.id}`, 'source_memory_ids'));
+      valueProfiles.filter((entry) => entry.evidence_memory_ids.includes(target.id)).forEach((entry) => pushReference(`value_profile:${entry.id}`, 'evidence_memory_ids'));
+      legacyMessages
+        .filter((entry) => entry.attachment_memory_ids.includes(target.id))
+        .forEach((entry) => pushReference(`legacy_message:${entry.id}`, 'attachment_memory_ids'));
+      narrativeNodes.filter((entry) => entry.memory_ids.includes(target.id)).forEach((entry) => pushReference(`narrative_node:${entry.id}`, 'memory_ids'));
+      narrativeEdges
+        .filter((entry) => entry.evidence_memory_ids.includes(target.id))
+        .forEach((entry) => pushReference(`narrative_edge:${entry.id}`, 'evidence_memory_ids'));
+    }
+
+    if (target.collection === 'beliefs') {
+      memories.filter((entry) => entry.related_belief_ids.includes(target.id)).forEach((entry) => pushReference(`memory:${entry.id}`, 'related_belief_ids'));
+      lessons.filter((entry) => entry.linked_belief_ids.includes(target.id)).forEach((entry) => pushReference(`lesson:${entry.id}`, 'linked_belief_ids'));
+      legacyMessages
+        .filter((entry) => entry.related_belief_ids.includes(target.id))
+        .forEach((entry) => pushReference(`legacy_message:${entry.id}`, 'related_belief_ids'));
+      narrativeNodes.filter((entry) => entry.belief_ids.includes(target.id)).forEach((entry) => pushReference(`narrative_node:${entry.id}`, 'belief_ids'));
+      narrativeEdges.filter((entry) => entry.belief_ids.includes(target.id)).forEach((entry) => pushReference(`narrative_edge:${entry.id}`, 'belief_ids'));
+    }
+
+    if (target.collection === 'lessons') {
+      memories.filter((entry) => entry.related_lesson_ids.includes(target.id)).forEach((entry) => pushReference(`memory:${entry.id}`, 'related_lesson_ids'));
+      beliefs.filter((entry) => entry.related_lesson_ids.includes(target.id)).forEach((entry) => pushReference(`belief:${entry.id}`, 'related_lesson_ids'));
+      legacyMessages
+        .filter((entry) => entry.related_lesson_ids.includes(target.id))
+        .forEach((entry) => pushReference(`legacy_message:${entry.id}`, 'related_lesson_ids'));
+      narrativeNodes.filter((entry) => entry.lesson_ids.includes(target.id)).forEach((entry) => pushReference(`narrative_node:${entry.id}`, 'lesson_ids'));
+      narrativeEdges.filter((entry) => entry.lesson_ids.includes(target.id)).forEach((entry) => pushReference(`narrative_edge:${entry.id}`, 'lesson_ids'));
+    }
+
+    if (target.collection === 'value_profiles') {
+      memories
+        .filter((entry) => entry.related_value_profile_ids.includes(target.id))
+        .forEach((entry) => pushReference(`memory:${entry.id}`, 'related_value_profile_ids'));
+      lessons
+        .filter((entry) => entry.linked_value_profile_ids.includes(target.id))
+        .forEach((entry) => pushReference(`lesson:${entry.id}`, 'linked_value_profile_ids'));
+      legacyMessages
+        .filter((entry) => entry.related_value_profile_ids.includes(target.id))
+        .forEach((entry) => pushReference(`legacy_message:${entry.id}`, 'related_value_profile_ids'));
+      narrativeNodes
+        .filter((entry) => entry.value_profile_ids.includes(target.id))
+        .forEach((entry) => pushReference(`narrative_node:${entry.id}`, 'value_profile_ids'));
+    }
+
+    if (references.length > 0) {
+      throw new ValidationError('DOMAIN_VALIDATION_ERROR', {
+        message: `Cannot delete ${target.collection} because it is still referenced.`,
+        details: {
+          target_id: target.id,
+          references,
+        },
+      });
+    }
+  }
+
   private async validateLegacyMessageBeneficiaries(ownerId: string, beneficiaryIds: string[]): Promise<string[]> {
     const normalized = [...new Set(beneficiaryIds)];
     if (normalized.length !== beneficiaryIds.length) {
@@ -714,21 +792,25 @@ export class CapsuleApiApp {
         const existing = await this.persistence.memories.getById(route.id);
         if (!existing) throw new NotFoundError('RESOURCE_NOT_FOUND');
         if (existing.owner_id !== auth.user.id) throw new ForbiddenError();
+        await this.assertNoBrokenLinksOnDelete(auth.user.id, { collection: 'memories', id: route.id });
         deleted = await deleteMemory({ memoryRepository: this.persistence.memories, beliefRepository: this.persistence.beliefs, lessonRepository: this.persistence.lessons, valueProfileRepository: this.persistence.valueProfiles, narrativeNodeRepository: this.persistence.narrativeNodes, observer: { emitEvent: (event) => this.observability.emit(event) } }, route.id);
       } else if (route.collection === 'beliefs') {
         const existing = await this.persistence.beliefs.getById(route.id);
         if (!existing) throw new NotFoundError('RESOURCE_NOT_FOUND');
         if (existing.owner_id !== auth.user.id) throw new ForbiddenError();
+        await this.assertNoBrokenLinksOnDelete(auth.user.id, { collection: 'beliefs', id: route.id });
         deleted = await deleteBelief({ beliefRepository: this.persistence.beliefs, memoryRepository: this.persistence.memories, lessonRepository: this.persistence.lessons }, route.id);
       } else if (route.collection === 'lessons') {
         const existing = await this.persistence.lessons.getById(route.id);
         if (!existing) throw new NotFoundError('RESOURCE_NOT_FOUND');
         if (existing.owner_id !== auth.user.id) throw new ForbiddenError();
+        await this.assertNoBrokenLinksOnDelete(auth.user.id, { collection: 'lessons', id: route.id });
         deleted = await deleteLesson({ lessonRepository: this.persistence.lessons, memoryRepository: this.persistence.memories, beliefRepository: this.persistence.beliefs, valueProfileRepository: this.persistence.valueProfiles }, route.id);
       } else if (route.collection === 'value_profiles') {
         const existing = await this.persistence.valueProfiles.getById(route.id);
         if (!existing) throw new NotFoundError('RESOURCE_NOT_FOUND');
         if (existing.owner_id !== auth.user.id) throw new ForbiddenError();
+        await this.assertNoBrokenLinksOnDelete(auth.user.id, { collection: 'value_profiles', id: route.id });
         deleted = await deleteValueProfile({ valueProfileRepository: this.persistence.valueProfiles, memoryRepository: this.persistence.memories, narrativeNodeRepository: this.persistence.narrativeNodes }, route.id);
       } else if (route.collection === 'legacy_messages') {
         const existing = await this.persistence.legacyMessages.getById(route.id);
