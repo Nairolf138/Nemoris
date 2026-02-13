@@ -25,6 +25,10 @@ export const dashboardToCsv = (snapshot: DashboardSnapshot): string => {
 const EXPORT_FAILURE_RATE_THRESHOLD = 0.2;
 const AUTH_ANOMALIES_THRESHOLD = 5;
 const ONBOARDING_DROP_THRESHOLD = 0.6;
+const AUTH_REJECTED_401_THRESHOLD = 8;
+const AUTH_REJECTED_403_THRESHOLD = 6;
+const AUTH_RATE_LIMITED_429_THRESHOLD = 10;
+const SESSION_REVOKED_THRESHOLD = 5;
 const MIN_SAMPLE_SIZE = 5;
 
 export const buildDashboardSnapshotV2 = (metrics: ProductMetrics, events: StandardEvent[]): DashboardSnapshotV2 => {
@@ -54,6 +58,31 @@ export const buildDashboardSnapshotV2 = (metrics: ProductMetrics, events: Standa
           : 'ok',
       severity: 'warning',
       message: `Onboarding completion rate=${metricsV2.onboarding_completion_rate} (threshold=${ONBOARDING_DROP_THRESHOLD})`,
+    },
+
+    {
+      id: 'auth_rejected_401_spike',
+      status: metricsV2.auth_rejected_401_total >= AUTH_REJECTED_401_THRESHOLD ? 'triggered' : 'ok',
+      severity: 'warning',
+      message: `Auth rejects 401=${metricsV2.auth_rejected_401_total} (threshold=${AUTH_REJECTED_401_THRESHOLD})`,
+    },
+    {
+      id: 'auth_rejected_403_spike',
+      status: metricsV2.auth_rejected_403_total >= AUTH_REJECTED_403_THRESHOLD ? 'triggered' : 'ok',
+      severity: 'warning',
+      message: `Auth rejects 403=${metricsV2.auth_rejected_403_total} (threshold=${AUTH_REJECTED_403_THRESHOLD})`,
+    },
+    {
+      id: 'auth_rate_limited_429_spike',
+      status: metricsV2.auth_rate_limited_429_total >= AUTH_RATE_LIMITED_429_THRESHOLD ? 'triggered' : 'ok',
+      severity: 'critical',
+      message: `Auth rate-limited 429=${metricsV2.auth_rate_limited_429_total} (threshold=${AUTH_RATE_LIMITED_429_THRESHOLD})`,
+    },
+    {
+      id: 'session_revocation_spike',
+      status: metricsV2.session_revoked_total >= SESSION_REVOKED_THRESHOLD ? 'triggered' : 'ok',
+      severity: 'warning',
+      message: `Sessions revoked=${metricsV2.session_revoked_total} (threshold=${SESSION_REVOKED_THRESHOLD})`,
     },
   ];
 
