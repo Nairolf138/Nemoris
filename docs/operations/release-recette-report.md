@@ -1,7 +1,7 @@
 # Rapport de recette release MVP
 
 - **Version candidate**: 0.1.0
-- **Date d'exécution**: 2026-02-13T14:27:55.059Z
+- **Date d'exécution**: 2026-02-13T15:43:34.157Z
 - **Verdict global**: **PASS**
 
 ## Résultats scénarios E2E (DoD + sécurité minimale)
