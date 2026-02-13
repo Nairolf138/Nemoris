@@ -20,6 +20,39 @@ const readBackend = (value: string | undefined, key: string): PersistenceBackend
   throw new Error(`${key} must be one of: memory, sqlite`);
 };
 
+export const PERSISTENCE_ENV_KEYS = {
+  authBackend: 'CAPSULE_AUTH_STORE_BACKEND',
+  capsuleBackend: 'CAPSULE_DATA_STORE_BACKEND',
+  exportBackend: 'CAPSULE_EXPORT_STORE_BACKEND',
+  authDbPath: 'CAPSULE_AUTH_DB_PATH',
+  capsuleDbPath: 'CAPSULE_DATA_DB_PATH',
+  exportDbPath: 'CAPSULE_EXPORT_DB_PATH',
+} as const;
+
+export const PERSISTENCE_DEFAULTS = {
+  authDbPath: './capsule-auth.sqlite',
+  capsuleDbPath: './capsule-data.sqlite',
+  exportDbPath: './capsule-export.sqlite',
+} as const;
+
+export interface PersistenceOptions {
+  authBackend: PersistenceBackend;
+  capsuleBackend: PersistenceBackend;
+  exportBackend: PersistenceBackend;
+  authDbPath: string;
+  capsuleDbPath: string;
+  exportDbPath: string;
+}
+
+export const readPersistenceOptions = (env: RuntimeEnv = runtimeEnv): PersistenceOptions => ({
+  authBackend: readBackend(env[PERSISTENCE_ENV_KEYS.authBackend], PERSISTENCE_ENV_KEYS.authBackend),
+  capsuleBackend: readBackend(env[PERSISTENCE_ENV_KEYS.capsuleBackend], PERSISTENCE_ENV_KEYS.capsuleBackend),
+  exportBackend: readBackend(env[PERSISTENCE_ENV_KEYS.exportBackend], PERSISTENCE_ENV_KEYS.exportBackend),
+  authDbPath: env[PERSISTENCE_ENV_KEYS.authDbPath] ?? PERSISTENCE_DEFAULTS.authDbPath,
+  capsuleDbPath: env[PERSISTENCE_ENV_KEYS.capsuleDbPath] ?? PERSISTENCE_DEFAULTS.capsuleDbPath,
+  exportDbPath: env[PERSISTENCE_ENV_KEYS.exportDbPath] ?? PERSISTENCE_DEFAULTS.exportDbPath,
+});
+
 export interface PersistenceProviders {
   authStore: AuthStore;
   capsulePersistence: CapsulePersistence;
@@ -27,24 +60,19 @@ export interface PersistenceProviders {
 }
 
 export const createPersistenceProviders = (): PersistenceProviders => {
-  const authBackend = readBackend(runtimeEnv.CAPSULE_AUTH_STORE_BACKEND, 'CAPSULE_AUTH_STORE_BACKEND');
-  const capsuleBackend = readBackend(runtimeEnv.CAPSULE_DATA_STORE_BACKEND, 'CAPSULE_DATA_STORE_BACKEND');
-
-  const exportBackend = readBackend(runtimeEnv.CAPSULE_EXPORT_STORE_BACKEND, 'CAPSULE_EXPORT_STORE_BACKEND');
+  const options = readPersistenceOptions();
 
   const authStore =
-    authBackend === 'sqlite'
-      ? new SqliteAuthStore(runtimeEnv.CAPSULE_AUTH_DB_PATH ?? './capsule-auth.sqlite')
-      : new InMemoryAuthStore();
+    options.authBackend === 'sqlite' ? new SqliteAuthStore(options.authDbPath) : new InMemoryAuthStore();
 
   const capsulePersistence =
-    capsuleBackend === 'sqlite'
-      ? createSqlitePersistence(runtimeEnv.CAPSULE_DATA_DB_PATH ?? './capsule-data.sqlite')
+    options.capsuleBackend === 'sqlite'
+      ? createSqlitePersistence(options.capsuleDbPath)
       : createInMemoryPersistence();
 
   const exportRepository =
-    exportBackend === 'sqlite'
-      ? new SqliteExportRepository(runtimeEnv.CAPSULE_EXPORT_DB_PATH ?? './capsule-export.sqlite')
+    options.exportBackend === 'sqlite'
+      ? new SqliteExportRepository(options.exportDbPath)
       : new InMemoryExportRepository();
 
   return { authStore, capsulePersistence, exportRepository };
