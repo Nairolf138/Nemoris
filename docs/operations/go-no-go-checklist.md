@@ -26,8 +26,8 @@ Référence d'alignement: `docs/product-capsule/roadmap-shipping.md`.
 - [ ] **AC3 — Déconnexion**: `POST /auth/logout` retourne `204` et invalide immédiatement le token courant.
 - [ ] **AC4 — Session invalide/expirée**: toute route protégée retourne `401` avec token absent/invalide/révoqué/expiré.
 - [ ] **AC5 — Isolation inter-utilisateur (routes protégées)**: un utilisateur ne peut jamais accéder aux données d'un autre (`403` sur mismatch `owner_id`), y compris sur `data/*`, `exports*`, `consent*`, `observability/*`, et orchestration `legacy-messages/*`.
-- [ ] CRUD mémoire/convictions/leçons/valeurs validé.
-- [ ] Liens manuels inter-objets validés.
+- [x] CRUD mémoire/convictions/leçons/valeurs validé.
+- [x] Liens manuels inter-objets validés.
 
 ## Lot 2 — Valeur utilisateur
 
