@@ -436,6 +436,85 @@ export const runDataIntegrationTests = async (): Promise<void> => {
   }
 
 
+  const firstEdgeNodeResponse = await app.handle({
+    method: 'POST',
+    path: '/data/narrative_nodes',
+    headers: { authorization: `Bearer ${owner.token}`, 'x-owner-id': owner.userId },
+    body: createPayloadByResource.narrative_nodes,
+  });
+  assert(firstEdgeNodeResponse.status === 201, 'narrative_edges CRUD setup first node should return 201');
+
+  const secondEdgeNodeResponse = await app.handle({
+    method: 'POST',
+    path: '/data/narrative_nodes',
+    headers: { authorization: `Bearer ${owner.token}`, 'x-owner-id': owner.userId },
+    body: { ...createPayloadByResource.narrative_nodes, label: 'Edge setup node B' },
+  });
+  assert(secondEdgeNodeResponse.status === 201, 'narrative_edges CRUD setup second node should return 201');
+
+  const firstEdgeNodeId = (firstEdgeNodeResponse.body as { id: string }).id;
+  const secondEdgeNodeId = (secondEdgeNodeResponse.body as { id: string }).id;
+
+  const edgeCrudCreateResponse = await app.handle({
+    method: 'POST',
+    path: '/data/narrative_edges',
+    headers: { authorization: `Bearer ${owner.token}`, 'x-owner-id': owner.userId },
+    body: { ...createPayloadByResource.narrative_edges, from_node_id: firstEdgeNodeId, to_node_id: secondEdgeNodeId },
+  });
+  assert(edgeCrudCreateResponse.status === 201, 'narrative_edges: create should return 201');
+  const createdEdge = edgeCrudCreateResponse.body as { id: string; owner_id: string };
+  assert(createdEdge.owner_id === owner.userId, 'narrative_edges: create should enforce owner_id');
+
+  const listedEdgesByOwner = await app.handle({
+    method: 'GET',
+    path: `/data/narrative_edges?owner_id=${owner.userId}`,
+    headers: { authorization: `Bearer ${owner.token}` },
+  });
+  assert(listedEdgesByOwner.status === 200, 'narrative_edges: list should return 200');
+  const edgeOwnerList = listedEdgesByOwner.body as PaginatedResponse<{ id: string }>;
+  assert(edgeOwnerList.items.some((entry) => entry.id === createdEdge.id), 'narrative_edges: owner should see created record');
+
+  const outsiderEdgeList = await app.handle({
+    method: 'GET',
+    path: '/data/narrative_edges',
+    headers: { authorization: `Bearer ${outsider.token}`, 'x-owner-id': outsider.userId },
+  });
+  assert(outsiderEdgeList.status === 200, 'narrative_edges: outsider list should return 200');
+  const outsiderEdgeEntries = outsiderEdgeList.body as PaginatedResponse<{ id: string }>;
+  assert(!outsiderEdgeEntries.items.some((entry) => entry.id === createdEdge.id), 'narrative_edges: list must be filtered by owner_id');
+
+  const forbiddenEdgeList = await app.handle({
+    method: 'GET',
+    path: '/data/narrative_edges',
+    headers: { authorization: `Bearer ${owner.token}`, 'x-owner-id': outsider.userId },
+  });
+  assert(forbiddenEdgeList.status === 403, 'narrative_edges: owner mismatch should be forbidden');
+
+  const updatedEdgeResponse = await app.handle({
+    method: 'PATCH',
+    path: `/data/narrative_edges/${createdEdge.id}`,
+    headers: { authorization: `Bearer ${owner.token}`, 'x-owner-id': owner.userId },
+    body: patchPayloadByResource.narrative_edges,
+  });
+  assert(updatedEdgeResponse.status === 200, 'narrative_edges: update should return 200');
+
+  const deleteEdgeResponse = await app.handle({
+    method: 'DELETE',
+    path: `/data/narrative_edges/${createdEdge.id}`,
+    headers: { authorization: `Bearer ${owner.token}`, 'x-owner-id': owner.userId },
+  });
+  assert(deleteEdgeResponse.status === 204, 'narrative_edges: delete should return 204');
+
+  const edgesAfterDelete = await app.handle({
+    method: 'GET',
+    path: '/data/narrative_edges',
+    headers: { authorization: `Bearer ${owner.token}`, 'x-owner-id': owner.userId },
+  });
+  assert(edgesAfterDelete.status === 200, 'narrative_edges: list after delete should return 200');
+  const edgesAfterDeleteEntries = edgesAfterDelete.body as PaginatedResponse<{ id: string }>;
+  assert(!edgesAfterDeleteEntries.items.some((entry) => entry.id === createdEdge.id), 'narrative_edges: deleted record should disappear');
+
+
 
   await runLegacyMessageOrchestrationScenarios(app, owner);
 
@@ -474,13 +553,13 @@ export const runDataIntegrationTests = async (): Promise<void> => {
   });
   assert(invalidEdge.status === 400, 'narrative_edges: self-loop should be rejected');
 
-  const updatedEdgeResponse = await app.handle({
+  const standaloneEdgeUpdateResponse = await app.handle({
     method: 'PATCH',
     path: `/data/narrative_edges/${edgeId}`,
     headers: { authorization: `Bearer ${owner.token}`, 'x-owner-id': owner.userId },
     body: patchPayloadByResource.narrative_edges,
   });
-  assert(updatedEdgeResponse.status === 200, 'narrative_edges: update should return 200');
+  assert(standaloneEdgeUpdateResponse.status === 200, 'narrative_edges: update should return 200');
 
   const deleteEdge = await app.handle({
     method: 'DELETE',
@@ -501,5 +580,4 @@ const grantConsent = async (app: CapsuleApiApp, owner: { userId: string; token: 
   });
   assert(response.status === 201, `consent grant should return 201 for ${scope}`);
 };
-
 
