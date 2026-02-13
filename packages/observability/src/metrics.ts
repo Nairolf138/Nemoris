@@ -34,6 +34,10 @@ export class ProductMetrics {
   private linksCreated = 0;
   private authErrors = 0;
   private securityAlerts = 0;
+  private authRejected401 = 0;
+  private authRejected403 = 0;
+  private authRateLimited429 = 0;
+  private revokedSessions = 0;
 
   public ingest(event: StandardEvent): void {
     const parsed = new Date(event.timestamp);
@@ -80,6 +84,22 @@ export class ProductMetrics {
       this.securityAlerts += 1;
     }
 
+    if (event.event_name === 'security.auth_rejected_401') {
+      this.authRejected401 += 1;
+    }
+
+    if (event.event_name === 'security.auth_rejected_403') {
+      this.authRejected403 += 1;
+    }
+
+    if (event.event_name === 'security.auth_rate_limited_429') {
+      this.authRateLimited429 += 1;
+    }
+
+    if (event.event_name === 'security.session_revoked') {
+      this.revokedSessions += 1;
+    }
+
     const now = Date.now();
     const ageMs = now - parsed.getTime();
     const withinWeek = ageMs >= 0 && ageMs <= 1000 * 60 * 60 * 24 * 7;
@@ -116,6 +136,10 @@ export class ProductMetrics {
       export_failure_rate: exportFailureRate,
       link_created_total: this.linksCreated,
       retention_weekly_total: this.retentionWeeklyUsers.size,
+      auth_rejected_401_total: this.authRejected401,
+      auth_rejected_403_total: this.authRejected403,
+      auth_rate_limited_429_total: this.authRateLimited429,
+      session_revoked_total: this.revokedSessions,
     };
   }
 }

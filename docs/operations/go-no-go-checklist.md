@@ -38,6 +38,17 @@ Référence d'alignement: `docs/product-capsule/roadmap-shipping.md`.
 - [ ] Validation DoD MVP faite par Produit + Tech.
 - [ ] Critères opérationnels validés (runbook, rollback, restauration).
 
+
+## Critères opérationnels sécurité (seuils d'alerte)
+
+Valider explicitement les indicateurs suivants avant le Go / No-Go :
+
+- [ ] `auth_anomalies` en statut `ok` (alerte déclenchée à partir de **5** échecs d'authentification).
+- [ ] `auth_rejected_401_spike` en statut `ok` (alerte déclenchée à partir de **8** rejets HTTP 401).
+- [ ] `auth_rejected_403_spike` en statut `ok` (alerte déclenchée à partir de **6** rejets HTTP 403).
+- [ ] `auth_rate_limited_429_spike` en statut `ok` (alerte déclenchée à partir de **10** réponses 429 sur les routes d'auth).
+- [ ] `session_revocation_spike` en statut `ok` (alerte déclenchée à partir de **5** sessions révoquées).
+
 ## Go / No-Go final
 
 - [ ] CI complète au vert (typecheck, tests, checks docs contractuelles).

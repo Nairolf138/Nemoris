@@ -17,7 +17,14 @@ export interface DashboardSnapshot {
 }
 
 export interface DashboardAlert {
-  id: 'export_failure_rate' | 'auth_anomalies' | 'onboarding_drop';
+  id:
+    | 'export_failure_rate'
+    | 'auth_anomalies'
+    | 'onboarding_drop'
+    | 'auth_rejected_401_spike'
+    | 'auth_rejected_403_spike'
+    | 'auth_rate_limited_429_spike'
+    | 'session_revocation_spike';
   status: 'ok' | 'triggered';
   severity: 'warning' | 'critical';
   message: string;
@@ -50,4 +57,8 @@ export interface MetricsSnapshotV2 extends MetricsSnapshot {
   export_failure_rate: number;
   link_created_total: number;
   retention_weekly_total: number;
+  auth_rejected_401_total: number;
+  auth_rejected_403_total: number;
+  auth_rate_limited_429_total: number;
+  session_revoked_total: number;
 }
