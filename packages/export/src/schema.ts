@@ -26,6 +26,8 @@ export interface ExportTransmissionRule {
   beneficiary_id: string;
 }
 
+export const EXPORT_SCHEMA_VERSION_V1: ExportSchemaVersion = '1.0.0';
+
 export interface ExportBeneficiary {
   beneficiary_id: string;
   identity: string;

@@ -4,12 +4,10 @@ const escapePdfText = (value: string): string => value.replaceAll('\\', '\\\\').
 
 const getBeneficiaries = (payload: CapsuleExportPayloadV1): ExportBeneficiary[] => {
   const counts = new Map<string, number>();
-  for (const message of payload.legacy_messages) {
-    for (const beneficiaryId of message.beneficiary_ids) {
-      counts.set(beneficiaryId, (counts.get(beneficiaryId) ?? 0) + 1);
-    }
+  for (const rule of payload.transmission_rules) {
+    counts.set(rule.beneficiary_id, (counts.get(rule.beneficiary_id) ?? 0) + 1);
   }
-  return [...counts.entries()].map(([beneficiary_id, message_count]) => {
+  return [...counts.entries()].sort(([left], [right]) => left.localeCompare(right)).map(([beneficiary_id, message_count]) => {
     const beneficiary = payload.beneficiaries.find((entry) => entry.id === beneficiary_id);
     return { beneficiary_id, identity: beneficiary?.identity ?? beneficiary_id, message_count };
   });

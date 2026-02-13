@@ -61,3 +61,7 @@ Toutes les erreurs applicatives renvoient un payload JSON standard :
 - Implémenter le comportement client **sur `error` + statut HTTP**, pas sur `message`.
 - Les codes listés ci-dessus sont la surface contractuelle à considérer comme stable.
 - Pour `RATE_LIMITED`, privilégier un retry avec backoff respectant `retry_after_ms` si présent.
+
+## Contrat d'export lié
+
+- Le format du payload d'export MVP est documenté dans `docs/product-capsule/export-contract.md`.
