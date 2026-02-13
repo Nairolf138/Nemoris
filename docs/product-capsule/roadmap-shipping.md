@@ -51,6 +51,7 @@ Référence canonique : `docs/product-capsule/scope-fonctionnel.md`.
 - [ ] Gate validée.
 
 - Stabilisation des parcours in-scope.
+- Gel des nouvelles features pendant toute la fenêtre hardening.
 - Validation DoD MVP (Produit + Tech).
 - Go/No-Go basé sur conformité au scope canonique.
 
@@ -69,3 +70,4 @@ Référence canonique : `docs/product-capsule/scope-fonctionnel.md`.
 | 2026-02-13 | Product + Tech | Le tri backlog doit désormais se baser exclusivement sur `scope-fonctionnel.md` comme référence unique. |
 | 2026-02-13 | Product + Tech | Refus explicite imposé pour toute demande hors scope MVP (IA avancée, recherche complexe, workflows juridiques post-mortem), avec reclassement en `Later/Research`. |
 | 2026-02-13 | Product + Tech | Les templates ticket/PR incluent la checklist “In scope MVP” (auth, contenus, liens, export) pour tracer les arbitrages. |
+| 2026-02-13 | Product + Tech | Pendant la fenêtre hardening MVP, aucun développement de nouvelle feature n'est autorisé; seules les corrections in-scope (auth, CRUD, liens, export) sont acceptées. |
