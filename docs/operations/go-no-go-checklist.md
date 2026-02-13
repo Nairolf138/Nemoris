@@ -57,16 +57,37 @@ Valider explicitement les indicateurs suivants avant le Go / No-Go :
 ## Go / No-Go final
 
 - [ ] CI complète au vert (typecheck, tests, checks docs contractuelles).
+- [ ] Exécution systématique validée des commandes:
+  - [ ] `npm run docs:contract:check`
+  - [ ] `npm run release:readiness:check`
+  - [ ] `npm run build:artifacts`
 - [ ] Artefacts de build générés et tracés (`artifacts/manifest.json`).
-- [ ] Version SemVer décidée et tag prêt.
+- [ ] Cohérence version/artefacts validée **avant tag** via `npm run version:plan -- <major|minor|patch>`.
 - [ ] Go confirmé par Product Owner + Tech Lead + On-call.
+- [ ] Preuve de décision Go/No-Go signée et archivée (`docs/operations/go-no-go-decision-log.md`).
 
 ## Workflow de validation release readiness
 
-Avant le Go / No-Go final, exécuter localement la vérification consolidée:
+Avant le Go / No-Go final, exécuter localement le workflow consolidé **dans cet ordre**:
+
+```bash
+npm run docs:contract:check
+npm run release:readiness:check
+npm run build:artifacts
+```
+
+Ensuite, confirmer la cohérence version/artefacts avant création de tag:
+
+```bash
+npm run version:plan -- patch
+```
+
+(`minor` ou `major` selon la nature du changement.)
+
+La commande de readiness reste le contrôle central:
 
 ```bash
 npm run release:readiness:check
 ```
 
-Ce contrôle valide la présence des documents contractuels, la présence de `docs/operations/release-recette-report.md`, et la cohérence de version avec `artifacts/manifest.json` si ce manifeste est disponible.
+Ce contrôle valide la présence des documents contractuels, la présence de `docs/operations/release-recette-report.md`, la présence de la preuve signée `docs/operations/go-no-go-decision-log.md`, et la cohérence de version avec `artifacts/manifest.json` si ce manifeste est disponible.
