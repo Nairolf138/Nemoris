@@ -1,5 +1,6 @@
 import { AuthService } from '../auth-service.js';
 import { hashPassword, verifyPassword } from '../security.js';
+import { InMemoryAuthStore } from '../store.js';
 
 const assert = (condition: unknown, message: string): void => {
   if (!condition) {
@@ -36,4 +37,20 @@ export const runAuthServiceTests = async (): Promise<void> => {
     revokedRejected = true;
   }
   assert(revokedRejected, 'logout should revoke session');
+
+  const expiringStore = new InMemoryAuthStore();
+  const serviceWithExpiredSession = new AuthService(expiringStore);
+  const authWithExpiringSession = await serviceWithExpiredSession.register('eve@example.com', 'Secret123!');
+  expiringStore.saveSession({
+    ...authWithExpiringSession.session,
+    expires_at: new Date(Date.now() - 60_000).toISOString(),
+  });
+
+  let expiredRejected = false;
+  try {
+    await serviceWithExpiredSession.authenticate(authWithExpiringSession.session.token);
+  } catch {
+    expiredRejected = true;
+  }
+  assert(expiredRejected, 'expired sessions should not authenticate');
 };

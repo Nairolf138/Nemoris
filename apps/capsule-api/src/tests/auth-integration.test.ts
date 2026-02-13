@@ -6,6 +6,14 @@ const assert = (condition: unknown, message: string): void => {
   }
 };
 
+const registerUser = async (app: CapsuleApiApp, email: string, clientIp: string) =>
+  app.handle({
+    method: 'POST',
+    path: '/auth/register',
+    body: { email, password: 'Secret123!' },
+    headers: { 'x-forwarded-for': clientIp },
+  });
+
 export const runAuthIntegrationTests = async (): Promise<void> => {
   const app = new CapsuleApiApp();
 
@@ -27,20 +35,23 @@ export const runAuthIntegrationTests = async (): Promise<void> => {
   assert(weakPassword.status === 400, 'weak passwords should be rejected');
   assert((weakPassword.body as { error: string }).error === 'WEAK_PASSWORD', 'weak password should expose WEAK_PASSWORD');
 
-  const register = await app.handle({
-    method: 'POST',
-    path: '/auth/register',
-    body: { email: '  CHARLIE@EXAMPLE.COM ', password: 'Secret123!' },
-    headers: { 'x-forwarded-for': '203.0.113.1' },
-  });
+  const register = await registerUser(app, '  CHARLIE@EXAMPLE.COM ', '203.0.113.1');
   assert(register.status === 201, 'register should return 201');
   assert((register.body as { user: { email: string } }).user.email === 'charlie@example.com', 'email should be normalized');
-  const registerToken = (register.body as { session: { token: string } }).session.token;
+  const registerBody = register.body as { user: { id: string }; session: { token: string } };
+  const registerToken = registerBody.session.token;
+
+  const logoutWithoutToken = await app.handle({
+    method: 'POST',
+    path: '/auth/logout',
+    headers: { 'x-forwarded-for': '203.0.113.1' },
+  });
+  assert(logoutWithoutToken.status === 401, 'logout without token should be rejected');
 
   const dataOk = await app.handle({
     method: 'GET',
     path: '/data/memories',
-    headers: { authorization: `Bearer ${registerToken}`, 'x-owner-id': (register.body as { user: { id: string } }).user.id },
+    headers: { authorization: `Bearer ${registerToken}`, 'x-owner-id': registerBody.user.id },
   });
   assert(dataOk.status === 200, 'authenticated data route should pass');
 
@@ -69,19 +80,23 @@ export const runAuthIntegrationTests = async (): Promise<void> => {
   });
   assert(logout.status === 204, 'logout should return 204');
 
-  const dataDenied = await app.handle({
+  const dataDeniedAfterLogout = await app.handle({
     method: 'GET',
     path: '/data/memories',
-    headers: { authorization: `Bearer ${registerToken}` },
+    headers: { authorization: `Bearer ${registerToken}`, 'x-owner-id': registerBody.user.id },
   });
-  assert(dataDenied.status === 401, 'revoked session should not access data');
+  assert(dataDeniedAfterLogout.status === 401, 'revoked session should not access data');
 
-  await app.handle({
-    method: 'POST',
-    path: '/auth/register',
-    body: { email: 'dana@example.com', password: 'Secret123!' },
-    headers: { 'x-forwarded-for': '203.0.113.2' },
+  const invalidSession = await app.handle({
+    method: 'GET',
+    path: '/data/memories',
+    headers: { authorization: 'Bearer malformed.session.token', 'x-owner-id': registerBody.user.id },
   });
+  assert(invalidSession.status === 401, 'invalid session tokens should be rejected on protected routes');
+
+  const danaRegister = await registerUser(app, 'dana@example.com', '203.0.113.2');
+  assert(danaRegister.status === 201, 'second user registration should pass');
+  const danaUserId = (danaRegister.body as { user: { id: string } }).user.id;
 
   const loginFail = await app.handle({
     method: 'POST',
@@ -118,12 +133,13 @@ export const runAuthIntegrationTests = async (): Promise<void> => {
     headers: { 'x-forwarded-for': '198.51.100.8' },
   });
   assert(loginOk.status === 200, 'login with valid credentials should pass');
-  const token = (loginOk.body as { session: { token: string } }).session.token;
+  const loginBody = loginOk.body as { user: { id: string }; session: { token: string } };
+  const token = loginBody.session.token;
 
   const observabilityAudit = await app.handle({
     method: 'GET',
     path: '/observability/audit',
-    headers: { authorization: `Bearer ${token}`, 'x-owner-id': (loginOk.body as { user: { id: string } }).user.id },
+    headers: { authorization: `Bearer ${token}`, 'x-owner-id': loginBody.user.id },
   });
   const entries = (observabilityAudit.body as { entries: Array<{ event_name: string }> }).entries;
 
@@ -159,7 +175,8 @@ export const runAuthIntegrationTests = async (): Promise<void> => {
   );
   assert(concurrentLoginResults.every((result) => result.status === 200), 'concurrent login attempts should all succeed');
 
-  const sessionToken = (concurrentLoginResults[0]?.body as { session: { token: string } }).session.token;
+  const batchLoginBody = concurrentLoginResults[0]?.body as { user: { id: string }; session: { token: string } };
+  const sessionToken = batchLoginBody.session.token;
   const refreshed = await app.handle({
     method: 'POST',
     path: '/auth/refresh',
@@ -171,7 +188,7 @@ export const runAuthIntegrationTests = async (): Promise<void> => {
   const oldTokenAfterRefresh = await app.handle({
     method: 'GET',
     path: '/data/memories',
-    headers: { authorization: `Bearer ${sessionToken}` },
+    headers: { authorization: `Bearer ${sessionToken}`, 'x-owner-id': batchLoginBody.user.id },
   });
   assert(oldTokenAfterRefresh.status === 401, 'refresh should revoke previous session token');
 
@@ -185,7 +202,100 @@ export const runAuthIntegrationTests = async (): Promise<void> => {
   const refreshedAfterRevoke = await app.handle({
     method: 'GET',
     path: '/data/memories',
-    headers: { authorization: `Bearer ${refreshedToken}` },
+    headers: { authorization: `Bearer ${refreshedToken}`, 'x-owner-id': batchLoginBody.user.id },
   });
   assert(refreshedAfterRevoke.status === 401, 'revoked refreshed token should not authenticate');
+
+  const protectedRouteOwnerMismatchScenarios: Array<{ method: 'GET' | 'POST'; path: string; body?: Record<string, unknown> }> = [
+    { method: 'GET', path: '/data/memories' },
+    { method: 'GET', path: '/consent/history' },
+    { method: 'POST', path: '/consent/grant', body: { scope: 'data_export', legal_basis: 'consent' } },
+    { method: 'POST', path: '/consent/revoke', body: { scope: 'data_export', legal_basis: 'consent' } },
+    { method: 'GET', path: '/exports/audit' },
+    { method: 'POST', path: '/exports', body: { format: 'json' } },
+  ];
+
+  for (const scenario of protectedRouteOwnerMismatchScenarios) {
+    const response = await app.handle({
+      method: scenario.method,
+      path: scenario.path,
+      body: {
+        ...(scenario.body ?? {}),
+        owner_id: registerBody.user.id,
+      },
+      headers: {
+        authorization: `Bearer ${token}`,
+        'x-owner-id': registerBody.user.id,
+      },
+    });
+    assert(
+      response.status === 403,
+      `route ${scenario.method} ${scenario.path} should enforce owner isolation when owner scope mismatches token owner`,
+    );
+  }
+
+
+  const ownerRelogin = await app.handle({
+    method: 'POST',
+    path: '/auth/login',
+    body: { email: 'charlie@example.com', password: 'Secret123!' },
+    headers: { 'x-forwarded-for': '198.51.100.44' },
+  });
+  assert(ownerRelogin.status === 200, 'owner should be able to log back in after logout');
+  const ownerToken = (ownerRelogin.body as { session: { token: string } }).session.token;
+
+  const ownerBeneficiary = await app.handle({
+    method: 'POST',
+    path: '/data/beneficiaries',
+    headers: { authorization: `Bearer ${ownerToken}`, 'x-owner-id': registerBody.user.id },
+    body: {
+      visibility: 'private',
+      identity: 'Owner beneficiary',
+      channel: 'email',
+      contact: 'owner-beneficiary@example.com',
+      verification_status: 'verified',
+      status: 'active',
+    },
+  });
+  assert(ownerBeneficiary.status === 201, 'beneficiary creation for owner should succeed');
+  const ownerBeneficiaryId = (ownerBeneficiary.body as { id: string }).id;
+
+  const ownerLegacyMessage = await app.handle({
+    method: 'POST',
+    path: '/data/legacy_messages',
+    headers: { authorization: `Bearer ${ownerToken}`, 'x-owner-id': registerBody.user.id },
+    body: {
+      visibility: 'private',
+      title: 'Private legacy message',
+      message: 'Confidential content',
+      trigger_type: 'manual',
+      beneficiary_ids: [ownerBeneficiaryId],
+      attachment_memory_ids: [],
+      related_belief_ids: [],
+      related_lesson_ids: [],
+      related_value_profile_ids: [],
+      related_narrative_node_ids: [],
+      state: 'draft',
+    },
+  });
+  assert(ownerLegacyMessage.status === 201, 'legacy message creation for owner should succeed');
+  const ownerLegacyMessageId = (ownerLegacyMessage.body as { id: string }).id;
+
+  const outsiderLegacyAction = await app.handle({
+    method: 'POST',
+    path: `/legacy-messages/${ownerLegacyMessageId}/arm`,
+    headers: {
+      authorization: `Bearer ${token}`,
+      'x-owner-id': registerBody.user.id,
+    },
+    body: { reason: 'malicious attempt' },
+  });
+  assert(outsiderLegacyAction.status === 403, 'legacy message orchestration route should enforce owner isolation');
+
+  const ownerProtectedWithoutToken = await app.handle({
+    method: 'GET',
+    path: '/data/memories',
+    headers: { 'x-owner-id': danaUserId },
+  });
+  assert(ownerProtectedWithoutToken.status === 401, 'protected route should reject missing token');
 };
