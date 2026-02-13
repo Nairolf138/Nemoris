@@ -346,6 +346,173 @@ const runLegacyMessageOrchestrationScenarios = async (app: CapsuleApiApp, owner:
   assert(attempts.some((attempt) => attempt.status === 'failed'), 'attempt log should include failed record');
 };
 
+const runLinkIntegrityDeletionScenarios = async (app: CapsuleApiApp, owner: { userId: string; token: string }): Promise<void> => {
+  const createMemoryResponse = await app.handle({
+    method: 'POST',
+    path: '/data/memories',
+    headers: { authorization: `Bearer ${owner.token}`, 'x-owner-id': owner.userId },
+    body: {
+      ...createPayloadByResource.memories,
+      title: 'Memory protected by links',
+    },
+  });
+  assert(createMemoryResponse.status === 201, 'link integrity setup should create memory');
+  const memoryId = (createMemoryResponse.body as { id: string }).id;
+
+  const createValueProfileResponse = await app.handle({
+    method: 'POST',
+    path: '/data/value_profiles',
+    headers: { authorization: `Bearer ${owner.token}`, 'x-owner-id': owner.userId },
+    body: {
+      ...createPayloadByResource.value_profiles,
+      profile_label: 'Linked values',
+      evidence_memory_ids: [memoryId],
+    },
+  });
+  assert(createValueProfileResponse.status === 201, 'link integrity setup should create value profile');
+  const valueProfileId = (createValueProfileResponse.body as { id: string }).id;
+
+  const createLessonResponse = await app.handle({
+    method: 'POST',
+    path: '/data/lessons',
+    headers: { authorization: `Bearer ${owner.token}`, 'x-owner-id': owner.userId },
+    body: {
+      ...createPayloadByResource.lessons,
+      title: 'Linked lesson',
+      source_memory_ids: [memoryId],
+      linked_value_profile_ids: [valueProfileId],
+    },
+  });
+  assert(createLessonResponse.status === 201, 'link integrity setup should create lesson');
+  const lessonId = (createLessonResponse.body as { id: string }).id;
+
+  const createBeliefResponse = await app.handle({
+    method: 'POST',
+    path: '/data/beliefs',
+    headers: { authorization: `Bearer ${owner.token}`, 'x-owner-id': owner.userId },
+    body: {
+      ...createPayloadByResource.beliefs,
+      belief_key: 'linked-belief',
+      evidence_memory_ids: [memoryId],
+      related_lesson_ids: [lessonId],
+    },
+  });
+  assert(createBeliefResponse.status === 201, 'link integrity setup should create belief');
+  const beliefId = (createBeliefResponse.body as { id: string }).id;
+
+  const linkMemoryResponse = await app.handle({
+    method: 'PATCH',
+    path: `/data/memories/${memoryId}`,
+    headers: { authorization: `Bearer ${owner.token}`, 'x-owner-id': owner.userId },
+    body: {
+      related_belief_ids: [beliefId],
+      related_lesson_ids: [lessonId],
+      related_value_profile_ids: [valueProfileId],
+    },
+  });
+  assert(linkMemoryResponse.status === 200, 'link integrity setup should update memory links');
+
+  const blockedMemoryDelete = await app.handle({
+    method: 'DELETE',
+    path: `/data/memories/${memoryId}`,
+    headers: { authorization: `Bearer ${owner.token}`, 'x-owner-id': owner.userId },
+  });
+  assert(blockedMemoryDelete.status === 400, 'memory delete should fail while linked');
+
+  const blockedBeliefDelete = await app.handle({
+    method: 'DELETE',
+    path: `/data/beliefs/${beliefId}`,
+    headers: { authorization: `Bearer ${owner.token}`, 'x-owner-id': owner.userId },
+  });
+  assert(blockedBeliefDelete.status === 400, 'belief delete should fail while linked');
+
+  const blockedLessonDelete = await app.handle({
+    method: 'DELETE',
+    path: `/data/lessons/${lessonId}`,
+    headers: { authorization: `Bearer ${owner.token}`, 'x-owner-id': owner.userId },
+  });
+  assert(blockedLessonDelete.status === 400, 'lesson delete should fail while linked');
+
+  const blockedValueDelete = await app.handle({
+    method: 'DELETE',
+    path: `/data/value_profiles/${valueProfileId}`,
+    headers: { authorization: `Bearer ${owner.token}`, 'x-owner-id': owner.userId },
+  });
+  assert(blockedValueDelete.status === 400, 'value profile delete should fail while linked');
+
+  const unlinkMemory = await app.handle({
+    method: 'PATCH',
+    path: `/data/memories/${memoryId}`,
+    headers: { authorization: `Bearer ${owner.token}`, 'x-owner-id': owner.userId },
+    body: {
+      related_belief_ids: [],
+      related_lesson_ids: [],
+      related_value_profile_ids: [],
+    },
+  });
+  assert(unlinkMemory.status === 200, 'memory unlink should succeed');
+
+  const unlinkBelief = await app.handle({
+    method: 'PATCH',
+    path: `/data/beliefs/${beliefId}`,
+    headers: { authorization: `Bearer ${owner.token}`, 'x-owner-id': owner.userId },
+    body: {
+      evidence_memory_ids: [],
+      related_lesson_ids: [],
+    },
+  });
+  assert(unlinkBelief.status === 200, 'belief unlink should succeed');
+
+  const unlinkLesson = await app.handle({
+    method: 'PATCH',
+    path: `/data/lessons/${lessonId}`,
+    headers: { authorization: `Bearer ${owner.token}`, 'x-owner-id': owner.userId },
+    body: {
+      source_memory_ids: [],
+      linked_value_profile_ids: [],
+    },
+  });
+  assert(unlinkLesson.status === 200, 'lesson unlink should succeed');
+
+  const unlinkValue = await app.handle({
+    method: 'PATCH',
+    path: `/data/value_profiles/${valueProfileId}`,
+    headers: { authorization: `Bearer ${owner.token}`, 'x-owner-id': owner.userId },
+    body: {
+      evidence_memory_ids: [],
+    },
+  });
+  assert(unlinkValue.status === 200, 'value profile unlink should succeed');
+
+  const deletedBelief = await app.handle({
+    method: 'DELETE',
+    path: `/data/beliefs/${beliefId}`,
+    headers: { authorization: `Bearer ${owner.token}`, 'x-owner-id': owner.userId },
+  });
+  assert(deletedBelief.status === 204, 'belief delete should succeed after unlink');
+
+  const deletedLesson = await app.handle({
+    method: 'DELETE',
+    path: `/data/lessons/${lessonId}`,
+    headers: { authorization: `Bearer ${owner.token}`, 'x-owner-id': owner.userId },
+  });
+  assert(deletedLesson.status === 204, 'lesson delete should succeed after unlink');
+
+  const deletedValue = await app.handle({
+    method: 'DELETE',
+    path: `/data/value_profiles/${valueProfileId}`,
+    headers: { authorization: `Bearer ${owner.token}`, 'x-owner-id': owner.userId },
+  });
+  assert(deletedValue.status === 204, 'value profile delete should succeed after unlink');
+
+  const deletedMemory = await app.handle({
+    method: 'DELETE',
+    path: `/data/memories/${memoryId}`,
+    headers: { authorization: `Bearer ${owner.token}`, 'x-owner-id': owner.userId },
+  });
+  assert(deletedMemory.status === 204, 'memory delete should succeed after unlink');
+};
+
 export const runDataIntegrationTests = async (): Promise<void> => {
   const app = new CapsuleApiApp();
 
@@ -517,6 +684,7 @@ export const runDataIntegrationTests = async (): Promise<void> => {
 
 
   await runLegacyMessageOrchestrationScenarios(app, owner);
+  await runLinkIntegrityDeletionScenarios(app, owner);
 
   const firstNodeResponse = await app.handle({
     method: 'POST',
@@ -580,4 +748,3 @@ const grantConsent = async (app: CapsuleApiApp, owner: { userId: string; token: 
   });
   assert(response.status === 201, `consent grant should return 201 for ${scope}`);
 };
-

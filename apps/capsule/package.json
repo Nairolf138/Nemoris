@@ -6,5 +6,8 @@
   "dependencies": {
     "@capsule/core": "0.1.0",
     "@capsule/ui": "0.1.0"
+  },
+  "scripts": {
+    "test": "tsc -b && node dist/tests/run-tests.js"
   }
 }

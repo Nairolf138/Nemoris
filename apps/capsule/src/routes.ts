@@ -24,7 +24,10 @@ export const getRouteNameByPath = (path: string): AppRouteName => {
 };
 
 export const resolveRoute = (requested: AppRouteName | string, context: RouteGuardContext): string => {
-  const requestedRoute = typeof requested === 'string' ? getRouteNameByPath(requested) : requested;
+  const requestedRoute =
+    typeof requested === 'string'
+      ? ((requested in appRoutes ? requested : getRouteNameByPath(requested)) as AppRouteName)
+      : requested;
 
   if (!context.hasCompletedOnboarding && requestedRoute !== 'onboarding') {
     return appRoutes.onboarding;
