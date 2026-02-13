@@ -18,14 +18,21 @@ export interface RouteGuardContext {
   hasCompletedOnboarding: boolean;
 }
 
-export const resolveRoute = (requested: AppRouteName, context: RouteGuardContext): string => {
-  if (!context.hasCompletedOnboarding) {
+export const getRouteNameByPath = (path: string): AppRouteName => {
+  const found = Object.entries(appRoutes).find(([, routePath]) => routePath === path)?.[0] as AppRouteName | undefined;
+  return found ?? 'dashboard';
+};
+
+export const resolveRoute = (requested: AppRouteName | string, context: RouteGuardContext): string => {
+  const requestedRoute = typeof requested === 'string' ? getRouteNameByPath(requested) : requested;
+
+  if (!context.hasCompletedOnboarding && requestedRoute !== 'onboarding') {
     return appRoutes.onboarding;
   }
 
-  if (!context.hasSession && requested !== 'login' && requested !== 'onboarding') {
+  if (!context.hasSession && requestedRoute !== 'login' && requestedRoute !== 'onboarding') {
     return appRoutes.login;
   }
 
-  return appRoutes[requested];
+  return appRoutes[requestedRoute];
 };
