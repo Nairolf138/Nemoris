@@ -57,6 +57,17 @@ Le MVP est **Done** quand un utilisateur peut, de bout en bout :
 - Taux d’export réussi (PDF/JSON).
 - Rétention à J+7.
 
+
+## KPI -> métriques techniques (MVP)
+
+| KPI produit | Métrique technique cible | Source d'instrumentation |
+| --- | --- | --- |
+| Taux d’onboarding terminé | `onboarding_completion_rate` | `onboarding.started`, `onboarding.completed` |
+| Nombre moyen d’entrées créées par utilisateur actif (30 jours) | `entries_per_active_user_30d` | `memory.created`, `belief.created`, `lesson.created`, `value_profile.created` + utilisateurs actifs 30j |
+| Taux de création de liens entre éléments | `link_creation_rate` | `link.created`, `entries_created_total` |
+| Taux d’export réussi (PDF/JSON) | `export_success_rate`, `export_pdf_success_rate`, `export_json_success_rate` | `export.created`, `export.failed`, `metadata.format` |
+| Rétention à J+7 | `retention_j7_rate` | `retention.weekly`, `onboarding.completed` |
+
 ## Decision log
 
 | Date | Owner | Décision |

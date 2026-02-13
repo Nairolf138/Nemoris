@@ -26,7 +26,7 @@ export const runObservabilityTests = (): void => {
   service.emit({ event_name: 'onboarding.completed', user_id: 'user-1', entity_id: 'user-1', timestamp: now });
   service.emit({ event_name: 'capsule.created', user_id: 'user-1', entity_id: 'capsule-1', timestamp: now });
   service.emit({ event_name: 'memory.created', user_id: 'user-1', entity_id: 'memory-1', timestamp: now });
-  service.emit({ event_name: 'export.created', user_id: 'user-1', entity_id: 'export-1', timestamp: now });
+  service.emit({ event_name: 'export.created', user_id: 'user-1', entity_id: 'export-1', timestamp: now, metadata: { format: 'json' } });
   service.emit({ event_name: 'security.auth_failed', user_id: 'user-1', entity_id: '/auth/login', timestamp: now });
   service.emit({ event_name: 'security.alert.triggered', user_id: 'user-1', entity_id: '/auth/login', timestamp: now });
   service.emit({ event_name: 'link.created', user_id: 'user-1', entity_id: 'link-1', timestamp: now });
@@ -58,6 +58,14 @@ export const runObservabilityTests = (): void => {
   assert(dashboardV2.backward_compatible_with.includes(1), 'v2 dashboard should expose backward compatibility target');
   assert(dashboardV2.metrics.link_created_total === 1, 'link.created must be tracked in KPI metrics');
   assert(dashboardV2.metrics.retention_weekly_total === 1, 'retention.weekly must be tracked in KPI metrics');
+
+  assert(dashboardV2.metrics.entries_created_total === 1, 'entry creation total should include memory/belief/lesson/value created events');
+  assert(dashboardV2.metrics.entries_per_active_user_30d === 1, 'entries per active user on 30d should be computed');
+  assert(dashboardV2.metrics.export_success_rate === 1, 'global export success rate should be tracked');
+  assert(dashboardV2.metrics.export_json_success_total === 1, 'json export success total should be tracked');
+  assert(dashboardV2.metrics.export_json_success_rate === 1, 'json export success rate should be tracked');
+  assert(dashboardV2.metrics.link_creation_rate === 1, 'link creation rate should be tracked against created entries');
+  assert(dashboardV2.metrics.retention_j7_rate === 1, 'retention J+7 rate should be tracked against onboarded users');
   assert(dashboardV2.metrics.auth_rejected_401_total === 1, '401 rejects should be tracked in KPI metrics');
   assert(dashboardV2.metrics.auth_rejected_403_total === 1, '403 rejects should be tracked in KPI metrics');
   assert(dashboardV2.metrics.auth_rate_limited_429_total === 1, '429 auth rejects should be tracked in KPI metrics');
@@ -113,11 +121,11 @@ export const runObservabilityTests = (): void => {
   edgeService.emit({ event_name: 'onboarding.started', user_id: 'lead-4', entity_id: '/auth/register', timestamp: now });
   edgeService.emit({ event_name: 'onboarding.started', user_id: 'lead-5', entity_id: '/auth/register', timestamp: now });
   edgeService.emit({ event_name: 'onboarding.completed', user_id: 'lead-1', entity_id: 'lead-1', timestamp: now });
-  edgeService.emit({ event_name: 'export.failed', user_id: 'lead-1', entity_id: 'lead-1', timestamp: now });
-  edgeService.emit({ event_name: 'export.failed', user_id: 'lead-1', entity_id: 'lead-1', timestamp: now });
-  edgeService.emit({ event_name: 'export.created', user_id: 'lead-1', entity_id: 'export-1', timestamp: now });
-  edgeService.emit({ event_name: 'export.created', user_id: 'lead-1', entity_id: 'export-2', timestamp: now });
-  edgeService.emit({ event_name: 'export.failed', user_id: 'lead-1', entity_id: 'lead-1', timestamp: now });
+  edgeService.emit({ event_name: 'export.failed', user_id: 'lead-1', entity_id: 'lead-1', timestamp: now, metadata: { format: 'pdf' } });
+  edgeService.emit({ event_name: 'export.failed', user_id: 'lead-1', entity_id: 'lead-1', timestamp: now, metadata: { format: 'pdf' } });
+  edgeService.emit({ event_name: 'export.created', user_id: 'lead-1', entity_id: 'export-1', timestamp: now, metadata: { format: 'pdf' } });
+  edgeService.emit({ event_name: 'export.created', user_id: 'lead-1', entity_id: 'export-2', timestamp: now, metadata: { format: 'json' } });
+  edgeService.emit({ event_name: 'export.failed', user_id: 'lead-1', entity_id: 'lead-1', timestamp: now, metadata: { format: 'json' } });
   edgeService.emit({ event_name: 'security.auth_failed', user_id: 'lead-1', entity_id: '/auth/login', timestamp: now });
   edgeService.emit({ event_name: 'security.auth_failed', user_id: 'lead-1', entity_id: '/auth/login', timestamp: now });
   edgeService.emit({ event_name: 'security.auth_failed', user_id: 'lead-1', entity_id: '/auth/login', timestamp: now });
@@ -139,6 +147,10 @@ export const runObservabilityTests = (): void => {
   const edgeDashboard = edgeService.dashboardJsonV2();
   assert(edgeDashboard.metrics.export_failure_rate === 0.6, 'export failure rate should be rounded to 4 decimals');
   assert(edgeDashboard.metrics.onboarding_completion_rate === 0.2, 'onboarding completion rate should track start/completion ratio');
+
+  assert(edgeDashboard.metrics.export_success_rate === 0.4, 'export success rate should be rounded to 4 decimals');
+  assert(edgeDashboard.metrics.export_pdf_success_rate === 0.3333, 'pdf export success rate should track format-specific attempts');
+  assert(edgeDashboard.metrics.export_json_success_rate === 0.5, 'json export success rate should track format-specific attempts');
   assert(edgeDashboard.alerts.find((alert) => alert.id === 'export_failure_rate')?.status === 'triggered', 'export failure alert should trigger when threshold exceeded');
   assert(edgeDashboard.alerts.find((alert) => alert.id === 'auth_anomalies')?.status === 'triggered', 'auth anomaly alert should trigger at threshold');
   assert(edgeDashboard.alerts.find((alert) => alert.id === 'onboarding_drop')?.status === 'triggered', 'onboarding drop alert should trigger with low conversion and sample size');
