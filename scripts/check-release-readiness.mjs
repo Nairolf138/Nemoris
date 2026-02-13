@@ -6,6 +6,7 @@ const requiredDocuments = [
   'docs/operations/env-secrets-management.md',
   'docs/operations/incident-runbook.md',
   'docs/operations/go-no-go-checklist.md',
+  'docs/operations/go-no-go-decision-log.md',
   'docs/operations/release-recette-report.md'
 ];
 

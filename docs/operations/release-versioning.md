@@ -48,7 +48,25 @@ Vérification locale explicite:
 test -f artifacts/manifest.json
 ```
 
-## 3) Tag de release
+## 3) Contrôles obligatoires avant tag
+
+Exécuter **systématiquement**:
+
+```bash
+npm run docs:contract:check
+npm run release:readiness:check
+npm run build:artifacts
+```
+
+Puis vérifier la cohérence version/artefacts avant tag via:
+
+```bash
+npm run version:plan -- <major|minor|patch>
+```
+
+Enfin, archiver la preuve Go/No-Go signée Product Owner + Tech Lead + On-call dans `docs/operations/go-no-go-decision-log.md`.
+
+## 4) Tag de release
 
 Créer et pousser le tag SemVer:
 
@@ -57,7 +75,7 @@ git tag vX.Y.Z
 git push origin vX.Y.Z
 ```
 
-## 4) Pipeline GitHub Actions associé
+## 5) Pipeline GitHub Actions associé
 
 Le workflow `.github/workflows/release.yml` est déclenché à chaque push de tag `v*`.
 
@@ -70,8 +88,11 @@ Séquence exécutée automatiquement:
 
 ## Enchaînement complet recommandé
 
-1. Vérifier la CI et choisir le bump (`patch|minor|major`) avec `npm run version:plan -- <bump>`.
-2. Produire les artefacts avec `npm run build:artifacts`.
-3. Valider la présence de `artifacts/manifest.json`.
-4. Créer/pousser le tag `vX.Y.Z`.
-5. Contrôler dans GitHub Actions que le workflow release publie bien les artefacts.
+1. Vérifier la CI.
+2. Exécuter `npm run docs:contract:check`.
+3. Exécuter `npm run release:readiness:check`.
+4. Exécuter `npm run build:artifacts`.
+5. Choisir le bump (`patch|minor|major`) avec `npm run version:plan -- <bump>` et confirmer la cohérence version/artefacts.
+6. Archiver la preuve Go/No-Go signée (`docs/operations/go-no-go-decision-log.md`).
+7. Créer/pousser le tag `vX.Y.Z`.
+8. Contrôler dans GitHub Actions que le workflow release publie bien les artefacts.
