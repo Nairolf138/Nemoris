@@ -353,6 +353,17 @@ const runLegacyMessageOrchestrationScenarios = async (app: CapsuleApiApp, owner:
   const attempts = attemptsResponse.body as Array<{ status: string; attempted_at: string }>;
   assert(attempts.length >= 1, 'attempt log should contain at least one record');
   assert(attempts.some((attempt) => attempt.status === 'failed'), 'attempt log should include failed record');
+
+  const observabilityAudit = await app.handle({
+    method: 'GET',
+    path: '/observability/audit',
+    headers: { authorization: `Bearer ${owner.token}`, 'x-owner-id': owner.userId },
+  });
+  assert(observabilityAudit.status === 200, 'observability audit endpoint should expose sensitive orchestration events');
+  const entries = (observabilityAudit.body as { entries: Array<{ event_name: string }> }).entries;
+  assert(entries.some((entry) => entry.event_name === 'audit.legacy_message.armed'), 'arming action should be traced in audit events');
+  assert(entries.some((entry) => entry.event_name === 'audit.legacy_message.trigger_requested'), 'trigger request should be traced in audit events');
+  assert(entries.some((entry) => entry.event_name === 'audit.legacy_message.triggered'), 'effective trigger should be traced in audit events');
 };
 
 const runLinkIntegrityDeletionScenarios = async (app: CapsuleApiApp, owner: { userId: string; token: string }): Promise<void> => {

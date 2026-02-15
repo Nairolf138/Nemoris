@@ -1,10 +1,12 @@
 import type { LegacyMessage, LegacyMessageDeliveryAttempt } from '../../domain/entities.js';
 import type { LegacyMessageDeliveryAttemptRepository, LegacyMessageRepository } from '../../repositories/contracts.js';
+import type { UseCaseObserver } from './observability.js';
 
 export interface DeliverLegacyMessageDeps {
   legacyMessageRepository: LegacyMessageRepository;
   legacyMessageDeliveryAttemptRepository: LegacyMessageDeliveryAttemptRepository;
   deliver: (message: LegacyMessage) => Promise<void>;
+  observer?: UseCaseObserver;
 }
 
 export interface DeliverLegacyMessageResult {
@@ -37,6 +39,12 @@ export const deliverLegacyMessage = async (deps: DeliverLegacyMessageDeps, id: s
       throw new Error('LEGACY_MESSAGE_NOT_FOUND');
     }
     const attempt = await deps.legacyMessageDeliveryAttemptRepository.create(buildAttempt(updated, 'success'));
+    deps.observer?.emitEvent({
+      event_name: 'legacy_message.delivery_succeeded',
+      user_id: updated.owner_id,
+      entity_id: updated.id,
+      metadata: { state: updated.state, attempt_id: attempt.id },
+    });
     return { message: updated, attempt };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown delivery failure';
@@ -45,6 +53,12 @@ export const deliverLegacyMessage = async (deps: DeliverLegacyMessageDeps, id: s
       throw new Error('LEGACY_MESSAGE_NOT_FOUND');
     }
     const attempt = await deps.legacyMessageDeliveryAttemptRepository.create(buildAttempt(updated, 'failed', errorMessage));
+    deps.observer?.emitEvent({
+      event_name: 'legacy_message.delivery_failed',
+      user_id: updated.owner_id,
+      entity_id: updated.id,
+      metadata: { state: updated.state, attempt_id: attempt.id, error_message: errorMessage },
+    });
     return { message: updated, attempt };
   }
 };

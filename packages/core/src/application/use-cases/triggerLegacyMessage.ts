@@ -1,8 +1,10 @@
 import type { LegacyMessage } from '../../domain/entities.js';
 import type { LegacyMessageRepository } from '../../repositories/contracts.js';
+import type { UseCaseObserver } from './observability.js';
 
 export interface TriggerLegacyMessageDeps {
   legacyMessageRepository: LegacyMessageRepository;
+  observer?: UseCaseObserver;
 }
 
 export const triggerLegacyMessage = async (deps: TriggerLegacyMessageDeps, id: string): Promise<LegacyMessage> => {
@@ -18,5 +20,11 @@ export const triggerLegacyMessage = async (deps: TriggerLegacyMessageDeps, id: s
   if (!triggered) {
     throw new Error('LEGACY_MESSAGE_NOT_FOUND');
   }
+  deps.observer?.emitEvent({
+    event_name: 'legacy_message.triggered',
+    user_id: triggered.owner_id,
+    entity_id: triggered.id,
+    metadata: { state: triggered.state },
+  });
   return triggered;
 };
