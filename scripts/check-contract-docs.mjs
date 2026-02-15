@@ -8,13 +8,16 @@ const requiredDocs = [
   'docs/operations/go-no-go-checklist.md'
 ];
 
-const requiredRoadmapLots = ['Lot 0', 'Lot 1', 'Lot 2', 'Lot 3'];
+const requiredRoadmapPhases = ['P0 — Fondation sécurité', 'P1 — Contenu + héritiers', 'P2 — Déclenchement', 'P3 — Messages conditionnels / remise', 'P4 — Guide héritiers', 'P5 — Qualif & conformité', 'P6 — Pilotes partenaires'];
 const requiredChecklistSections = [
-  'Gate de scope',
-  'Lot 0 — Cadrage',
-  'Lot 1 — Fondations produit',
-  'Lot 2 — Valeur utilisateur',
-  'Lot 3 — Hardening avant release'
+  'Règle de validation transverse',
+  'P0 — Fondation sécurité',
+  'P1 — Contenu + héritiers',
+  'P2 — Déclenchement',
+  'P3 — Messages conditionnels / remise',
+  'P4 — Guide héritiers',
+  'P5 — Qualif & conformité',
+  'P6 — Pilotes partenaires'
 ];
 
 for (const docPath of requiredDocs) {
@@ -25,9 +28,9 @@ for (const docPath of requiredDocs) {
 }
 
 const roadmap = readFileSync('docs/product-capsule/roadmap-shipping.md', 'utf8');
-for (const lot of requiredRoadmapLots) {
-  if (!roadmap.includes(lot)) {
-    console.error(`Roadmap shipping is missing expected section: ${lot}`);
+for (const phase of requiredRoadmapPhases) {
+  if (!roadmap.includes(phase)) {
+    console.error(`Roadmap shipping is missing expected section: ${phase}`);
     process.exit(1);
   }
 }
