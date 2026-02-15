@@ -8,6 +8,7 @@ import { runDataIntegrationTests } from './data-integration.test.js';
 import { runPersistenceIntegrationTests } from './persistence-integration.test.js';
 import { runNarrativeIntegrationTests } from './narrative-integration.test.js';
 import { runSecurityRegressionTests } from './security-regression.test.js';
+import { runVaultIntegrationTests } from './vault-integration.test.js';
 import { runDodE2EScenarios, type E2EScenarioResult } from './dod-e2e.test.js';
 
 type RuntimeEnv = Record<string, string | undefined>;
@@ -70,6 +71,7 @@ const run = async () => {
   await runNarrativeIntegrationTests();
   await runPersistenceIntegrationTests();
   await runSecurityRegressionTests();
+  await runVaultIntegrationTests();
 
   const dodE2EResults = await runDodE2EScenarios();
   await writeReleaseReport(dodE2EResults);

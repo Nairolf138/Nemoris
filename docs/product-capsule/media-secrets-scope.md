@@ -11,11 +11,11 @@ et ce qui reste explicitement hors périmètre pour éviter les ambiguïtés pro
 
 | Type d’actif | Statut v1 | Support concret actuel |
 | --- | --- | --- |
-| Photo | **Pris en charge (indirectement)** | Référence via `Memory` de type `media` + métadonnées textuelles; pas d’upload binaire natif API v1. |
-| Vidéo | **Pris en charge (indirectement)** | Même logique que photo: description/lien/référence au sein des données métier. |
-| Audio | **Pris en charge (indirectement)** | Même logique: représentation par métadonnées/références textuelles. |
+| Photo | **Pris en charge (partiel)** | Upload binaire possible uniquement pour documents essentiels image (`image/jpeg`, `image/png`) via `/vault/documents/upload`; pas de galerie média complète. |
+| Vidéo | **Hors scope v1** | Pas d’upload binaire vidéo natif ni de pipeline transcodage/streaming. |
+| Audio | **Hors scope v1** | Pas d’upload binaire audio natif en v1. |
 | Texte libre | **Pris en charge (nativement)** | Champs textuels des entités (`title`, `description`, `message`, `lesson_text`, etc.). |
-| Codes / secrets (mot de passe, phrase de récupération, code coffre, etc.) | **Pris en charge (format texte uniquement)** | Saisis comme contenu texte dans les entités existantes; **pas de “vault” secret dédié** ni d’API de secret management spécialisée en v1. |
+| Codes / secrets (mot de passe, phrase de récupération, code coffre, etc.) | **Pris en charge (format texte + document essentiel)** | Texte dans les entités métier + pièces justificatives essentielles (PDF/TXT/DOC/DOCX/JPEG/PNG) via `VaultFile`; **pas de coffre-fort média généraliste**. |
 
 ### Clarification importante
 
@@ -27,7 +27,7 @@ Le terme “média supporté” en v1 signifie:
 
 ## Règles transverses v1
 
-- **Canal d’écriture**: API JSON unifiée `/data/{collection}`.
+- **Canaux d’écriture**: API JSON `/data/{collection}` + module objet ciblé `/vault/documents/upload` (backend S3-compatible).
 - **Chiffrement au repos**: chiffrement applicatif AES-GCM des payloads sensibles dans SQLite.
 - **Contrôle d’accès**: `owner_id` obligatoire + auth bearer.
 - **Consentements**: contraintes de transmission/export pilotées par scopes (`data_export`, `post_mortem_transmission`, `posthumous_visibility`).
@@ -36,16 +36,16 @@ Le terme “média supporté” en v1 signifie:
 
 | Type | Taille max v1 | Format v1 | Chiffrement v1 | Partage v1 | Export v1 |
 | --- | --- | --- | --- | --- | --- |
-| Photo | Non contractualisé (pas d’upload binaire) | Référence textuelle (URL/identifiant/métadonnées) | Oui (payload chiffré) | Selon `visibility` + consentements | Inclus dans export JSON comme métadonnées/références |
-| Vidéo | Non contractualisé (pas d’upload binaire) | Référence textuelle | Oui | Selon `visibility` + consentements | Inclus comme métadonnées/références |
-| Audio | Non contractualisé (pas d’upload binaire) | Référence textuelle | Oui | Selon `visibility` + consentements | Inclus comme métadonnées/références |
-| Texte | Limite technique implicite JSON/DB (pas de quota produit publié) | UTF-8 texte | Oui | Selon `visibility` + consentements | Inclus intégralement en export JSON |
-| Codes/secrets (texte) | Limite technique implicite JSON/DB | UTF-8 texte (non structuré ou structuré métier) | Oui | Restreint par `visibility`; recommandé `private` par défaut | Exportables uniquement si consentement `data_export` actif |
+| Photo (documents essentiels) | 25 Mo / fichier; quota capsule 50–500 Mo (configurable) | `image/jpeg`, `image/png` | Oui (objet + métadonnées) | Selon `visibility`; `posthumous_visibility` requis si posthume | Téléchargeable; `purpose=data_export` impose consentement `data_export` |
+| Document texte/PDF/DOC | 25 Mo / fichier; quota capsule 50–500 Mo | `text/plain`, `application/pdf`, `application/msword`, `application/vnd.openxmlformats-officedocument.wordprocessingml.document` | Oui | Selon `visibility` + consentements | Oui (download objet, gouverné par `data_export` si usage export) |
+| Vidéo | Hors scope upload binaire v1 | N/A | N/A | N/A | N/A |
+| Audio | Hors scope upload binaire v1 | N/A | N/A | N/A | N/A |
+| Texte métier | Limite technique JSON/DB | UTF-8 texte | Oui | Selon `visibility` + consentements | Inclus en export JSON |
 
 ### Limites explicitement hors scope v1
 
-- Pas d’endpoint d’upload/download de fichier brut dédié (`/media/upload` absent).
-- Pas de validation contractuelle MIME/type binaire côté OpenAPI v1.
+- Pas de galerie média complète (albums, recherche multimédia, prévisualisations, transcodage).
+- Pas d’upload binaire vidéo/audio en v1.
 - Pas de chiffrement côté client (E2EE) contractualisé.
 - Pas de mécanisme de partage par lien public signé (URL temporaire) dans le contrat v1.
 
@@ -74,15 +74,16 @@ Le terme “média supporté” en v1 signifie:
 ## Couverture confirmée
 
 - CRUD unifié pour collections métier via `/data/{collection}`.
+- Module `VaultFile` via `/vault/documents/upload`, `/vault/documents`, `/vault/documents/{id}/download`.
 - Orchestration post-mortem via endpoints `legacy-messages` (`arm`, `trigger`, `revoke`, `deliver`).
 - Gouvernance consentements (`grant`, `revoke`, `history`).
 - Export (`/exports`, `/exports/{id}/download`, `/exports/audit`).
 
 ## Limites actuelles documentées dans le contrat
 
-- Les médias sont représentés au niveau **métier** mais non exposés comme objets binaires uploadables.
-- Les codes/secrets sont gérés comme contenu texte dans les entités existantes.
-- Les plafonds par MIME, codec ou poids de fichier ne sont pas contractualisés en v1.
+- Upload binaire limité aux documents essentiels (MIME explicitement contractualisés).
+- Poids max par fichier 25 Mo et quota capsule 50–500 Mo configurable.
+- Contrôles consentement alignés: `posthumous_visibility` pour visibilité posthume, `data_export` pour téléchargement à finalité export.
 
 ## Alignements appliqués dans `openapi.yaml`
 
