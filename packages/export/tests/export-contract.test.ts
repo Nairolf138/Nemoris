@@ -101,8 +101,9 @@ export const runExportContractTests = async (): Promise<void> => {
   assert(serializedPdf.mimeType === 'application/pdf', 'PDF export should expose PDF mimetype');
   const pdfText = Buffer.from(serializedPdf.payloadBase64, 'base64').toString('utf8');
   assert(pdfText.startsWith('%PDF-1.4'), 'invalid PDF header');
-  assert(pdfText.includes('(Messages) Tj'), 'missing messages section');
-  assert(pdfText.includes('(Souvenirs) Tj'), 'missing souvenirs section');
-  assert(pdfText.includes('(Consignes) Tj'), 'missing consignes section');
-  assert(pdfText.includes('(Beneficiaires) Tj'), 'missing beneficiaries section');
+  assert(pdfText.includes('(Dossier famille Capsule) Tj'), 'missing family dossier title');
+  assert(pdfText.includes('(Messages à transmettre) Tj'), 'missing messages section');
+  assert(pdfText.includes('(Documents et liens utiles) Tj'), 'missing documents section');
+  assert(pdfText.includes('(Bénéficiaires) Tj'), 'missing beneficiaries section');
+  assert(pdfText.includes('(Règles de déclenchement) Tj'), 'missing trigger rules section');
 };

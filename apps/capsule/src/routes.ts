@@ -15,6 +15,7 @@ export const appRoutes = {
   messages: '/messages',
   timeline: '/timeline',
   exports: '/exports',
+  capsuleSummary: '/capsule-summary',
 } as const;
 
 export type AppRouteName = keyof typeof appRoutes;

@@ -55,6 +55,79 @@ const runRouteGuardsTest = (): void => {
     },
   });
   assert(frontend.navigate('beliefs') === appRoutes.beliefs, 'navigate should allow beliefs route for authenticated users');
+
+  assert(frontend.navigate('capsuleSummary') === appRoutes.capsuleSummary, 'navigate should allow capsule summary route for authenticated users');
+
+  frontend.store.setState({
+    data: {
+      memories: [
+        {
+          id: 'mem-doc-1',
+          owner_id: 'owner-1',
+          visibility: 'private',
+          created_at: '2024-01-01T00:00:00.000Z',
+          updated_at: '2024-01-01T00:00:00.000Z',
+          occurred_at: '2024-01-01T00:00:00.000Z',
+          title: 'Livret de famille',
+          description: 'https://example.org/livret.pdf',
+          memory_type: 'document',
+          related_belief_ids: [],
+          related_lesson_ids: [],
+          related_value_profile_ids: [],
+          related_narrative_node_ids: [],
+        },
+      ],
+      legacyMessages: [
+        {
+          id: 'msg-1',
+          owner_id: 'owner-1',
+          visibility: 'posthumous',
+          created_at: '2024-01-01T00:00:00.000Z',
+          updated_at: '2024-01-01T00:00:00.000Z',
+          title: 'Message clé',
+          message: 'Contenu principal',
+          trigger_type: 'manual',
+          beneficiary_ids: ['benef-1'],
+          attachment_memory_ids: ['mem-doc-1'],
+          related_belief_ids: [],
+          related_lesson_ids: [],
+          related_value_profile_ids: [],
+          related_narrative_node_ids: [],
+          state: 'armed',
+        },
+      ],
+      beneficiaries: [
+        {
+          id: 'benef-1',
+          owner_id: 'owner-1',
+          visibility: 'private',
+          created_at: '2024-01-01T00:00:00.000Z',
+          updated_at: '2024-01-01T00:00:00.000Z',
+          identity: 'Alex',
+          channel: 'email',
+          contact: 'alex@example.com',
+          verification_status: 'verified',
+          status: 'active',
+        },
+      ],
+    },
+  });
+
+  const summary = frontend.getCapsuleSummary();
+  assert(summary.profile.ownerEmail === 'owner@example.com', 'summary should include owner profile');
+  assert(summary.messages.length === 1, 'summary should include existing messages');
+  assert(summary.documentLinks.length >= 1, 'summary should include document links');
+  assert(summary.triggerRules[0]?.beneficiaries[0]?.identity === 'Alex', 'summary should resolve beneficiaries in trigger rules');
+
+  const printMode = frontend.getCapsuleSummaryPrintMode();
+  assert(printMode.route === appRoutes.capsuleSummary, 'print mode should target capsule summary route');
+  assert(printMode.mode === 'browser-print', 'print mode should be browser print');
+
+  const pdfExport = frontend.exportCapsuleSummaryPdf();
+  const pdfText = new TextDecoder().decode(pdfExport.bytes);
+  assert(pdfExport.mimeType === 'application/pdf', 'summary export should produce a PDF mime type');
+  assert(pdfExport.fileName.includes('dossier-famille-owner-1'), 'summary export should generate a family dossier filename');
+  assert(pdfText.startsWith('%PDF-1.4'), 'summary export should build a valid PDF payload');
 };
 
 const runTimelineNavigationTest = async (): Promise<void> => {
