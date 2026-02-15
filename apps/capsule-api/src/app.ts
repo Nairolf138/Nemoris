@@ -20,6 +20,7 @@ import {
   updateValueProfile,
   type CapsulePersistence,
   type Beneficiary,
+  type TriggerRequest,
   type NarrativeEdge,
   type NarrativeNode,
   type Visibility,
@@ -639,18 +640,50 @@ export class CapsuleApiApp {
 
   private parseLegacyMessageOrchestrationRoute(
     path: string,
-  ): { id: string; action: 'arm' | 'trigger' | 'revoke' | 'deliver' | 'delivery-attempts' } | null {
+  ): { id: string; action: 'arm' | 'trigger' | 'revoke' | 'deliver' | 'delivery-attempts' | 'request-initiate' | 'request-validate' | 'request-execute' | 'request-status' } | null {
     const cleanPath = pathWithoutQuery(path);
     const parts = cleanPath.split('/').filter(Boolean);
     if (parts[0] !== 'legacy-messages' || !parts[1] || !parts[2]) {
       return null;
     }
+
+    if (parts[2] === 'trigger-request' && parts[3]) {
+      const requestAction = parts[3];
+      if (requestAction === 'initiate') {
+        return { id: parts[1], action: 'request-initiate' };
+      }
+      if (requestAction === 'validate') {
+        return { id: parts[1], action: 'request-validate' };
+      }
+      if (requestAction === 'execute') {
+        return { id: parts[1], action: 'request-execute' };
+      }
+      if (requestAction === 'status') {
+        return { id: parts[1], action: 'request-status' };
+      }
+      return null;
+    }
+
     const action = parts[2];
     if (action !== 'arm' && action !== 'trigger' && action !== 'revoke' && action !== 'deliver' && action !== 'delivery-attempts') {
       return null;
     }
     return { id: parts[1], action };
   }
+
+  private async getLatestTriggerRequestState(legacyMessageId: string): Promise<TriggerRequest | null> {
+    return this.persistence.triggerRequests.getLatestByLegacyMessageId(legacyMessageId);
+  }
+
+  private toReadableWorkflowState = (legacyState: string, request: TriggerRequest | null): Record<string, unknown> => ({
+    legacy_message_state: legacyState,
+    trigger_request_status: request?.status ?? 'none',
+    trigger_request_id: request?.id,
+    requested_at: request?.requested_at,
+    validated_at: request?.validated_at,
+    rejected_at: request?.rejected_at,
+    executed_at: request?.executed_at,
+  });
 
   private async handleLegacyMessageOrchestrationRoute(request: RequestLike): Promise<ResponseLike> {
     const token = parseBearer(request.headers?.authorization);
@@ -678,6 +711,11 @@ export class CapsuleApiApp {
       return { status: 200, body: await this.persistence.legacyMessageDeliveryAttempts.listByLegacyMessageId(route.id) };
     }
 
+    if (request.method === 'GET' && route.action === 'request-status') {
+      const latest = await this.getLatestTriggerRequestState(route.id);
+      return { status: 200, body: this.toReadableWorkflowState(legacyMessage.state, latest) };
+    }
+
     if (request.method !== 'POST') {
       throw new NotFoundError('NOT_FOUND');
     }
@@ -686,6 +724,100 @@ export class CapsuleApiApp {
     await this.assertConsentScope(request, auth.user.id, 'post_mortem_transmission');
 
     try {
+      if (route.action === 'request-initiate') {
+        const payload = (request.body ?? {}) as { beneficiary_id?: string; trusted_contact_id?: string; reason?: string };
+        if (!payload.beneficiary_id && !payload.trusted_contact_id) {
+          throw new ValidationError('DOMAIN_VALIDATION_ERROR', { message: 'A beneficiary_id or trusted_contact_id is required.' });
+        }
+        if (payload.beneficiary_id) {
+          const beneficiary = await this.persistence.beneficiaries.getById(payload.beneficiary_id);
+          if (!beneficiary || beneficiary.owner_id !== auth.user.id || beneficiary.status !== 'active' || beneficiary.verification_status !== 'verified') {
+            throw new ValidationError('DOMAIN_VALIDATION_ERROR', { message: 'beneficiary_id must reference an active and verified beneficiary.' });
+          }
+        }
+        const latest = await this.getLatestTriggerRequestState(route.id);
+        if (latest && (latest.status === 'requested' || latest.status === 'validated')) {
+          throw new ValidationError('DOMAIN_VALIDATION_ERROR', { message: 'A trigger request is already in progress for this legacy message.' });
+        }
+        if (legacyMessage.state !== 'armed') {
+          throw new ValidationError('DOMAIN_VALIDATION_ERROR', { message: 'Trigger request can only be initiated from armed legacy messages.' });
+        }
+        const now = new Date().toISOString();
+        const created = await this.persistence.triggerRequests.create({
+          id: crypto.randomUUID(),
+          owner_id: auth.user.id,
+          legacy_message_id: route.id,
+          beneficiary_id: payload.beneficiary_id,
+          trusted_contact_id: payload.trusted_contact_id,
+          reason: payload.reason,
+          status: 'requested',
+          requested_at: now,
+        });
+        this.observability.emit({
+          event_name: 'audit.legacy_message.trigger_request.created',
+          user_id: auth.user.id,
+          entity_id: created.id,
+          metadata: buildSensitiveAuditMetadata(auth.user.id, 'legacy_message.trigger_request.create', route.id, 'requested', { status: created.status }),
+        });
+        return { status: 201, body: { trigger_request: created, workflow: this.toReadableWorkflowState(legacyMessage.state, created) } };
+      }
+
+      if (route.action === 'request-validate') {
+        const payload = (request.body ?? {}) as { approved?: boolean; reason?: string };
+        const latest = await this.getLatestTriggerRequestState(route.id);
+        if (!latest || latest.status !== 'requested') {
+          throw new ValidationError('DOMAIN_VALIDATION_ERROR', { message: 'No requested trigger request available for validation.' });
+        }
+        const approved = payload.approved !== false;
+        const now = new Date().toISOString();
+        const nextStatus = approved ? 'validated' : 'rejected';
+        const updated = await this.persistence.triggerRequests.update(latest.id, {
+          status: nextStatus,
+          reason: payload.reason ?? latest.reason,
+          validated_at: approved ? now : latest.validated_at,
+          rejected_at: approved ? latest.rejected_at : now,
+        });
+        if (!updated) {
+          throw new NotFoundError('RESOURCE_NOT_FOUND');
+        }
+        this.observability.emit({
+          event_name: approved ? 'audit.legacy_message.trigger_request.validated' : 'audit.legacy_message.trigger_request.rejected',
+          user_id: auth.user.id,
+          entity_id: updated.id,
+          metadata: buildSensitiveAuditMetadata(auth.user.id, approved ? 'legacy_message.trigger_request.validate' : 'legacy_message.trigger_request.reject', route.id, 'success', { status: updated.status }),
+        });
+        return { status: 200, body: { trigger_request: updated, workflow: this.toReadableWorkflowState(legacyMessage.state, updated) } };
+      }
+
+      if (route.action === 'request-execute') {
+        const latest = await this.getLatestTriggerRequestState(route.id);
+        if (!latest || latest.status !== 'validated') {
+          throw new ValidationError('DOMAIN_VALIDATION_ERROR', { message: 'Only a validated trigger request can be executed.' });
+        }
+        const triggered = await triggerLegacyMessage({ legacyMessageRepository: this.persistence.legacyMessages, observer: { emitEvent: (event) => this.observability.emit(event) } }, route.id);
+        const delivered = await deliverLegacyMessage(
+          {
+            legacyMessageRepository: this.persistence.legacyMessages,
+            legacyMessageDeliveryAttemptRepository: this.persistence.legacyMessageDeliveryAttempts,
+            observer: { emitEvent: (event) => this.observability.emit(event) },
+            deliver: async (message) => {
+              if (message.message.includes('[FAIL_DELIVERY]')) {
+                throw new Error('Simulated delivery failure');
+              }
+            },
+          },
+          route.id,
+        );
+        const executed = await this.persistence.triggerRequests.update(latest.id, { status: 'executed', executed_at: new Date().toISOString() });
+        this.observability.emit({
+          event_name: 'audit.legacy_message.trigger_request.executed',
+          user_id: auth.user.id,
+          entity_id: latest.id,
+          metadata: buildSensitiveAuditMetadata(auth.user.id, 'legacy_message.trigger_request.execute', route.id, 'success', { message_state: delivered.message.state }),
+        });
+        return { status: 200, body: { trigger_request: executed ?? latest, trigger: triggered, delivery: delivered, workflow: this.toReadableWorkflowState(delivered.message.state, executed ?? latest) } };
+      }
+
       if (route.action === 'arm') {
         const armed = await armLegacyMessage({ legacyMessageRepository: this.persistence.legacyMessages, observer: { emitEvent: (event) => this.observability.emit(event) } }, route.id);
         this.observability.emit({
@@ -779,7 +911,12 @@ export class CapsuleApiApp {
         return { status: 200, body: await this.persistence.valueProfiles.listByOwnerPaginated(auth.user.id, { limit: query.limit, offset: query.offset, sortBy: sort, order: query.order }) };
       }
       if (route.collection === 'legacy_messages') {
-        return { status: 200, body: await this.persistence.legacyMessages.listByOwnerPaginated(auth.user.id, { limit: query.limit, offset: query.offset, sortBy: sort, order: query.order }) };
+        const page = await this.persistence.legacyMessages.listByOwnerPaginated(auth.user.id, { limit: query.limit, offset: query.offset, sortBy: sort, order: query.order });
+        const items = await Promise.all(page.items.map(async (message) => ({
+          ...message,
+          workflow: this.toReadableWorkflowState(message.state, await this.getLatestTriggerRequestState(message.id)),
+        })));
+        return { status: 200, body: { ...page, items } };
       }
       if (route.collection === 'beneficiaries') {
         return { status: 200, body: await this.persistence.beneficiaries.listByOwnerPaginated(auth.user.id, { limit: query.limit, offset: query.offset, sortBy: sort, order: query.order }) };

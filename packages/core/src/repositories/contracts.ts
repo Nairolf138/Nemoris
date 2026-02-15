@@ -6,6 +6,7 @@ import type {
   ConsentScope,
   LegacyMessage,
   LegacyMessageDeliveryAttempt,
+  TriggerRequest,
   Lesson,
   Memory,
   NarrativeEdge,
@@ -83,6 +84,15 @@ export interface LegacyMessageDeliveryAttemptRepository {
   listByLegacyMessageId(legacyMessageId: string): Promise<LegacyMessageDeliveryAttempt[]>;
 }
 
+export interface TriggerRequestRepository {
+  create(request: TriggerRequest): Promise<TriggerRequest>;
+  update(id: string, patch: Partial<TriggerRequest>): Promise<TriggerRequest | null>;
+  getById(id: string): Promise<TriggerRequest | null>;
+  listByOwner(ownerId: string): Promise<TriggerRequest[]>;
+  listByLegacyMessageId(legacyMessageId: string): Promise<TriggerRequest[]>;
+  getLatestByLegacyMessageId(legacyMessageId: string): Promise<TriggerRequest | null>;
+}
+
 export interface BeneficiaryRepository {
   create(beneficiary: Beneficiary): Promise<Beneficiary>;
   update(id: string, patch: Partial<Beneficiary>): Promise<Beneficiary | null>;
@@ -140,6 +150,7 @@ export interface CapsulePersistence {
   legacyMessages: LegacyMessageRepository;
   beneficiaries: BeneficiaryRepository;
   legacyMessageDeliveryAttempts: LegacyMessageDeliveryAttemptRepository;
+  triggerRequests: TriggerRequestRepository;
   narrativeNodes: NarrativeNodeRepository;
   narrativeEdges: NarrativeEdgeRepository;
   externalAttachments: ExternalAttachmentRepository;
