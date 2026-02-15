@@ -14,51 +14,65 @@
 
 ### M1 — MVP Scope Canonique (Now)
 
-**Objectif**
-Livrer le parcours complet : authentification → création/édition contenus → liens inter-objets → export PDF/JSON.
+**Objectif**  
+Livrer le parcours complet : authentification → gestion des contenus et liens → transmission encadrée par consentement → export.
 
 **Livrables clés**
-- Authentification (inscription, connexion, déconnexion) + session basique.
-- CRUD Mémoire, Convictions, Leçons, Valeurs.
-- Liens manuels inter-objets.
-- Export PDF/JSON.
-- KPI MVP instrumentés.
+- Authentification (inscription, connexion, déconnexion, refresh) + session basique.
+- CRUD `memories`, `beliefs`, `lessons`, `value_profiles`.
+- CRUD `beneficiaries` + CRUD `legacy_messages` + orchestration (`arm/trigger/revoke/deliver`).
+- CRUD `narrative_nodes` et `narrative_edges` (graphe narratif basique).
+- Consent management (`grant/revoke/history`) sur `data_export`, `post_mortem_transmission`, `posthumous_visibility`.
+- Export + audit export + observabilité read-only.
 
 **Sortie de phase**
 - DoD MVP validée (Produit + Tech).
-- Aucun item out-of-scope intégré au lot.
+- Aucun item Phase 2/Research intégré au lot.
 
 ### M2 — Fiabilisation MVP (Next)
 
-**Objectif**
+**Objectif**  
 Stabiliser le MVP sans élargir le périmètre fonctionnel.
 
 **Livrables clés**
-- Durcissement qualité et performance sur fonctionnalités in scope.
+- Durcissement qualité/performance des endpoints data, consent et orchestration legacy message.
 - Journalisation d’erreurs et observabilité opérationnelle.
-- Renforcement des autorisations minimales.
+- Renforcement des autorisations minimales et contrôles de cohérence inter-entités.
 
-### M3 — Sécurité & Conformité socle (Next)
+### M3 — Extensions produit (Later)
 
-**Objectif**
-Préparer l’industrialisation en renforçant la confiance, toujours sans étendre le scope métier MVP.
+**Objectif**  
+Étendre les usages sans rupture de compatibilité API v1.
 
-**Livrables clés**
-- Revue de menaces ciblée MVP.
-- Processus export/suppression de données validés.
-- Checklist conformité de base validée.
+**Livrables candidats**
+- Recherche avancée (filtres riches, indexation, sémantique).
+- Graphe narratif interactif avancé (au-delà du CRUD nodes/edges).
+- Déclenchement post-mortem automatisé bout-en-bout.
 
-### M4 — Extensions (Later/Research)
+### M4 — Research (Research)
 
-**Candidats hors scope MVP**
-- Recherche avancée.
-- IA complexe.
-- Transmission post-mortem automatisée.
-- Workflows juridiques complets.
-- Graphe narratif avancé.
+**Objectif**  
+Explorer les axes à forte incertitude métier/réglementaire.
+
+**Pistes Research**
+- Workflows juridiques complets (notarial/compliance automatisée).
+- IA conversationnelle et génération avancée.
+
+## Matrice Feature -> Milestone
+
+| Feature | Statut | Milestone |
+| --- | --- | --- |
+| Legacy messages | In scope v1 | M1 |
+| Beneficiaries | In scope v1 | M1 |
+| Narrative nodes/edges | In scope v1 | M1 |
+| Consent scopes | In scope v1 | M1 |
+| Graphe narratif avancé | Phase 2 | M3 |
+| Déclenchement automatisé complet | Phase 2 | M3 |
+| Workflows juridiques complets | Research | M4 |
 
 ## Decision log
 
 | Date | Owner | Décision |
 | --- | --- | --- |
 | 2026-02-12 | Product + Tech | Recentrage de la roadmap M1 sur le scope canonique et séparation explicite des extensions en Later/Research. |
+| 2026-02-15 | Product + Tech | Alignement de M1 avec les surfaces API réellement exposées (legacy messages, beneficiaries, narrative graph basique, consent). |
