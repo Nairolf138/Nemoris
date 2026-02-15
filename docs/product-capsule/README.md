@@ -1,6 +1,6 @@
 # Product Capsule — Index documentaire
 
-Ce dossier centralise les documents de référence MVP sous une structure unique « product capsule ».
+Ce dossier centralise les documents de référence MVP sous une structure unique « product capsule », avec une entrée produit centrée sur une **capsule familiale transmissible** (messages + documents + instructions + bénéficiaires).
 
 ## Convention de marquage
 
@@ -21,11 +21,9 @@ Chaque fonctionnalité doit afficher un tag explicite, sans ambiguïté :
 | Feature | Statut | Surface API principale |
 | --- | --- | --- |
 | Auth | **[Disponible maintenant]** | `/auth/register`, `/auth/login`, `/auth/logout`, `/auth/refresh` |
-| Memories | **[Disponible maintenant]** | `/data/memories` |
-| Beliefs | **[Disponible maintenant]** | `/data/beliefs` |
-| Lessons | **[Disponible maintenant]** | `/data/lessons` |
-| Value profiles | **[Disponible maintenant]** | `/data/value_profiles` |
-| Legacy messages | **[Disponible maintenant]** | `/data/legacy_messages`, `/legacy-messages/{id}/{arm|trigger|revoke|deliver|delivery-attempts}` |
+| Messages transmissibles | **[Disponible maintenant]** | `/data/legacy_messages`, `/legacy-messages/{id}/{arm|trigger|revoke|deliver|delivery-attempts}` |
+| Documents & souvenirs capsule | **[Disponible maintenant]** | `/data/memories` |
+| Instructions & repères personnels (beliefs/lessons/values) | **[Disponible maintenant]** | `/data/beliefs`, `/data/lessons`, `/data/value_profiles` |
 | Beneficiaries | **[Disponible maintenant]** | `/data/beneficiaries` |
 | Narrative nodes | **[Disponible maintenant]** | `/data/narrative_nodes` |
 | Narrative edges | **[Disponible maintenant]** | `/data/narrative_edges` |
@@ -34,6 +32,10 @@ Chaque fonctionnalité doit afficher un tag explicite, sans ambiguïté :
 | Graphe narratif interactif avancé | **[Prévu plus tard]** | N/A v1 |
 | Workflows juridiques complets | **[Recherche]** | N/A v1 |
 | IA avancée | **[Recherche]** | N/A v1 |
+
+## Avancé / plus tard
+
+Les capacités cognitives et d'automatisation avancée sont **secondaires** à ce stade : elles restent dans les catégories **[Prévu plus tard]** ou **[Recherche]** et ne constituent pas le cœur de l'entrée produit.
 
 ## Index
 

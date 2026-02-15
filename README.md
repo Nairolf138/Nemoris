@@ -6,31 +6,35 @@ Le produit aide à structurer, sécuriser et rendre transmissible ce qui compte 
 
 ## Proposition de valeur
 
-Nemoris aide un utilisateur à structurer ses contenus clés pour les rendre clairs, reliés et exportables :
-- centraliser des éléments de mémoire et de réflexion,
-- relier convictions, leçons et valeurs,
-- exporter un corpus lisible et portable.
+Nemoris propose une **capsule familiale transmissible** : un espace unique pour préparer, à l’avance, ce que vos proches devront recevoir au bon moment.
+
+Promesse cœur produit :
+- rédiger des **messages** personnels,
+- déposer des **documents** utiles,
+- expliciter des **instructions** concrètes,
+- désigner les **bénéficiaires** concernés,
+- conserver un ensemble clair, exportable et révisable.
 
 ## Fonctionnalités — Disponibilité
 
 Référence canonique : `docs/product-capsule/scope-fonctionnel.md`.
 
 - **[Disponible maintenant]** Authentification : inscription, connexion, déconnexion, session basique.
-- **[Disponible maintenant]** Modules de contenu : mémoire, convictions, leçons, valeurs.
-- **[Disponible maintenant]** Liens manuels inter-objets.
+- **[Disponible maintenant]** Capsule familiale : messages transmissibles, documents de référence et instructions destinées aux proches.
+- **[Disponible maintenant]** Bénéficiaires : création, association des contenus et pilotage des destinataires.
+- **[Disponible maintenant]** Modules de structuration (mémoire, convictions, leçons, valeurs) pour enrichir la capsule.
+- **[Disponible maintenant]** Liens manuels inter-objets pour relier les contenus.
 - **[Disponible maintenant]** Exports PDF et JSON.
 
-## Fonctionnalités prévues / exploratoires
+## Avancé / plus tard
 
 - **[Prévu plus tard]** Recherche avancée (sémantique/filtres complexes).
-- **[Recherche]** IA complexe conversationnelle/générative.
+- **[Recherche]** IA complexe conversationnelle/générative (piste cognitive secondaire).
 - **[Recherche]** Workflows juridiques post-mortem complets.
 - **[Prévu plus tard]** Transmission post-mortem automatisée.
 - **[Prévu plus tard]** Graphe narratif interactif avancé.
 
-## Vision cognitive (à long terme)
-
-La vision cognitive reste une trajectoire secondaire à long terme, séparée du scope de livraison actuel. Les éléments de cette piste sont marqués **[Recherche]** ou **[Prévu plus tard]** dans leur documentation dédiée : `docs/vision-cognitive/VISION.md`.
+La vision cognitive reste une trajectoire **secondaire** à long terme, séparée de l’entrée produit capsule familiale transmissible. Les éléments de cette piste sont marqués **[Recherche]** ou **[Prévu plus tard]** dans leur documentation dédiée : `docs/vision-cognitive/VISION.md`.
 
 ## Documents de référence
 
