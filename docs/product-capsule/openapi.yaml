@@ -34,6 +34,7 @@ tags:
   - name: Exports
   - name: Observability
   - name: Vault
+  - name: Posthumous
 
 paths:
   /auth/register:
@@ -297,6 +298,135 @@ paths:
       responses:
         '200': { description: Dashboard observabilité }
 
+  /posthumous/cases:
+    post:
+      tags: [Posthumous]
+      summary: Ouvrir un dossier de déclenchement posthume
+      description: |
+        Crée (ou retrouve de manière idempotente) un dossier posthume en état `suspected_death`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PosthumousCaseCreateRequest'
+      responses:
+        '201':
+          description: Dossier créé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PosthumousCase'
+        '409': { description: 'Dossier déjà finalisé (POSTHUMOUS_ALREADY_FINALIZED)' }
+
+  /posthumous/cases/{case_id}:
+    get:
+      tags: [Posthumous]
+      summary: Lire un dossier posthume
+      parameters:
+        - $ref: '#/components/parameters/CaseId'
+        - $ref: '#/components/parameters/OwnerId'
+      responses:
+        '200':
+          description: Dossier trouvé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PosthumousCase'
+        '404': { description: 'POSTHUMOUS_CASE_NOT_FOUND' }
+
+  /posthumous/cases/{case_id}/signals:
+    post:
+      tags: [Posthumous]
+      summary: Ajouter un signal de décès
+      parameters:
+        - $ref: '#/components/parameters/CaseId'
+        - $ref: '#/components/parameters/OwnerId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PosthumousSignalCreateRequest'
+      responses:
+        '202':
+          description: Signal accepté
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PosthumousCase'
+        '404': { description: 'POSTHUMOUS_CASE_NOT_FOUND' }
+        '409': { description: 'POSTHUMOUS_ALREADY_FINALIZED' }
+        '422': { description: 'POSTHUMOUS_IDENTITY_MISMATCH' }
+        '503': { description: 'POSTHUMOUS_SOURCE_UNAVAILABLE' }
+
+  /posthumous/cases/{case_id}/validate:
+    post:
+      tags: [Posthumous]
+      summary: Valider l'avancement d'un dossier posthume
+      description: |
+        Évalue quorum, conflits et contrôles d'identité pour faire progresser le dossier
+        (`suspected_death` -> `pending_validation` -> `grace_period`).
+      parameters:
+        - $ref: '#/components/parameters/CaseId'
+        - $ref: '#/components/parameters/OwnerId'
+      responses:
+        '200':
+          description: État du dossier après validation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PosthumousCase'
+        '404': { description: 'POSTHUMOUS_CASE_NOT_FOUND' }
+        '409':
+          description: |
+            POSTHUMOUS_QUORUM_NOT_REACHED | POSTHUMOUS_VALIDATION_CONFLICT |
+            POSTHUMOUS_INVALID_STATE_TRANSITION | POSTHUMOUS_ALREADY_FINALIZED
+
+  /posthumous/cases/{case_id}/unlock/progress:
+    post:
+      tags: [Posthumous]
+      summary: Exécuter un palier de déverrouillage progressif
+      parameters:
+        - $ref: '#/components/parameters/CaseId'
+        - $ref: '#/components/parameters/OwnerId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PosthumousUnlockProgressRequest'
+      responses:
+        '200':
+          description: Palier traité, état mis à jour
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PosthumousCase'
+        '403': { description: 'POSTHUMOUS_OPPOSITION_ACTIVE ou POSTHUMOUS_UNLOCK_POLICY_BLOCKED' }
+        '404': { description: 'POSTHUMOUS_CASE_NOT_FOUND' }
+        '409':
+          description: |
+            POSTHUMOUS_GRACE_PERIOD_ACTIVE | POSTHUMOUS_INVALID_STATE_TRANSITION |
+            POSTHUMOUS_ALREADY_FINALIZED
+
+  /posthumous/cases/{case_id}/revoke:
+    post:
+      tags: [Posthumous]
+      summary: Révoquer un workflow posthume
+      parameters:
+        - $ref: '#/components/parameters/CaseId'
+        - $ref: '#/components/parameters/OwnerId'
+      responses:
+        '200':
+          description: Dossier révoqué
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PosthumousCase'
+        '404': { description: 'POSTHUMOUS_CASE_NOT_FOUND' }
+        '409': { description: 'POSTHUMOUS_ALREADY_FINALIZED' }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -330,6 +460,12 @@ components:
     Id:
       in: path
       name: id
+      required: true
+      schema:
+        type: string
+    CaseId:
+      in: path
+      name: case_id
       required: true
       schema:
         type: string
@@ -424,3 +560,128 @@ components:
         content_base64:
           type: string
           description: Fichier encodé en base64 (25 Mo max avant encodage).
+
+    PosthumousCaseCreateRequest:
+      type: object
+      required: [owner_id, trigger_reason]
+      properties:
+        owner_id:
+          type: string
+        trigger_reason:
+          type: string
+          description: Motif initial (signal, alerte manuelle, inactivité).
+
+    PosthumousSignalCreateRequest:
+      type: object
+      required: [source, payload]
+      properties:
+        source:
+          type: string
+          enum: [insee_open_data, inactivity, trusted_contact]
+        payload:
+          type: object
+          additionalProperties: true
+          description: Métadonnées source (preuve, identifiants de rapprochement, etc.).
+
+    PosthumousUnlockProgressRequest:
+      type: object
+      required: [stage]
+      properties:
+        stage:
+          type: string
+          enum: [metadata, low_critical_messages, sensitive_documents]
+
+    PosthumousCase:
+      type: object
+      required:
+        - case_id
+        - owner_id
+        - state
+        - confidence_score
+        - quorum_reached
+        - created_at
+        - updated_at
+      properties:
+        case_id:
+          type: string
+        owner_id:
+          type: string
+        state:
+          type: string
+          enum:
+            - suspected_death
+            - pending_validation
+            - grace_period
+            - progressive_unlock
+            - delivered
+            - revoked
+        confidence_score:
+          type: number
+          minimum: 0
+          maximum: 1
+        quorum_reached:
+          type: boolean
+        grace_period_ends_at:
+          type: string
+          format: date-time
+          nullable: true
+        unlock_stage:
+          type: string
+          nullable: true
+          enum: [metadata, low_critical_messages, sensitive_documents]
+        last_error_code:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+
+    PosthumousStateChangedEvent:
+      type: object
+      required: [event_name, case_id, owner_id, previous_state, new_state, occurred_at]
+      properties:
+        event_name:
+          type: string
+          enum:
+            - posthumous.case.created
+            - posthumous.signal.recorded
+            - posthumous.validation.pending
+            - posthumous.grace_period.started
+            - posthumous.grace_period.ended
+            - posthumous.unlock.stage.completed
+            - posthumous.delivered
+            - posthumous.revoked
+        case_id:
+          type: string
+        owner_id:
+          type: string
+        previous_state:
+          type: string
+          nullable: true
+        new_state:
+          type: string
+        occurred_at:
+          type: string
+          format: date-time
+        reason:
+          type: string
+          nullable: true
+
+webhooks:
+  posthumousStateChanged:
+    post:
+      tags: [Posthumous]
+      summary: Événement d'évolution d'état du workflow posthume
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PosthumousStateChangedEvent'
+      responses:
+        '202':
+          description: Événement accepté par le consommateur

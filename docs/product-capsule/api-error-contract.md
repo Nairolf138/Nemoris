@@ -42,14 +42,28 @@ Toutes les erreurs applicatives renvoient un payload JSON standard :
 ### 403 Forbidden
 - `FORBIDDEN` : utilisateur authentifié mais non autorisé (ex: `owner_id` ≠ utilisateur courant).
 - `RECOVERY_SENSITIVE_ACTION_BLOCKED` : action sensible temporairement bloquée après récupération de compte (détail `sensitive_action_unlocked_at`).
+- `POSTHUMOUS_OPPOSITION_ACTIVE` : opposition posthume valide en cours, progression interdite.
+- `POSTHUMOUS_UNLOCK_POLICY_BLOCKED` : déverrouillage posthume bloqué par politique/consentement.
 
 ### 404 Not Found
 - `NOT_FOUND` : route inexistante.
 - `RESOURCE_NOT_FOUND` : ressource métier absente.
 - `EXPORT_NOT_FOUND` : export introuvable pour le propriétaire.
+- `POSTHUMOUS_CASE_NOT_FOUND` : dossier de déclenchement posthume introuvable.
 
 ### 409 Conflict
 - `EMAIL_ALREADY_USED` : tentative de création de compte avec email déjà enregistré.
+- `POSTHUMOUS_INVALID_STATE_TRANSITION` : transition d'état posthume non autorisée.
+- `POSTHUMOUS_QUORUM_NOT_REACHED` : quorum minimal de signaux non atteint.
+- `POSTHUMOUS_VALIDATION_CONFLICT` : conflit de validation posthume (signaux contradictoires).
+- `POSTHUMOUS_GRACE_PERIOD_ACTIVE` : action refusée tant que la période de grâce est active.
+- `POSTHUMOUS_ALREADY_FINALIZED` : dossier posthume déjà finalisé (`delivered` ou `revoked`).
+
+### 422 Unprocessable Entity
+- `POSTHUMOUS_IDENTITY_MISMATCH` : identité insuffisamment corrélée à une source de décès.
+
+### 503 Service Unavailable
+- `POSTHUMOUS_SOURCE_UNAVAILABLE` : source externe de validation posthume indisponible.
 
 ### 429 Too Many Requests
 - `RATE_LIMITED` : quota dépassé.
