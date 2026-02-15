@@ -2,15 +2,15 @@
 
 ## Légende de statut (commune)
 
-- **Now** : en cours d’exécution sur le cycle actuel.
-- **Next** : prêt à démarrer dès validation des prérequis immédiats.
-- **Later** : planifié, sans engagement de cycle court.
-- **Research** : nécessite exploration / preuve avant engagement delivery.
-- **Not in scope** : explicitement hors périmètre de la phase en cours.
+- **[Recherche]** Now : en cours d’exécution sur le cycle actuel (piste R&D, non livrée en production).
+- **[Prévu plus tard]** Next : prêt à démarrer dès validation des prérequis immédiats.
+- **[Prévu plus tard]** Later : planifié, sans engagement de cycle court.
+- **[Recherche]** Research : nécessite exploration / preuve avant engagement delivery.
+- **[Recherche]** Not in scope : explicitement hors périmètre de la phase en cours.
 
 ## Axes de recherche
 
-### Axe A — Modèles cognitifs (Now → Next)
+### Axe A — Modèles cognitifs (**[Recherche]** Now → **[Prévu plus tard]** Next)
 
 **Hypothèse**
 Une structuration explicite Mémoire / Convictions / Leçons / Valeurs améliore la qualité du corpus transmis.
@@ -28,7 +28,7 @@ Une structuration explicite Mémoire / Convictions / Leçons / Valeurs améliore
 - Modèle cognitif v1 documenté et testable.
 - Indicateurs de qualité de corpus mesurables.
 
-### Axe B — Impact collectif (Research)
+### Axe B — Impact collectif (**[Recherche]**)
 
 **Hypothèse**
 L’héritage cognitif peut générer un impact positif mesurable pour les proches, communautés et collectifs.
@@ -46,7 +46,7 @@ L’héritage cognitif peut générer un impact positif mesurable pour les proch
 - Premier rapport d’impact collectif avec limites explicites.
 - Recommandations actionnables pour produit + gouvernance.
 
-### Axe C — Protocoles d’évaluation (Next → Later)
+### Axe C — Protocoles d’évaluation (**[Prévu plus tard]** Next → **[Prévu plus tard]** Later)
 
 **Hypothèse**
 Des protocoles robustes permettent de comparer les itérations produit et les effets cognitifs réels.
@@ -66,10 +66,10 @@ Des protocoles robustes permettent de comparer les itérations produit et les ef
 
 ## Reclassification des tâches existantes (README + mvp-scope)
 
-- Module Mémoire (CRUD + chronologie) → **Axe A (Now)**.
-- Convictions / Leçons / Valeurs → **Axe A (Now)**.
-- Liens simples entre objets cognitifs → **Axe A (Next)**.
-- Recherche avancée sémantique / filtres complexes → **Axe C (Research)**.
-- IA complexe conversationnelle/contextuelle → **Axe C (Research)**.
-- Formulation "créer, relier et exporter son héritage cognitif" → **Axe B/C (Next)** pour mesurer l’impact et la qualité de transmission.
-- Workflows juridiques post-mortem complets → **Not in scope** de la piste R&D cognitive (traité côté Capsule conformité).
+- Module Mémoire (CRUD + chronologie) → **Axe A ([Recherche] Now)**.
+- Convictions / Leçons / Valeurs → **Axe A ([Recherche] Now)**.
+- Liens simples entre objets cognitifs → **Axe A ([Prévu plus tard] Next)**.
+- Recherche avancée sémantique / filtres complexes → **Axe C ([Recherche] Research)**.
+- IA complexe conversationnelle/contextuelle → **Axe C ([Recherche] Research)**.
+- Formulation "créer, relier et exporter son héritage cognitif" → **Axe B/C ([Prévu plus tard] Next)** pour mesurer l’impact et la qualité de transmission.
+- Workflows juridiques post-mortem complets → **[Recherche] Not in scope** de la piste R&D cognitive (traité côté Capsule conformité).

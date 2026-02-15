@@ -4,30 +4,36 @@ Ce dossier centralise les documents de référence MVP sous une structure unique
 
 ## Convention de marquage
 
-Chaque section doit être marquée avec l’un des statuts suivants :
+Chaque fonctionnalité doit afficher un tag explicite, sans ambiguïté :
 
-- **In scope (Capsule v1)** : livré dans le périmètre MVP validé.
-- **Phase 2** : prévu après la capsule v1, déjà cadré.
-- **Research** : piste exploratoire, non engagée.
+- **[Disponible maintenant]** : fonctionnalité livrée et utilisable dans la version actuelle.
+- **[Prévu plus tard]** : fonctionnalité planifiée pour une version ultérieure, non livrée actuellement.
+- **[Recherche]** : piste exploratoire, sans engagement de livraison.
+
+## Mini glossaire de statuts
+
+- **Disponible maintenant** : l'utilisateur peut déjà utiliser la fonctionnalité.
+- **Prévu plus tard** : la fonctionnalité n'est pas encore disponible ; elle reste au backlog roadmap.
+- **Recherche** : la fonctionnalité est étudiée ; elle peut être modifiée, reportée ou abandonnée.
 
 ## Tableau de référence — Feature -> Statut -> Surface API
 
 | Feature | Statut | Surface API principale |
 | --- | --- | --- |
-| Auth | In scope v1 | `/auth/register`, `/auth/login`, `/auth/logout`, `/auth/refresh` |
-| Memories | In scope v1 | `/data/memories` |
-| Beliefs | In scope v1 | `/data/beliefs` |
-| Lessons | In scope v1 | `/data/lessons` |
-| Value profiles | In scope v1 | `/data/value_profiles` |
-| Legacy messages | In scope v1 | `/data/legacy_messages`, `/legacy-messages/{id}/{arm|trigger|revoke|deliver|delivery-attempts}` |
-| Beneficiaries | In scope v1 | `/data/beneficiaries` |
-| Narrative nodes | In scope v1 | `/data/narrative_nodes` |
-| Narrative edges | In scope v1 | `/data/narrative_edges` |
-| Consent scopes | In scope v1 | `/consent/grant`, `/consent/revoke`, `/consent/history` |
-| Exports | In scope v1 | `/exports`, `/exports/{id}/download`, `/exports/audit` |
-| Graphe narratif interactif avancé | Phase 2 | N/A v1 |
-| Workflows juridiques complets | Research | N/A v1 |
-| IA avancée | Research | N/A v1 |
+| Auth | **[Disponible maintenant]** | `/auth/register`, `/auth/login`, `/auth/logout`, `/auth/refresh` |
+| Memories | **[Disponible maintenant]** | `/data/memories` |
+| Beliefs | **[Disponible maintenant]** | `/data/beliefs` |
+| Lessons | **[Disponible maintenant]** | `/data/lessons` |
+| Value profiles | **[Disponible maintenant]** | `/data/value_profiles` |
+| Legacy messages | **[Disponible maintenant]** | `/data/legacy_messages`, `/legacy-messages/{id}/{arm|trigger|revoke|deliver|delivery-attempts}` |
+| Beneficiaries | **[Disponible maintenant]** | `/data/beneficiaries` |
+| Narrative nodes | **[Disponible maintenant]** | `/data/narrative_nodes` |
+| Narrative edges | **[Disponible maintenant]** | `/data/narrative_edges` |
+| Consent scopes | **[Disponible maintenant]** | `/consent/grant`, `/consent/revoke`, `/consent/history` |
+| Exports | **[Disponible maintenant]** | `/exports`, `/exports/{id}/download` (audit interne non promu en v1) |
+| Graphe narratif interactif avancé | **[Prévu plus tard]** | N/A v1 |
+| Workflows juridiques complets | **[Recherche]** | N/A v1 |
+| IA avancée | **[Recherche]** | N/A v1 |
 
 ## Index
 
@@ -52,6 +58,6 @@ Chaque section doit être marquée avec l’un des statuts suivants :
 ## Rappel discipline de périmètre
 
 - Cette documentation concerne uniquement la **piste Capsule** (shipping).
-- Toute projection future doit être taguée **Phase 2**, **Research** ou **Not in scope**.
+- Toute projection future doit être taguée **[Prévu plus tard]** ou **[Recherche]** et formulée comme non livrée.
 - Toute vision cognitive détaillée doit rester dans `docs/vision-cognitive/`.
 - En PR, préciser explicitement la piste impactée : **Capsule** ou **Cognitive R&D**.

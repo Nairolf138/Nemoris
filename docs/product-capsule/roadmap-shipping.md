@@ -5,7 +5,7 @@ Référence canonique : `docs/product-capsule/scope-fonctionnel.md`.
 ## Règle de tri backlog
 
 - Tout tri backlog doit utiliser **uniquement** `docs/product-capsule/scope-fonctionnel.md` comme référence de périmètre.
-- Toute demande out-of-scope est **explicitement refusée** puis reclassée en `Later/Research`.
+- Toute demande out-of-scope est **explicitement refusée** puis reclassée en **[Prévu plus tard]** ou **[Recherche]**.
 - Chaque arbitrage (acceptation MVP, report, refus) est consigné dans le Decision log ci-dessous.
 
 ## Gate de scope (à valider avant chaque lot)
@@ -13,10 +13,10 @@ Référence canonique : `docs/product-capsule/scope-fonctionnel.md`.
 - [ ] Le lot ne contient **aucun** item marqué out-of-scope dans le document canonique.
 - [ ] Le lot contribue directement à la DoD MVP (auth, contenus, liens, export).
 - [ ] Produit + Tech ont validé le périmètre du lot sans ajout implicite.
-- [ ] Les dépendances non-MVP sont explicitement reportées au backlog Later/Research.
+- [ ] Les dépendances non-MVP sont explicitement reportées au backlog **[Prévu plus tard]**/**[Recherche]**.
 - [ ] Le Decision log est mis à jour si une décision de périmètre a été prise.
 
-## In scope (Capsule v1)
+## [Disponible maintenant] In scope (Capsule v1)
 
 ### Lot 0 — Cadrage
 
@@ -55,7 +55,7 @@ Référence canonique : `docs/product-capsule/scope-fonctionnel.md`.
 - Validation DoD MVP (Produit + Tech).
 - Go/No-Go basé sur conformité au scope canonique.
 
-## Out of scope (MVP)
+## [Prévu plus tard] / [Recherche] Hors scope (MVP)
 
 - Recherche avancée, IA contextuelle complexe.
 - Automatisations juridiques post-mortem.
@@ -68,6 +68,6 @@ Référence canonique : `docs/product-capsule/scope-fonctionnel.md`.
 | --- | --- | --- |
 | 2026-02-12 | Product + Tech | Ajout d’un gate de scope obligatoire avant chaque lot de delivery. |
 | 2026-02-13 | Product + Tech | Le tri backlog doit désormais se baser exclusivement sur `scope-fonctionnel.md` comme référence unique. |
-| 2026-02-13 | Product + Tech | Refus explicite imposé pour toute demande hors scope MVP (IA avancée, recherche complexe, workflows juridiques post-mortem), avec reclassement en `Later/Research`. |
+| 2026-02-13 | Product + Tech | Refus explicite imposé pour toute demande hors scope MVP (IA avancée, recherche complexe, workflows juridiques post-mortem), avec reclassement en **[Prévu plus tard]**/**[Recherche]**. |
 | 2026-02-13 | Product + Tech | Les templates ticket/PR incluent la checklist “In scope MVP” (auth, contenus, liens, export) pour tracer les arbitrages. |
 | 2026-02-13 | Product + Tech | Pendant la fenêtre hardening MVP, aucun développement de nouvelle feature n'est autorisé; seules les corrections in-scope (auth, CRUD, liens, export) sont acceptées. |

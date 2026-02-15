@@ -1,6 +1,6 @@
 # Architecture — Capsule v1
 
-## In scope (Capsule v1)
+## [Disponible maintenant] In scope (Capsule v1)
 
 ### Modules cœur
 - Mémoire de vie : entrées multimédia, timeline, tags.
@@ -16,13 +16,13 @@
 - Journal d’audit des actions sensibles.
 - Export de données utilisateur.
 
-## Phase 2
+## [Prévu plus tard] Phase 2
 
 - Moteur de recherche transversale avancé et scoring sémantique.
 - Mécanismes de recommandation intelligents sur corpus personnel.
 - Résilience multi-régions renforcée avec bascule automatisée.
 
-## Research
+## [Recherche] Research
 
 - Graphe cognitif auto-enrichi semi-automatique.
 - Détection de patterns narratifs/faiblesses cognitives par IA explicable.
