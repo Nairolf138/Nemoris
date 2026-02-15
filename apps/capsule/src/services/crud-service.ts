@@ -3,7 +3,7 @@ import type { CollectionName, CapsuleCollections } from '../models/contracts.js'
 import type { SessionManager } from '../session.js';
 import type { CapsuleStore } from '../state.js';
 
-const CRUD_COLLECTIONS: CollectionName[] = ['memories', 'beliefs', 'lessons', 'valueProfiles', 'legacyMessages'];
+const CRUD_COLLECTIONS: CollectionName[] = ['memories', 'beliefs', 'lessons', 'valueProfiles', 'legacyMessages', 'beneficiaries'];
 
 export class CapsuleCrudService {
   public constructor(
@@ -27,16 +27,17 @@ export class CapsuleCrudService {
   public async loadAllCrudScreens(): Promise<void> {
     const { token, ownerId } = this.getAuth();
 
-    const [memories, beliefs, lessons, valueProfiles, legacyMessages] = await Promise.all([
+    const [memories, beliefs, lessons, valueProfiles, legacyMessages, beneficiaries] = await Promise.all([
       this.api.listCollection('memories', token, ownerId),
       this.api.listCollection('beliefs', token, ownerId),
       this.api.listCollection('lessons', token, ownerId),
       this.api.listCollection('valueProfiles', token, ownerId),
       this.api.listCollection('legacyMessages', token, ownerId),
+      this.api.listCollection('beneficiaries', token, ownerId),
     ]);
 
     this.store.setState({
-      data: { memories, beliefs, lessons, valueProfiles, legacyMessages },
+      data: { memories, beliefs, lessons, valueProfiles, legacyMessages, beneficiaries },
       ui: { error: undefined },
     });
   }

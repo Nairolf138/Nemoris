@@ -1,5 +1,6 @@
 import type {
   AuthContext,
+  Beneficiary,
   Belief,
   Lesson,
   LegacyMessage,
@@ -40,8 +41,33 @@ export interface CapsuleCollections {
   lessons: Lesson[];
   valueProfiles: ValueProfile[];
   legacyMessages: LegacyMessage[];
+  beneficiaries: Beneficiary[];
   narrativeNodes: NarrativeNode[];
   narrativeEdges: NarrativeEdge[];
+}
+
+export type OnboardingStepKey = 'identityContact' | 'messages' | 'documents' | 'beneficiariesRules';
+
+export interface OnboardingDraft {
+  identityContact: {
+    identity: string;
+    channel: Beneficiary['channel'];
+    contact: string;
+    beneficiaryId?: string;
+  };
+  messages: {
+    title: string;
+    message: string;
+    triggerType: LegacyMessage['trigger_type'];
+    legacyMessageId?: string;
+  };
+  documents: {
+    links: Array<{ label: string; url: string; memoryId?: string }>;
+  };
+  beneficiariesRules: {
+    beneficiaries: Array<{ identity: string; channel: Beneficiary['channel']; contact: string; beneficiaryId?: string }>;
+    minimumBeneficiaries: number;
+  };
 }
 
 export type CollectionName = keyof CapsuleCollections;

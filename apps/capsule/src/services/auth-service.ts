@@ -13,8 +13,8 @@ export class FrontAuthService {
   public async register(email: string, password: string): Promise<void> {
     const auth = await this.api.register(email, password);
     this.sessionManager.saveSession(auth);
-    this.sessionManager.markOnboardingComplete();
-    this.store.setState({ session: auth, onboardingCompleted: true, ui: { error: undefined } });
+    this.sessionManager.clearOnboardingCompletion();
+    this.store.setState({ session: auth, onboardingCompleted: false, ui: { error: undefined } });
   }
 
   public async login(email: string, password: string): Promise<void> {
@@ -37,6 +37,7 @@ export class FrontAuthService {
         lessons: [],
         valueProfiles: [],
         legacyMessages: [],
+        beneficiaries: [],
         narrativeNodes: [],
         narrativeEdges: [],
       },
