@@ -73,6 +73,17 @@ Chaque phase doit être validée explicitement sur le triptyque :
 - [ ] Validation sécurité signée.
 - [ ] Validation ops signée.
 
+
+## Gate conformité obligatoire (beta/public)
+
+Avant toute ouverture **beta** ou **public**, la validation conformité est bloquante:
+- [ ] Revue juridique FR/UE effectuée (`docs/compliance/legal-fr-eu-mvp.md`).
+- [ ] Plan DPIA (AIPD) complété et validé (`docs/compliance/dpia-plan.md`).
+- [ ] Registre des traitements MVP à jour (`docs/compliance/registre-traitements-mvp.md`).
+- [ ] Limites d'accès héritiers et mécanismes de consentement/directives validés en comité Legal + Security + Ops.
+
+> Sans ce gate conformité, la release est **No-Go** même si les autres checks sont au vert.
+
 ## Go / No-Go final release
 
 - [ ] CI complète au vert (typecheck, tests, checks docs contractuelles).

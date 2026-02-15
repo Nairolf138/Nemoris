@@ -44,6 +44,22 @@ Référence canonique : `docs/product-capsule/scope-fonctionnel.md`.
 
 La vision cognitive reste une trajectoire **secondaire** à long terme, séparée de l’entrée produit capsule familiale transmissible. Les éléments de cette piste sont marqués **[Recherche]** ou **[Prévu plus tard]** dans leur documentation dédiée : `docs/vision-cognitive/VISION.md`.
 
+
+## Avertissement légal
+
+Nemoris est un service numérique d'organisation et de transmission d'informations à ses proches.
+Le service n'est pas un cabinet juridique et ne fournit pas de conseil juridique individualisé.
+La conformité (RGPD, règles post-mortem en droit français, obligations contractuelles) dépend du contexte réel d'usage et doit être validée avec les parties compétentes (legal/DPO/conseil).
+
+## Ce que le service ne remplace pas
+
+- Un **testament notarié** ou un acte juridique authentique.
+- Un conseil d'avocat, de notaire ou de professionnel habilité.
+- Les procédures légales/successorales applicables en cas de décès.
+- Les décisions des autorités compétentes et juridictions.
+
+Le service peut compléter la préparation personnelle et documentaire, mais ne se substitue pas aux instruments juridiques formels.
+
 ## Documents de référence
 
 - `docs/Capsule_Numerique_*` — ensemble des livrables de référence capsule (business, marché, finance, sécurité, UX/UI).
