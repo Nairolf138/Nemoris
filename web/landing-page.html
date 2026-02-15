@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Nemoris — Infrastructure d'identité cognitive augmentée</title>
+  <title>Nemoris — Préparez et transmettez vos souvenirs à vos proches</title>
   <style>
     :root {
       --bg: #0b1020;
@@ -49,6 +49,7 @@
     h3 { margin: 0 0 8px; font-size: 1.05rem; }
     ul { margin: 0; padding-left: 18px; color: #d8defe; }
     .pill { display:inline-block; border:1px solid #4c5f9f; color:#d5ddff; padding:4px 10px; border-radius:999px; margin:3px 6px 3px 0; font-size:.86rem; }
+    .secondary-title { color: #c4ccff; font-size: 1.1rem; }
     footer { margin-top: 36px; color: var(--muted); font-size: .95rem; }
   </style>
 </head>
@@ -56,26 +57,34 @@
   <main class="container">
     <header class="hero">
       <h1>Nemoris</h1>
-      <p class="subtitle"><strong>De la capsule numérique à l'identité cognitive augmentée.</strong> Nemoris ne stocke pas seulement des souvenirs : il structure une trajectoire humaine (convictions, erreurs, valeurs, narration de vie) pour une transmission volontaire et responsable.</p>
-      <a class="cta" href="#modules">Voir les modules MVP</a>
+      <p class="subtitle"><strong>Préparez et transmettez vos souvenirs et messages à vos proches.</strong> Nemoris vous aide à organiser votre capsule familiale pour laisser des repères clairs, utiles et faciles à retrouver au bon moment.</p>
+      <a class="cta" href="#inscription">Créer ma capsule familiale</a>
     </header>
 
     <section>
-      <h2>Pourquoi c’est différent</h2>
-      <div class="card">
-        <p>Les systèmes classiques conservent des traces. Nemoris conserve aussi le sens : pourquoi une décision a été prise, ce qui a changé une conviction, quelles leçons peuvent éviter la répétition d’erreurs générationnelles.</p>
+      <h2>Pourquoi les familles choisissent Nemoris</h2>
+      <div class="grid">
+        <article class="card">
+          <h3>Tranquillité d’esprit</h3>
+          <p>Vous rassemblez en un seul endroit les souvenirs, documents et messages qui comptent pour éviter les oublis ou les zones d’ombre.</p>
+        </article>
+        <article class="card">
+          <h3>Transmission claire</h3>
+          <p>Vos proches comprennent le contexte, les choix et les leçons importantes, sans devoir reconstituer l’histoire après coup.</p>
+        </article>
+        <article class="card">
+          <h3>Contrôle des destinataires</h3>
+          <p>Vous choisissez précisément qui peut accéder à quoi, et vous pouvez ajuster ces accès quand vous le souhaitez.</p>
+        </article>
       </div>
     </section>
 
-    <section id="modules">
-      <h2>Les 6 modules fondateurs</h2>
+    <section>
+      <h2>Ce que vous pouvez préparer dans votre capsule</h2>
       <div class="grid">
-        <article class="card"><h3>1. Mémoire de vie</h3><ul><li>Timeline personnelle</li><li>Médias et documents</li><li>Périodes de vie</li></ul></article>
-        <article class="card"><h3>2. Évolution des convictions</h3><ul><li>Versions dans le temps</li><li>Déclencheurs de bascule</li><li>Vue avant / après</li></ul></article>
-        <article class="card"><h3>3. Erreurs & leçons</h3><ul><li>Contexte et décision</li><li>Conséquences réelles</li><li>Leçons transmissibles</li></ul></article>
-        <article class="card"><h3>4. Valeurs par âge</h3><ul><li>Top valeurs par période</li><li>Cohérence perçue</li><li>Comparaison chronologique</li></ul></article>
-        <article class="card"><h3>5. Graphe narratif</h3><ul><li>Nœuds de vie clés</li><li>Liens causaux</li><li>Visualisation interactive</li></ul></article>
-        <article class="card"><h3>6. Transmission volontaire</h3><ul><li>Messages post-mortem</li><li>Déclencheurs paramétrés</li><li>Accès révisables</li></ul></article>
+        <article class="card"><h3>Souvenirs structurés</h3><ul><li>Moments de vie importants</li><li>Médias et documents</li><li>Repères chronologiques</li></ul></article>
+        <article class="card"><h3>Messages pour vos proches</h3><ul><li>Messages personnels</li><li>Intentions et conseils</li><li>Informations utiles</li></ul></article>
+        <article class="card"><h3>Valeurs et leçons de vie</h3><ul><li>Convictions marquantes</li><li>Décisions importantes</li><li>Leçons transmissibles</li></ul></article>
       </div>
     </section>
 
@@ -86,20 +95,28 @@
         <span class="pill">Révocabilité</span>
         <span class="pill">Granularité des accès</span>
         <span class="pill">Chiffrement & audit</span>
-        <span class="pill">Interopérabilité</span>
-        <p style="margin-top:12px;">Sans gouvernance solide, pas d’infrastructure légitime. Nemoris place la souveraineté utilisateur au centre du système.</p>
+        <span class="pill">Exportable (PDF/JSON)</span>
+        <p style="margin-top:12px;">Nemoris suit la piste Capsule : une solution concrète, maîtrisée et centrée sur une transmission familiale claire.</p>
+      </div>
+    </section>
+
+    <section id="inscription">
+      <div class="card">
+        <h2>Prêt à démarrer votre capsule familiale ?</h2>
+        <p>Inscrivez-vous pour commencer à préparer vos souvenirs et vos messages, avec un cadre simple et maîtrisé pour vos proches.</p>
+        <a class="cta" href="#">Créer ma capsule familiale</a>
       </div>
     </section>
 
     <section>
-      <h2>Ambition civilisationnelle</h2>
+      <h2 class="secondary-title">Notre vision long terme</h2>
       <div class="card">
-        <p>Nemoris vise une infrastructure de continuité cognitive : utile à la personne, à la famille et à la société (recherche anonymisée, apprentissage historique, responsabilité biographique).</p>
+        <p>À plus long terme, Nemoris explore des usages élargis autour de la mémoire et de la continuité narrative. Cette vision reste séparée du périmètre Capsule v1, pour garder un produit utile et livrable dès maintenant.</p>
       </div>
     </section>
 
     <footer>
-      Nemoris — Infrastructure de mémoire active et de transmission intergénérationnelle.
+      Nemoris — Capsule numérique pour la transmission familiale.
     </footer>
   </main>
 </body>
