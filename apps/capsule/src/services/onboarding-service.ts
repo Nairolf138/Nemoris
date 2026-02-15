@@ -4,7 +4,7 @@ import type { ExternalAttachmentPreview, OnboardingDraft, OnboardingStepKey } fr
 import type { SessionManager } from '../session.js';
 import type { CapsuleStore } from '../state.js';
 
-const STEP_ORDER: OnboardingStepKey[] = ['identityContact', 'messages', 'documents', 'beneficiariesRules'];
+export const ONBOARDING_STEP_ORDER: OnboardingStepKey[] = ['identityContact', 'messages', 'documents', 'beneficiariesRules'];
 
 const ALLOWED_ATTACHMENT_TYPES: ExternalAttachment['type'][] = ['document', 'image', 'video', 'audio', 'link'];
 
@@ -89,10 +89,10 @@ export class OnboardingService {
 
   public goToStep(step: OnboardingStepKey): OnboardingStepKey {
     const state = this.store.getState();
-    const targetIndex = STEP_ORDER.indexOf(step);
-    const maxReachable = Math.min(state.completedSteps.length + 1, STEP_ORDER.length - 1);
+    const targetIndex = ONBOARDING_STEP_ORDER.indexOf(step);
+    const maxReachable = Math.min(state.completedSteps.length + 1, ONBOARDING_STEP_ORDER.length - 1);
     if (targetIndex > maxReachable) {
-      return STEP_ORDER[maxReachable] ?? 'identityContact';
+      return ONBOARDING_STEP_ORDER[maxReachable] ?? 'identityContact';
     }
 
     this.store.setState({ onboardingStep: step });
@@ -102,8 +102,8 @@ export class OnboardingService {
 
   public goPrevious(): OnboardingStepKey {
     const current = this.store.getState().onboardingStep;
-    const index = STEP_ORDER.indexOf(current);
-    const previous = STEP_ORDER[Math.max(0, index - 1)] ?? 'identityContact';
+    const index = ONBOARDING_STEP_ORDER.indexOf(current);
+    const previous = ONBOARDING_STEP_ORDER[Math.max(0, index - 1)] ?? 'identityContact';
     this.store.setState({ onboardingStep: previous });
     this.persistProgress();
     return previous;
@@ -291,7 +291,7 @@ export class OnboardingService {
           minimumBeneficiaries: input.minimumBeneficiaries,
         },
       },
-      completedSteps: STEP_ORDER,
+      completedSteps: ONBOARDING_STEP_ORDER,
       onboardingCompleted: true,
       data: {
         beneficiaries: [

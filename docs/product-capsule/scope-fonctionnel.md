@@ -35,6 +35,16 @@ Inventaire établi depuis :
 | Workflows juridiques complets | Produit (non exposé) | **[Prévu plus tard]** | Non communiqué v1 | Parcours notarial intégré, conformité automatisée complète. |
 | IA conversationnelle/génération avancée | Produit (non exposé) | **[Prévu plus tard]** | Non communiqué v1 | Hors capsule v1. |
 
+
+## Phasage produit (communication et delivery)
+
+Le scope MVP reste techniquement disponible côté API/app, mais le **phasage d'exposition produit** suit désormais cet ordre:
+
+1. **Phase 1 — Capsule simple**: onboarding 4 étapes, messages, documents, bénéficiaires/règles et résumé capsule exportable.
+2. **Phase 2 — Leçons**: activation progressive du module `lessons` pour enrichir la transmission familiale.
+3. **Phase 3 — Convictions et valeurs**: activation de `beliefs` puis `value_profiles` dans l'expérience avancée.
+4. **Phase 4 — Graphe narratif**: montée en puissance de `narrative_nodes`/`narrative_edges` vers une expérience de graphe plus riche.
+
 ## Definition of Done (DoD)
 
 Le MVP est **Done** quand un utilisateur peut, de bout en bout :
@@ -70,3 +80,4 @@ Le MVP est **Done** quand un utilisateur peut, de bout en bout :
 | 2026-02-15 | Product + Tech | Harmonisation du scope avec les surfaces réellement exposées: legacy messages, beneficiaries, narrative nodes/edges, consent scopes passent explicitement **In scope v1**. |
 | 2026-02-15 | Product + Tech | Le hors-scope est recentré sur l’automatisation avancée, les workflows juridiques complets et l’IA avancée. |
 | 2026-02-16 | Product + Tech | Arbitrage explicite **[Disponible maintenant]** vs **[Prévu plus tard]** pour toutes les surfaces issues de `app.ts` et `entities.ts`, avec marquage **non promue publiquement** des features techniques (observability, export audit, delivery attempts, versions). |
+| 2026-02-16 | Product + Tech | Clarification du phasage d'exposition: Phase 1 capsule simple, puis leçons, puis convictions/valeurs, puis graphe narratif. |
