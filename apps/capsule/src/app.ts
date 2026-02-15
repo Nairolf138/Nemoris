@@ -1,4 +1,4 @@
-import { renderExportPdf, type CapsuleExportPayloadV1, type ExportTransmissionRule } from '@capsule/export';
+import { renderExportPdf, type CapsuleExportPayloadV1, type ExportFamilyDossier, type ExportTransmissionRule } from '@capsule/export';
 import { CapsuleApiClient } from './api-client.js';
 import { CapsuleApiError } from './errors.js';
 import type { CapsuleSummaryData, CapsuleSummaryPdfExport, CapsuleSummaryPrintMode } from './models/contracts.js';
@@ -32,6 +32,56 @@ const buildTransmissionRules = (legacyMessages: CapsuleExportPayloadV1['legacy_m
   });
 };
 
+
+
+const buildFamilyDossier = (payload: {
+  lessons: CapsuleExportPayloadV1['lessons'];
+  memories: CapsuleExportPayloadV1['memories'];
+  legacyMessages: CapsuleExportPayloadV1['legacy_messages'];
+  beneficiaries: CapsuleExportPayloadV1['beneficiaries'];
+  transmissionRules: ExportTransmissionRule[];
+}): ExportFamilyDossier => {
+  const beneficiaryById = new Map(payload.beneficiaries.map((beneficiary) => [beneficiary.id, beneficiary]));
+  return {
+    practical_instructions: payload.lessons.map((lesson) => ({
+      lesson_id: lesson.id,
+      title: lesson.title,
+      instruction: lesson.lesson_text,
+      severity: lesson.severity,
+    })),
+    reportable_accounts: payload.memories
+      .filter((memory) => memory.memory_type === 'document' || memory.memory_type === 'media')
+      .map((memory) => ({
+        memory_id: memory.id,
+        label: memory.title,
+        details: memory.description,
+        password_included: false as const,
+      })),
+    messages: payload.legacyMessages.map((message) => ({
+      legacy_message_id: message.id,
+      title: message.title,
+      trigger: message.trigger_type,
+      beneficiaries: message.beneficiary_ids.map((beneficiaryId) => beneficiaryById.get(beneficiaryId)?.identity ?? beneficiaryId),
+    })),
+    documents_links: payload.memories
+      .filter((memory) => memory.memory_type === 'document' || memory.memory_type === 'media')
+      .map((memory) => ({
+        memory_id: memory.id,
+        title: memory.title,
+        reference: memory.description ?? 'Aucune référence explicite',
+      })),
+    beneficiaries_rules: {
+      beneficiaries: payload.beneficiaries.map((beneficiary) => ({
+        beneficiary_id: beneficiary.id,
+        identity: beneficiary.identity,
+        channel: beneficiary.channel,
+        contact: beneficiary.contact,
+        verification_status: beneficiary.verification_status,
+      })),
+      transmission_rules: payload.transmissionRules,
+    },
+  };
+};
 
 const formatUiError = (error: CapsuleApiError): string => {
   if (error.code === 'RECOVERY_SENSITIVE_ACTION_BLOCKED') {
@@ -152,9 +202,11 @@ export const createCapsuleFrontend = (baseUrl: string, storage: SessionStorageLi
       const session = state.session;
       const ownerId = session?.user.id ?? 'unknown-owner';
 
+      const transmission_rules = buildTransmissionRules(state.data.legacyMessages);
+
       const payload: CapsuleExportPayloadV1 = {
         metadata: {
-          schema_version: '1.0.0',
+          schema_version: '1.1.0',
           exported_at: new Date().toISOString(),
           owner_id: ownerId,
           generated_by_user_id: ownerId,
@@ -166,7 +218,14 @@ export const createCapsuleFrontend = (baseUrl: string, storage: SessionStorageLi
         value_profiles: state.data.valueProfiles,
         legacy_messages: state.data.legacyMessages,
         beneficiaries: state.data.beneficiaries,
-        transmission_rules: buildTransmissionRules(state.data.legacyMessages),
+        transmission_rules,
+        family_dossier: buildFamilyDossier({
+          lessons: state.data.lessons,
+          memories: state.data.memories,
+          legacyMessages: state.data.legacyMessages,
+          beneficiaries: state.data.beneficiaries,
+          transmissionRules: transmission_rules,
+        }),
       };
 
       return {
