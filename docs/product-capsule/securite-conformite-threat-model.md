@@ -91,3 +91,28 @@
 - Brancher `security.alert.triggered` sur canal externe (webhook/PagerDuty/Slack).
 - Ajouter métriques explicites de progression de migration (`% sessions key-active`, `% payloads key-active`).
 - Ajouter outillage CLI de rotation (pré-validation keyring, dry-run, rapport de couverture).
+
+## Target architecture
+
+### 1) Chiffrement côté client (zéro connaissance serveur)
+- Les données sensibles sont chiffrées **avant transport** depuis le client (WebCrypto pour web, libsodium pour SDK natifs).
+- Le serveur ne reçoit que des blobs chiffrés + métadonnées minimales (version crypto, `kid`, empreinte de schéma).
+- Les clés privées de déchiffrement restent dans l'environnement utilisateur (device, coffre local, HSM personnel).
+
+### 2) Séparation stricte clés / chiffres
+- **Plan data** : stockage des payloads chiffrés (coffre de contenus).
+- **Plan clés** : service dédié de gestion d'enveloppes de clés (KEK/DEK), isolé logiquement et opérationnellement.
+- Aucun composant unique ne doit pouvoir lire à la fois contenu en clair + clé maître sans étape d'autorisation explicite et auditée.
+
+### 3) Partage de clé héritiers (k-of-n)
+- Le déverrouillage posthume cible un schéma de secret sharing `k-of-n` (ex: Shamir) :
+  - `n` fragments distribués à des héritiers/tiers désignés.
+  - `k` fragments minimaux requis pour reconstituer la clé de déchiffrement posthume.
+- Paramètres gouvernés par politique (minimum `k`, quorum juridique, délais de contestation, révocation d'un détenteur).
+- Toute reconstruction déclenche un workflow d'audit et de notification multi-parties.
+
+### 4) Journal append-only + horodatage externe
+- Tous événements critiques (rotation clés, déverrouillage, export posthume, admin override) sont écrits dans un journal **append-only** immuable.
+- Chaque lot d'événements est chaîné par hash (Merkle ou hash linéaire) pour détecter toute altération.
+- Un horodatage externe périodique (TSA/RFC3161, ancrage blockchain ou service tiers qualifié) fournit une preuve d'antériorité vérifiable.
+- Les preuves d'intégrité (racines de hash + reçus d'horodatage) sont exportables pour audit indépendant.

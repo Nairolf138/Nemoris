@@ -36,3 +36,22 @@ Objectif: fiabiliser **uniquement** les parcours in-scope MVP (auth, CRUD, liens
 - Zéro anomalie P0 ouverte sur les parcours in-scope.
 - Rapport `docs/operations/release-recette-report.md` au statut global **PASS**.
 - Validation Produit + Tech du gel feature jusqu'à clôture hardening.
+
+## Chantiers sécurité priorisés (MVP → cible)
+
+| Priorité | Chantier | Description | Critères de validation |
+| --- | --- | --- | --- |
+| P0 | Chiffrement en transit et au repos | Vérifier TLS strict sur tous les flux externes et couverture du chiffrement applicatif sur tous les objets sensibles in-scope. | 1) Scan de config TLS sans fail critique. 2) Test DB prouvant absence de données sensibles en clair sur tables in-scope. 3) Revue de configuration signée par Tech Lead. |
+| P0 | Contrôles d'accès systématiques | Fermer les écarts d'autorisation (`owner_id`, scopes, routes export/audit/admin). | 1) Suite d'intégration: 100% des endpoints sensibles retournent 403 en cross-account. 2) Aucun endpoint sensible non couvert dans la matrice d'autorisation. |
+| P0 | Robustesse session/auth | Empêcher forge/replay/session fixation, durcir rotation secrets auth. | 1) Tests non-régression forge + replay en PASS. 2) Rotation d'un secret sans interruption de service observée. 3) Journalisation des événements `auth_failed` et `access_denied`. |
+| P1 | Gestion des clés & séparation des rôles | Préparer la séparation logique coffre/chiffres et service de clés (même si partielle au MVP). | 1) Architecture documentée et validée. 2) Matrice des accès clés vs données approuvée. 3) Plan de migration versionné publié. |
+| P1 | Journal append-only & preuves d'intégrité | Structurer un journal inviolable pour actions critiques avec ancrage temporel externe. | 1) Prototype de chaînage hash opérationnel en environnement de test. 2) Vérification de non-altération automatisée. 3) Procédure d'export des preuves documentée. |
+| P1 | Déverrouillage héritiers (k-of-n) | Définir et tester un protocole de partage de clé posthume avec quorum. | 1) Spécification `k-of-n` validée Produit/Tech/Juridique. 2) Test de reconstruction clé en sandbox avec seuil atteint. 3) Cas seuil non atteint => refus + audit. |
+| P2 | Détection & réponse incidents | Industrialiser alerting, runbooks et exercices de réponse sécurité. | 1) Alertes branchées vers canal externe. 2) Runbook incident disponible et testé tabletop. 3) MTTD/MTTR mesurés sur un exercice. |
+
+### Définition de terminé (DoD sécurité)
+
+- Chaque chantier clos possède une **preuve exécutable** (test auto, script de vérification ou rapport reproductible).
+- Chaque preuve est reliée à un ticket et à un artefact d'audit (log, capture, rapport).
+- Aucun chantier P0 sécurité ouvert au moment du go/no-go release.
+
