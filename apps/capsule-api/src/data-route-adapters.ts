@@ -6,6 +6,7 @@ import type {
   CreateLessonInput,
   CreateMemoryInput,
   CreateValueProfileInput,
+  ExternalAttachment,
   LegacyMessage,
   Lesson,
   Memory,
@@ -344,5 +345,29 @@ export const mapUpdateBeneficiaryInput = (body: unknown): Partial<Omit<Beneficia
     contact: asString(payload, 'contact'),
     verification_status: asString(payload, 'verification_status') as Beneficiary['verification_status'],
     status: asString(payload, 'status') as Beneficiary['status'],
+  };
+};
+
+
+export const mapCreateExternalAttachmentInput = (body: unknown, ownerId: string): Omit<ExternalAttachment, 'id' | 'created_at' | 'updated_at'> => {
+  const payload = asRecord(body);
+  return {
+    owner_id: ownerId,
+    visibility: asVisibility(payload, true) as ExternalAttachment['visibility'],
+    label: asString(payload, 'label', true) as string,
+    url: asString(payload, 'url', true) as string,
+    type: asString(payload, 'type', true) as ExternalAttachment['type'],
+    notes: asString(payload, 'notes'),
+  };
+};
+
+export const mapUpdateExternalAttachmentInput = (body: unknown): Partial<Omit<ExternalAttachment, 'id' | 'owner_id' | 'created_at' | 'updated_at'>> => {
+  const payload = asRecord(body);
+  return {
+    visibility: asVisibility(payload),
+    label: asString(payload, 'label'),
+    url: asString(payload, 'url'),
+    type: asString(payload, 'type') as ExternalAttachment['type'],
+    notes: asString(payload, 'notes'),
   };
 };

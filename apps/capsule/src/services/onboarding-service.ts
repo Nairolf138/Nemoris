@@ -1,12 +1,53 @@
 import type { CapsuleApiClient } from '../api-client.js';
-import type { LegacyMessage, Memory } from '@capsule/core';
-import type { OnboardingDraft, OnboardingStepKey } from '../models/contracts.js';
+import type { ExternalAttachment, LegacyMessage } from '@capsule/core';
+import type { ExternalAttachmentPreview, OnboardingDraft, OnboardingStepKey } from '../models/contracts.js';
 import type { SessionManager } from '../session.js';
 import type { CapsuleStore } from '../state.js';
 
 const STEP_ORDER: OnboardingStepKey[] = ['identityContact', 'messages', 'documents', 'beneficiariesRules'];
 
-const ensureHttpLink = (value: string): boolean => /^https?:\/\//.test(value.trim());
+const ALLOWED_ATTACHMENT_TYPES: ExternalAttachment['type'][] = ['document', 'image', 'video', 'audio', 'link'];
+
+const ensureValidUrl = (value: string): boolean => {
+  try {
+    const parsed = new URL(value.trim());
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
+};
+
+const ensureAttachmentType = (value: string): value is ExternalAttachment['type'] => ALLOWED_ATTACHMENT_TYPES.includes(value as ExternalAttachment['type']);
+
+const derivePreview = (url: string, type: ExternalAttachment['type'], label: string): ExternalAttachmentPreview => {
+  const hostname = (() => {
+    try {
+      return new URL(url).hostname;
+    } catch {
+      return undefined;
+    }
+  })();
+  const iconMap: Record<ExternalAttachment['type'], string> = {
+    document: '📄',
+    image: '🖼️',
+    video: '🎬',
+    audio: '🎧',
+    link: '🔗',
+  };
+  const typeLabelMap: Record<ExternalAttachment['type'], string> = {
+    document: 'Document',
+    image: 'Image',
+    video: 'Vidéo',
+    audio: 'Audio',
+    link: 'Lien',
+  };
+
+  return {
+    icon: iconMap[type],
+    typeLabel: typeLabelMap[type],
+    title: label.trim() || hostname,
+  };
+};
 
 export class OnboardingService {
   public constructor(
@@ -154,33 +195,37 @@ export class OnboardingService {
   }
 
   public async saveImportantDocuments(input: OnboardingDraft['documents']): Promise<void> {
-    if (input.links.some((entry) => !entry.label.trim() || !entry.url.trim() || !ensureHttpLink(entry.url))) {
+    if (input.links.some((entry) => !entry.label.trim() || !entry.url.trim() || !ensureValidUrl(entry.url) || !ensureAttachmentType(entry.type))) {
       throw new Error('DOCUMENTS_INVALID');
     }
 
     const { token, ownerId } = this.getAuth();
 
     const savedLinks: OnboardingDraft['documents']['links'] = [];
-    const createdMemories: Memory[] = [];
+    const createdAttachments: ExternalAttachment[] = [];
 
     for (const link of input.links) {
       const payload = {
-        visibility: 'private' as const,
-        occurred_at: new Date().toISOString(),
-        title: link.label.trim(),
-        description: link.url.trim(),
-        memory_type: 'document' as const,
-        related_belief_ids: [],
-        related_lesson_ids: [],
-        related_value_profile_ids: [],
-        related_narrative_node_ids: [],
+        visibility: link.visibility,
+        label: link.label.trim(),
+        url: link.url.trim(),
+        type: link.type,
+        notes: link.notes?.trim() || undefined,
       };
-      const memory = link.memoryId
-        ? await this.api.updateCollectionItem('memories', link.memoryId, token, ownerId, payload)
-        : await this.api.createCollectionItem('memories', token, ownerId, payload);
+      const attachment = link.externalAttachmentId
+        ? await this.api.updateCollectionItem('externalAttachments', link.externalAttachmentId, token, ownerId, payload)
+        : await this.api.createCollectionItem('externalAttachments', token, ownerId, payload);
 
-      savedLinks.push({ label: payload.title, url: payload.description, memoryId: memory.id });
-      createdMemories.push(memory);
+      savedLinks.push({
+        label: payload.label,
+        url: payload.url,
+        type: payload.type,
+        notes: payload.notes,
+        visibility: payload.visibility,
+        externalAttachmentId: attachment.id,
+        preview: derivePreview(payload.url, payload.type, payload.label),
+      });
+      createdAttachments.push(attachment);
     }
 
     const completedSteps = Array.from(new Set([...this.store.getState().completedSteps, 'documents'])) as OnboardingStepKey[];
@@ -192,9 +237,9 @@ export class OnboardingService {
       onboardingStep: 'beneficiariesRules',
       completedSteps,
       data: {
-        memories: [
-          ...this.store.getState().data.memories.filter((entry) => !savedLinks.some((link) => link.memoryId === entry.id)),
-          ...createdMemories,
+        externalAttachments: [
+          ...this.store.getState().data.externalAttachments.filter((entry) => !savedLinks.some((link) => link.externalAttachmentId === entry.id)),
+          ...createdAttachments,
         ],
       },
     });

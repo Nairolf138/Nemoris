@@ -80,7 +80,7 @@ export const createCapsuleFrontend = (baseUrl: string, storage: SessionStorageLi
     },
     getCapsuleSummary(): CapsuleSummaryData {
       const state = store.getState();
-      const { legacyMessages, beneficiaries, memories } = state.data;
+      const { legacyMessages, beneficiaries, memories, externalAttachments } = state.data;
       const session = state.session;
       const beneficiaryById = new Map(beneficiaries.map((entry) => [entry.id, entry]));
 
@@ -95,13 +95,11 @@ export const createCapsuleFrontend = (baseUrl: string, storage: SessionStorageLi
         }),
       );
 
-      const memoryDocumentLinks = memories
-        .filter((memory) => memory.memory_type === 'document' || memory.memory_type === 'media')
-        .map((memory) => ({
-          label: memory.title,
-          sourceMemoryId: memory.id,
-          url: memory.description,
-        }));
+      const memoryDocumentLinks = externalAttachments.map((attachment) => ({
+        label: attachment.label,
+        sourceMemoryId: attachment.id,
+        url: attachment.url,
+      }));
 
       return {
         profile: {

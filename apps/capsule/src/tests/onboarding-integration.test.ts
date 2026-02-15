@@ -84,20 +84,16 @@ export const runOnboardingIntegrationTests = async (): Promise<void> => {
       );
     }
 
-    if (url.endsWith('/memories') && init?.method === 'POST') {
+    if (url.endsWith('/external-attachments') && init?.method === 'POST') {
       return new Response(
         JSON.stringify({
-          id: `memory-${String(body.title).toLowerCase().replace(/\s+/g, '-')}`,
+          id: `att-${String(body.label).toLowerCase().replace(/\s+/g, '-')}`,
           owner_id: 'owner-3',
-          visibility: 'private',
-          occurred_at: body.occurred_at,
-          title: body.title,
-          description: body.description,
-          memory_type: 'document',
-          related_belief_ids: [],
-          related_lesson_ids: [],
-          related_value_profile_ids: [],
-          related_narrative_node_ids: [],
+          visibility: body.visibility ?? 'private',
+          label: body.label,
+          url: body.url,
+          type: body.type,
+          notes: body.notes,
           created_at: '2024-01-01T00:00:00.000Z',
           updated_at: '2024-01-01T00:00:00.000Z',
         }),
@@ -138,7 +134,7 @@ export const runOnboardingIntegrationTests = async (): Promise<void> => {
     await frontend.onboarding.saveMessages({ title: 'Message', message: 'Body', triggerType: 'manual' });
     assert(frontend.store.getState().onboardingStep === 'documents', 'messages step should advance to documents');
 
-    await frontend.onboarding.saveImportantDocuments({ links: [{ label: 'Notaire', url: 'https://notaire.example/doc' }] });
+    await frontend.onboarding.saveImportantDocuments({ links: [{ label: 'Notaire', url: 'https://notaire.example/doc', type: 'document', visibility: 'private' }] });
     assert(frontend.store.getState().onboardingStep === 'beneficiariesRules', 'documents step should advance to beneficiaries and rules');
 
     await frontend.onboarding.saveBeneficiariesAndRules({

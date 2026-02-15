@@ -24,6 +24,7 @@ import {
   type NarrativeNode,
   type Visibility,
   type ConsentScope,
+  type ExternalAttachment,
 } from '@capsule/core';
 import { ExportAggregator } from '@capsule/export';
 import { ObservabilityService } from '@capsule/observability';
@@ -37,6 +38,7 @@ import {
   mapCreateNarrativeEdgeInput,
   mapCreateNarrativeNodeInput,
   mapCreateValueProfileInput,
+  mapCreateExternalAttachmentInput,
   mapUpdateBeliefInput,
   mapUpdateBeneficiaryInput,
   mapUpdateLegacyMessageInput,
@@ -45,6 +47,7 @@ import {
   mapUpdateNarrativeEdgeInput,
   mapUpdateNarrativeNodeInput,
   mapUpdateValueProfileInput,
+  mapUpdateExternalAttachmentInput,
 } from './data-route-adapters.js';
 import type { ExportRepository } from './export-repository.js';
 import { ExportService } from './export-service.js';
@@ -128,6 +131,7 @@ const DATA_COLLECTIONS: readonly DataCollection[] = [
   'beneficiaries',
   'narrative_nodes',
   'narrative_edges',
+  'external_attachments',
 ];
 
 const buildEventMetadata = (
@@ -619,8 +623,11 @@ export class CapsuleApiApp {
       if (route.collection === 'narrative_nodes') {
         return { status: 200, body: await this.persistence.narrativeNodes.listByOwnerPaginated(auth.user.id, { limit: query.limit, offset: query.offset, sortBy: sort, order: query.order }) };
       }
+      if (route.collection === 'narrative_edges') {
+        return { status: 200, body: await this.persistence.narrativeEdges.listByOwnerPaginated(auth.user.id, { limit: query.limit, offset: query.offset, sortBy: sort, order: query.order }) };
+      }
 
-      return { status: 200, body: await this.persistence.narrativeEdges.listByOwnerPaginated(auth.user.id, { limit: query.limit, offset: query.offset, sortBy: sort, order: query.order }) };
+      return { status: 200, body: await this.persistence.externalAttachments.listByOwnerPaginated(auth.user.id, { limit: query.limit, offset: query.offset, sortBy: sort, order: query.order }) };
     }
 
     if (request.method === 'POST' && !route.id) {
@@ -686,14 +693,24 @@ export class CapsuleApiApp {
         return { status: 201, body: await this.persistence.narrativeNodes.create(node) };
       }
 
+      if (route.collection === 'narrative_edges') {
+        const payload = request.body as { visibility?: Visibility } | undefined;
+        if (payload?.visibility === 'posthumous') {
+          await this.assertConsentScope(request, auth.user.id, 'posthumous_visibility');
+        }
+        const input = mapCreateNarrativeEdgeInput(request.body, auth.user.id);
+        await this.validateNarrativeEdgeReferences(auth.user.id, input);
+        const edge: NarrativeEdge = { ...this.createEntityMetadata(auth.user.id, input.visibility), ...input };
+        return { status: 201, body: await this.persistence.narrativeEdges.create(edge) };
+      }
+
       const payload = request.body as { visibility?: Visibility } | undefined;
       if (payload?.visibility === 'posthumous') {
         await this.assertConsentScope(request, auth.user.id, 'posthumous_visibility');
       }
-      const input = mapCreateNarrativeEdgeInput(request.body, auth.user.id);
-      await this.validateNarrativeEdgeReferences(auth.user.id, input);
-      const edge: NarrativeEdge = { ...this.createEntityMetadata(auth.user.id, input.visibility), ...input };
-      return { status: 201, body: await this.persistence.narrativeEdges.create(edge) };
+      const input = mapCreateExternalAttachmentInput(request.body, auth.user.id);
+      const attachment: ExternalAttachment = { ...this.createEntityMetadata(auth.user.id, input.visibility), ...input };
+      return { status: 201, body: await this.persistence.externalAttachments.create(attachment) };
     }
 
     if (request.method === 'PATCH' && route.id) {
@@ -763,28 +780,41 @@ export class CapsuleApiApp {
         return { status: 200, body: updated };
       }
 
-      const existing = await this.persistence.narrativeEdges.getById(route.id);
-      if (!existing) throw new NotFoundError('RESOURCE_NOT_FOUND');
-      if (existing.owner_id !== auth.user.id) throw new ForbiddenError();
-      const patch = mapUpdateNarrativeEdgeInput(request.body);
-      if (patch.visibility === 'posthumous') {
-        await this.assertConsentScope(request, auth.user.id, 'posthumous_visibility');
+      if (route.collection === 'external_attachments') {
+        const existing = await this.persistence.externalAttachments.getById(route.id);
+        if (!existing) throw new NotFoundError('RESOURCE_NOT_FOUND');
+        if (existing.owner_id !== auth.user.id) throw new ForbiddenError();
+        const patch = mapUpdateExternalAttachmentInput(request.body);
+        if (patch.visibility === 'posthumous') {
+          await this.assertConsentScope(request, auth.user.id, 'posthumous_visibility');
+        }
+        const updated = await this.persistence.externalAttachments.update(route.id, { ...patch, updated_at: new Date().toISOString() });
+        return { status: 200, body: updated };
       }
-      const merged: Omit<NarrativeEdge, 'id' | 'owner_id' | 'created_at' | 'updated_at'> = {
-        visibility: patch.visibility ?? existing.visibility,
-        from_node_id: patch.from_node_id ?? existing.from_node_id,
-        to_node_id: patch.to_node_id ?? existing.to_node_id,
-        relation_type: patch.relation_type ?? existing.relation_type,
-        weight: patch.weight ?? existing.weight,
-        evidence_memory_ids: patch.evidence_memory_ids ?? existing.evidence_memory_ids,
-        belief_ids: patch.belief_ids ?? existing.belief_ids,
-        lesson_ids: patch.lesson_ids ?? existing.lesson_ids,
-      };
-      await this.validateNarrativeEdgeReferences(auth.user.id, merged);
-      const updated = await this.persistence.narrativeEdges.update(route.id, { ...patch, updated_at: new Date().toISOString() });
-      return { status: 200, body: updated };
-    }
 
+      if (route.collection === 'narrative_edges') {
+        const existing = await this.persistence.narrativeEdges.getById(route.id);
+        if (!existing) throw new NotFoundError('RESOURCE_NOT_FOUND');
+        if (existing.owner_id !== auth.user.id) throw new ForbiddenError();
+        const patch = mapUpdateNarrativeEdgeInput(request.body);
+        if (patch.visibility === 'posthumous') {
+          await this.assertConsentScope(request, auth.user.id, 'posthumous_visibility');
+        }
+        const merged: Omit<NarrativeEdge, 'id' | 'owner_id' | 'created_at' | 'updated_at'> = {
+          visibility: patch.visibility ?? existing.visibility,
+          from_node_id: patch.from_node_id ?? existing.from_node_id,
+          to_node_id: patch.to_node_id ?? existing.to_node_id,
+          relation_type: patch.relation_type ?? existing.relation_type,
+          weight: patch.weight ?? existing.weight,
+          evidence_memory_ids: patch.evidence_memory_ids ?? existing.evidence_memory_ids,
+          belief_ids: patch.belief_ids ?? existing.belief_ids,
+          lesson_ids: patch.lesson_ids ?? existing.lesson_ids,
+        };
+        await this.validateNarrativeEdgeReferences(auth.user.id, merged);
+        const updated = await this.persistence.narrativeEdges.update(route.id, { ...patch, updated_at: new Date().toISOString() });
+        return { status: 200, body: updated };
+      }
+    }
     if (request.method === 'DELETE' && route.id) {
       let deleted = false;
 
@@ -827,11 +857,16 @@ export class CapsuleApiApp {
         if (!existing) throw new NotFoundError('RESOURCE_NOT_FOUND');
         if (existing.owner_id !== auth.user.id) throw new ForbiddenError();
         deleted = await this.persistence.narrativeNodes.delete(route.id);
-      } else {
+      } else if (route.collection === 'narrative_edges') {
         const existing = await this.persistence.narrativeEdges.getById(route.id);
         if (!existing) throw new NotFoundError('RESOURCE_NOT_FOUND');
         if (existing.owner_id !== auth.user.id) throw new ForbiddenError();
         deleted = await this.persistence.narrativeEdges.delete(route.id);
+      } else {
+        const existing = await this.persistence.externalAttachments.getById(route.id);
+        if (!existing) throw new NotFoundError('RESOURCE_NOT_FOUND');
+        if (existing.owner_id !== auth.user.id) throw new ForbiddenError();
+        deleted = await this.persistence.externalAttachments.delete(route.id);
       }
 
       if (!deleted) {

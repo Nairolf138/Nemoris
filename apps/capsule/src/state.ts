@@ -67,6 +67,7 @@ export class CapsuleStore {
         beneficiaries: [],
         narrativeNodes: [],
         narrativeEdges: [],
+        externalAttachments: [],
       },
       exports: [],
       ui: { status: 'idle', loading: false },

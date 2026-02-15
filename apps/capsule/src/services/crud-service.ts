@@ -3,7 +3,7 @@ import type { CollectionName, CapsuleCollections } from '../models/contracts.js'
 import type { SessionManager } from '../session.js';
 import type { CapsuleStore } from '../state.js';
 
-const CRUD_COLLECTIONS: CollectionName[] = ['memories', 'beliefs', 'lessons', 'valueProfiles', 'legacyMessages', 'beneficiaries'];
+const CRUD_COLLECTIONS: CollectionName[] = ['memories', 'beliefs', 'lessons', 'valueProfiles', 'legacyMessages', 'beneficiaries', 'externalAttachments'];
 
 export class CapsuleCrudService {
   public constructor(
@@ -27,17 +27,18 @@ export class CapsuleCrudService {
   public async loadAllCrudScreens(): Promise<void> {
     const { token, ownerId } = this.getAuth();
 
-    const [memories, beliefs, lessons, valueProfiles, legacyMessages, beneficiaries] = await Promise.all([
+    const [memories, beliefs, lessons, valueProfiles, legacyMessages, beneficiaries, externalAttachments] = await Promise.all([
       this.api.listCollection('memories', token, ownerId),
       this.api.listCollection('beliefs', token, ownerId),
       this.api.listCollection('lessons', token, ownerId),
       this.api.listCollection('valueProfiles', token, ownerId),
       this.api.listCollection('legacyMessages', token, ownerId),
       this.api.listCollection('beneficiaries', token, ownerId),
+      this.api.listCollection('externalAttachments', token, ownerId),
     ]);
 
     this.store.setState({
-      data: { memories, beliefs, lessons, valueProfiles, legacyMessages, beneficiaries },
+      data: { memories, beliefs, lessons, valueProfiles, legacyMessages, beneficiaries, externalAttachments },
       ui: { error: undefined },
     });
   }

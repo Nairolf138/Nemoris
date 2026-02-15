@@ -4,6 +4,7 @@ import type {
   Belief,
   ConsentRecord,
   ConsentScope,
+  ExternalAttachment,
   LegacyMessage,
   LegacyMessageDeliveryAttempt,
   Lesson,
@@ -17,6 +18,7 @@ import type {
   BeliefRepository,
   CapsulePersistence,
   ConsentRepository,
+  ExternalAttachmentRepository,
   LegacyMessageDeliveryAttemptRepository,
   LegacyMessageRepository,
   LessonRepository,
@@ -233,6 +235,7 @@ export class SqliteConsentRepository implements ConsentRepository {
 
 export class SqliteNarrativeNodeRepository extends SqliteEntityStore<NarrativeNode> implements NarrativeNodeRepository {}
 export class SqliteNarrativeEdgeRepository extends SqliteEntityStore<NarrativeEdge> implements NarrativeEdgeRepository {}
+export class SqliteExternalAttachmentRepository extends SqliteEntityStore<ExternalAttachment> implements ExternalAttachmentRepository {}
 
 const setupSchema = (dbPath: string): void => {
   runSql(dbPath, `
@@ -245,6 +248,7 @@ const setupSchema = (dbPath: string): void => {
     CREATE TABLE IF NOT EXISTS legacy_message_delivery_attempts (id TEXT PRIMARY KEY, legacy_message_id TEXT NOT NULL, owner_id TEXT NOT NULL, attempted_at TEXT NOT NULL, payload TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS narrative_nodes (id TEXT PRIMARY KEY, owner_id TEXT NOT NULL, payload TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS narrative_edges (id TEXT PRIMARY KEY, owner_id TEXT NOT NULL, payload TEXT NOT NULL);
+    CREATE TABLE IF NOT EXISTS external_attachments (id TEXT PRIMARY KEY, owner_id TEXT NOT NULL, payload TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS consent_records (id TEXT PRIMARY KEY, owner_id TEXT NOT NULL, scope TEXT NOT NULL, status TEXT NOT NULL, granted_at TEXT NOT NULL, revoked_at TEXT, legal_basis TEXT NOT NULL, payload TEXT NOT NULL);
 
     CREATE INDEX IF NOT EXISTS idx_memories_owner ON memories(owner_id);
@@ -256,6 +260,7 @@ const setupSchema = (dbPath: string): void => {
     CREATE INDEX IF NOT EXISTS idx_legacy_message_delivery_attempts_message ON legacy_message_delivery_attempts(legacy_message_id);
     CREATE INDEX IF NOT EXISTS idx_narrative_nodes_owner ON narrative_nodes(owner_id);
     CREATE INDEX IF NOT EXISTS idx_narrative_edges_owner ON narrative_edges(owner_id);
+    CREATE INDEX IF NOT EXISTS idx_external_attachments_owner ON external_attachments(owner_id);
     CREATE INDEX IF NOT EXISTS idx_consent_records_owner_scope ON consent_records(owner_id, scope);
   `);
 };
@@ -272,6 +277,7 @@ export const createSqlitePersistence = (path: string): CapsulePersistence => {
     legacyMessageDeliveryAttempts: new SqliteLegacyMessageDeliveryAttemptRepository(path),
     narrativeNodes: new SqliteNarrativeNodeRepository(path, 'narrative_nodes'),
     narrativeEdges: new SqliteNarrativeEdgeRepository(path, 'narrative_edges'),
+    externalAttachments: new SqliteExternalAttachmentRepository(path, 'external_attachments'),
     consents: new SqliteConsentRepository(path),
   };
 };

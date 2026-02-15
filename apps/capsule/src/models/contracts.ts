@@ -2,6 +2,7 @@ import type {
   AuthContext,
   Beneficiary,
   Belief,
+  ExternalAttachment,
   Lesson,
   LegacyMessage,
   Memory,
@@ -44,6 +45,7 @@ export interface CapsuleCollections {
   beneficiaries: Beneficiary[];
   narrativeNodes: NarrativeNode[];
   narrativeEdges: NarrativeEdge[];
+  externalAttachments: ExternalAttachment[];
 }
 
 export type OnboardingStepKey = 'identityContact' | 'messages' | 'documents' | 'beneficiariesRules';
@@ -62,7 +64,15 @@ export interface OnboardingDraft {
     legacyMessageId?: string;
   };
   documents: {
-    links: Array<{ label: string; url: string; memoryId?: string }>;
+    links: Array<{
+      label: string;
+      url: string;
+      type: ExternalAttachment['type'];
+      notes?: string;
+      visibility: ExternalAttachment['visibility'];
+      externalAttachmentId?: string;
+      preview?: ExternalAttachmentPreview;
+    }>;
   };
   beneficiariesRules: {
     beneficiaries: Array<{ identity: string; channel: Beneficiary['channel']; contact: string; beneficiaryId?: string }>;
@@ -71,6 +81,12 @@ export interface OnboardingDraft {
 }
 
 export type CollectionName = keyof CapsuleCollections;
+
+export interface ExternalAttachmentPreview {
+  icon: string;
+  typeLabel: string;
+  title?: string;
+}
 
 export interface CapsuleSummaryDocumentLink {
   label: string;
