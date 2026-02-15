@@ -36,6 +36,7 @@ Vision long terme (séparée) : `docs/vision-cognitive/VISION.md`.
 - `docs/architecture-mvp.md` — architecture cible strictement dans le scope MVP.
 - `docs/product-capsule/ROADMAP.md` — roadmap produit alignée sur le scope canonique.
 - `docs/product-capsule/roadmap-shipping.md` — lots de delivery et gate de scope.
+- `docs/product-capsule/pricing-go-to-market.md` — offre MVP, pricing micro-abonnement et KPI business de lancement.
 - `docs/operations/go-no-go-checklist.md` — checklist Go/No-Go alignée roadmap shipping.
 - `docs/operations/incident-runbook.md` — runbook incident, rollback et restauration.
 - `docs/operations/env-secrets-management.md` — configuration par environnement et secrets.
