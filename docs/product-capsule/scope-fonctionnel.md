@@ -3,33 +3,37 @@
 Ce document est la **source canonique** du périmètre MVP.
 Tout autre document produit/technique doit s’y aligner.
 
-## Inventaire des features réellement exposées
+## Inventaire harmonisé des fonctionnalités réellement exposées
 
 Inventaire établi depuis :
 - `packages/core/src/domain/entities.ts` (modèle métier).
 - `apps/capsule-api/src/app.ts` (surfaces API exposées).
 
-## Matrice canonique — In/Out de scope
+> Règle de classement : toute feature est classée **In scope Capsule v1** ou **Phase suivante**.
+> Les capacités techniques existantes mais non destinées à la communication commerciale v1 sont marquées **non promue publiquement**.
 
-| Feature | Statut | Détail de périmètre v1 |
-| --- | --- | --- |
-| Auth (register/login/logout/refresh) | **In scope v1** | Auth locale + session bearer token. |
-| Memories | **In scope v1** | CRUD via `/data/memories` avec tri/pagination. |
-| Beliefs | **In scope v1** | CRUD via `/data/beliefs`, liens de preuve mémoire. |
-| Lessons | **In scope v1** | CRUD via `/data/lessons`. |
-| Value profiles | **In scope v1** | CRUD via `/data/value_profiles`. |
-| Legacy messages | **In scope v1** | CRUD + orchestration (`arm/trigger/revoke/deliver`) via `/data/legacy_messages` et `/legacy-messages/{id}/...`. |
-| Beneficiaries | **In scope v1** | CRUD via `/data/beneficiaries`, validation statut actif/vérifié pour legacy messages. |
-| Narrative nodes | **In scope v1** | CRUD via `/data/narrative_nodes`, validation références. |
-| Narrative edges | **In scope v1** | CRUD via `/data/narrative_edges`, contraintes de cohérence (`from != to`). |
-| Consent scopes | **In scope v1** | Grant/revoke/history + enforcement des scopes `data_export`, `post_mortem_transmission`, `posthumous_visibility`. |
-| Exports | **In scope v1** | Création + téléchargement + audit export (sous consentement `data_export`). |
-| Observability (audit/dashboard) | **In scope v1** | Endpoints read-only opérationnels. |
-| Recherche avancée | **Phase 2** | Filtres riches, indexation avancée, sémantique. |
-| Graphe narratif interactif avancé | **Phase 2** | Visualisation/édition avancée au-delà du CRUD nodes/edges. |
-| Déclenchement post-mortem automatisé bout-en-bout | **Phase 2** | Automatisation complète événementielle et runbooks de production. |
-| Workflows juridiques complets | **Research** | Parcours notarial intégré, conformité automatisée complète. |
-| IA conversationnelle/génération avancée | **Research** | Hors capsule v1. |
+| Feature | Source code | Classification | Statut de communication | Détail de périmètre |
+| --- | --- | --- | --- | --- |
+| Auth (register/login/logout/refresh) | API | **In scope Capsule v1** | Promue publiquement | `/auth/register`, `/auth/login`, `/auth/logout`, `/auth/refresh`. |
+| Memories | Domaine + API | **In scope Capsule v1** | Promue publiquement | CRUD `/data/memories` (+ tri/pagination). |
+| Beliefs | Domaine + API | **In scope Capsule v1** | Promue publiquement | CRUD `/data/beliefs` + liens de preuves mémoire. |
+| Lessons | Domaine + API | **In scope Capsule v1** | Promue publiquement | CRUD `/data/lessons`. |
+| Value profiles | Domaine + API | **In scope Capsule v1** | Promue publiquement | CRUD `/data/value_profiles`. |
+| Beneficiaries | Domaine + API | **In scope Capsule v1** | Promue publiquement | CRUD `/data/beneficiaries`, validation actif/vérifié pour transmission. |
+| Legacy messages | Domaine + API | **In scope Capsule v1** | Promue publiquement | CRUD `/data/legacy_messages` + orchestration `/legacy-messages/{id}/{arm\|trigger\|revoke\|deliver}`. |
+| Narrative nodes | Domaine + API | **In scope Capsule v1** | Promue publiquement | CRUD `/data/narrative_nodes` avec validation des références. |
+| Narrative edges | Domaine + API | **In scope Capsule v1** | Promue publiquement | CRUD `/data/narrative_edges` avec contraintes de cohérence. |
+| Consent management | Domaine + API | **In scope Capsule v1** | Promue publiquement | `/consent/grant`, `/consent/revoke`, `/consent/history` pour `data_export`, `post_mortem_transmission`, `posthumous_visibility`. |
+| Export utilisateur | API | **In scope Capsule v1** | Promue publiquement | `/exports`, `/exports/{id}/download` sous consentement `data_export`. |
+| Journal d’audit export (`/exports/audit`) | API | **Phase suivante** | **Non promue publiquement** | Capacité technique déjà disponible, réservée au pilotage interne/ops. |
+| Observability audit/dashboard | API | **Phase suivante** | **Non promue publiquement** | Endpoints `/observability/audit` et `/observability/dashboard` conservés comme surface technique. |
+| Historique des tentatives de delivery (`/legacy-messages/{id}/delivery-attempts`) | API | **Phase suivante** | **Non promue publiquement** | Surface technique de suivi opérationnel, pas un argument marketing v1. |
+| Belief versions / Value profile versions | Domaine | **Phase suivante** | **Non promue publiquement** | Entités présentes dans le modèle (`BeliefVersion`, `ValueProfileVersion`) sans surface API publique v1 dédiée. |
+| Recherche avancée | Produit (non exposé) | **Phase suivante** | Non communiqué v1 | Filtres riches, indexation avancée, sémantique. |
+| Graphe narratif interactif avancé | Produit (non exposé) | **Phase suivante** | Non communiqué v1 | Visualisation/édition avancée au-delà du CRUD nodes/edges. |
+| Déclenchement post-mortem automatisé bout-en-bout | Produit (non exposé) | **Phase suivante** | Non communiqué v1 | Automatisation complète événementielle et runbooks production. |
+| Workflows juridiques complets | Produit (non exposé) | **Phase suivante** | Non communiqué v1 | Parcours notarial intégré, conformité automatisée complète. |
+| IA conversationnelle/génération avancée | Produit (non exposé) | **Phase suivante** | Non communiqué v1 | Hors capsule v1. |
 
 ## Definition of Done (DoD)
 
@@ -65,3 +69,4 @@ Le MVP est **Done** quand un utilisateur peut, de bout en bout :
 | 2026-02-12 | Product + Tech | Ce document devient la référence canonique du scope MVP. |
 | 2026-02-15 | Product + Tech | Harmonisation du scope avec les surfaces réellement exposées: legacy messages, beneficiaries, narrative nodes/edges, consent scopes passent explicitement **In scope v1**. |
 | 2026-02-15 | Product + Tech | Le hors-scope est recentré sur l’automatisation avancée, les workflows juridiques complets et l’IA avancée. |
+| 2026-02-16 | Product + Tech | Arbitrage explicite In scope Capsule v1 vs Phase suivante pour toutes les surfaces issues de `app.ts` et `entities.ts`, avec marquage **non promue publiquement** des features techniques (observability, export audit, delivery attempts, versions). |
