@@ -2,29 +2,26 @@
 
 > Document aligné sur la source canonique : `docs/product-capsule/scope-fonctionnel.md`.
 
-## 1) Inventaire des fonctionnalités réellement exposées
+## 1) Inventaire harmonisé des fonctionnalités exposées
 
 Inventaire consolidé depuis le modèle métier (`packages/core/src/domain/entities.ts`) et l’API (`apps/capsule-api/src/app.ts`).
 
-## 2) Matrice In/Out-of-scope
+## 2) Classement In scope Capsule v1 vs Phase suivante
 
-| Feature | Statut | Surface API |
-| --- | --- | --- |
-| Auth (register/login/logout/refresh) | **In scope v1** | `/auth/register`, `/auth/login`, `/auth/logout`, `/auth/refresh` |
-| Memories | **In scope v1** | `/data/memories`, `/data/memories/{id}` |
-| Beliefs | **In scope v1** | `/data/beliefs`, `/data/beliefs/{id}` |
-| Lessons | **In scope v1** | `/data/lessons`, `/data/lessons/{id}` |
-| Value profiles | **In scope v1** | `/data/value_profiles`, `/data/value_profiles/{id}` |
-| Legacy messages | **In scope v1** | `/data/legacy_messages`, `/legacy-messages/{id}/{arm|trigger|revoke|deliver|delivery-attempts}` |
-| Beneficiaries | **In scope v1** | `/data/beneficiaries`, `/data/beneficiaries/{id}` |
-| Narrative nodes | **In scope v1** | `/data/narrative_nodes`, `/data/narrative_nodes/{id}` |
-| Narrative edges | **In scope v1** | `/data/narrative_edges`, `/data/narrative_edges/{id}` |
-| Consent scopes | **In scope v1** | `/consent/grant`, `/consent/revoke`, `/consent/history` |
-| Exports | **In scope v1** | `/exports`, `/exports/{id}/download`, `/exports/audit` |
-| Recherche avancée | **Phase 2** | N/A v1 |
-| Graphe narratif interactif avancé | **Phase 2** | N/A v1 |
-| Workflows juridiques complets | **Research** | N/A v1 |
-| IA complexe | **Research** | N/A v1 |
+| Feature | Surface (code/API) | Classification | Statut public v1 |
+| --- | --- | --- | --- |
+| Auth | `/auth/register`, `/auth/login`, `/auth/logout`, `/auth/refresh` | **In scope Capsule v1** | Promue publiquement |
+| Memories / Beliefs / Lessons / Value profiles | `/data/{memories\|beliefs\|lessons\|value_profiles}` | **In scope Capsule v1** | Promue publiquement |
+| Beneficiaries | `/data/beneficiaries` | **In scope Capsule v1** | Promue publiquement |
+| Legacy messages + orchestration | `/data/legacy_messages`, `/legacy-messages/{id}/{arm\|trigger\|revoke\|deliver}` | **In scope Capsule v1** | Promue publiquement |
+| Narrative nodes / edges | `/data/narrative_nodes`, `/data/narrative_edges` | **In scope Capsule v1** | Promue publiquement |
+| Consent scopes (`data_export`, `post_mortem_transmission`, `posthumous_visibility`) | `/consent/grant`, `/consent/revoke`, `/consent/history` | **In scope Capsule v1** | Promue publiquement |
+| Export utilisateur | `/exports`, `/exports/{id}/download` | **In scope Capsule v1** | Promue publiquement |
+| Audit export | `/exports/audit` | **Phase suivante** | **Non promue publiquement** |
+| Observability (audit/dashboard) | `/observability/audit`, `/observability/dashboard` | **Phase suivante** | **Non promue publiquement** |
+| Delivery attempts legacy message | `/legacy-messages/{id}/delivery-attempts` | **Phase suivante** | **Non promue publiquement** |
+| BeliefVersion / ValueProfileVersion | `entities.ts` uniquement, pas d’endpoint dédié | **Phase suivante** | **Non promue publiquement** |
+| Recherche avancée / graphe avancé / automatisation complète / juridique / IA avancée | Non exposé v1 | **Phase suivante** | Non communiqué v1 |
 
 ## 3) KPI de succès MVP
 
@@ -76,3 +73,4 @@ Le MVP est considéré comme **Done** quand un utilisateur peut, de bout en bout
 | --- | --- | --- |
 | 2026-02-12 | Product + Tech | Harmonisation du périmètre de ce document avec la source canonique MVP. |
 | 2026-02-15 | Product + Tech | Ajout explicite de l’inventaire et du statut des features exposées côté code/API (legacy messages, beneficiaries, narrative nodes/edges, consent scopes). |
+| 2026-02-16 | Product + Tech | Arbitrage officiel : toute feature exposée est classée In scope Capsule v1 ou Phase suivante ; les surfaces techniques existantes mais non packagées commercialement sont marquées **non promue publiquement**. |
