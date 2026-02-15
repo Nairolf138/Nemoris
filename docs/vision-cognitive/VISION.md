@@ -1,6 +1,6 @@
 # Vision cognitive — Nemoris (long terme)
 
-Ce document centralise la vision long terme de Nemoris, séparée du périmètre produit actuellement livré.
+Ce document centralise la vision long terme de Nemoris, séparée du périmètre produit actuellement disponible en production.
 
 ## Ambition long terme
 
@@ -39,13 +39,13 @@ Une initiative issue de cette vision ne passe en phase produit que si tous les c
 
 | Initiative vision | Description synthétique | Statut |
 |---|---|---|
-| Graphe narratif de vie | Représentation dynamique des événements, convictions et bifurcations de parcours. | Phase 2 |
-| Transmission post-mortem augmentée | Transmission contextualisée avec paramètres avancés d'intention et temporalité. | Phase 2 |
-| Journal des convictions | Suivi des évolutions de valeurs et des changements d'arbitrage dans le temps. | Research |
-| Base longitudinale anonymisée | Agrégation consentie pour études sociologiques/psychologiques longitudinales. | Research |
-| Assistant de synthèse biographique | Aide IA à la reformulation des récits et leçons de vie, sous contrôle utilisateur. | Research |
-| Indice prédictif de "qualité de vie" | Scoring automatisé normatif des trajectoires personnelles. | Not in scope |
-| Classement public des "meilleures vies" | Mécanisme comparatif entre personnes fondé sur leurs récits. | Not in scope |
+| Graphe narratif de vie | Représentation dynamique des événements, convictions et bifurcations de parcours. | **[Prévu plus tard]** |
+| Transmission post-mortem augmentée | Transmission contextualisée avec paramètres avancés d'intention et temporalité. | **[Prévu plus tard]** |
+| Journal des convictions | Suivi des évolutions de valeurs et des changements d'arbitrage dans le temps. | **[Recherche]** |
+| Base longitudinale anonymisée | Agrégation consentie pour études sociologiques/psychologiques longitudinales. | **[Recherche]** |
+| Assistant de synthèse biographique | Aide IA à la reformulation des récits et leçons de vie, sous contrôle utilisateur. | **[Recherche]** |
+| Indice prédictif de "qualité de vie" | Scoring automatisé normatif des trajectoires personnelles. | **[Recherche]** (non retenu) |
+| Classement public des "meilleures vies" | Mécanisme comparatif entre personnes fondé sur leurs récits. | **[Recherche]** (non retenu) |
 
 ## Gouvernance de cette vision
 
@@ -55,5 +55,5 @@ Cette vision est un cadre d'exploration, pas un engagement de livraison. Toute �
 
 - Ce document relève exclusivement de la piste **Cognitive R&D**.
 - Le `README.md` principal doit rester centré sur la **Capsule** et ne pas présenter cette vision comme disponible.
-- Toute initiative future doit rester taguée **Phase 2**, **Research** ou **Not in scope**.
+- Toute initiative future doit rester taguée **[Prévu plus tard]** ou **[Recherche]**.
 - En PR, préciser explicitement la piste impactée : **Capsule** ou **Cognitive R&D**.

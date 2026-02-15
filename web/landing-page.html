@@ -50,6 +50,10 @@
     ul { margin: 0; padding-left: 18px; color: #d8defe; }
     .pill { display:inline-block; border:1px solid #4c5f9f; color:#d5ddff; padding:4px 10px; border-radius:999px; margin:3px 6px 3px 0; font-size:.86rem; }
     .secondary-title { color: #c4ccff; font-size: 1.1rem; }
+    .status-pill { display:inline-block; font-size:.78rem; font-weight:700; border-radius:999px; padding:3px 8px; margin-bottom:8px; border:1px solid; }
+    .status-now { color:#8ef6d1; border-color:#2e8b6f; background:rgba(46,139,111,.2); }
+    .status-later { color:#ffe3a3; border-color:#9a7b2a; background:rgba(154,123,42,.2); }
+    .status-research { color:#ffb7d5; border-color:#a14b7b; background:rgba(161,75,123,.2); }
     footer { margin-top: 36px; color: var(--muted); font-size: .95rem; }
   </style>
 </head>
@@ -57,7 +61,7 @@
   <main class="container">
     <header class="hero">
       <h1>Capsule : transmettez l’essentiel à vos proches après votre départ</h1>
-      <p class="subtitle"><strong>Souvenirs, messages, documents : tout est prêt pour une transmission post-mortem familiale claire.</strong> Vous organisez aujourd’hui ce que votre famille recevra demain, sans complexité inutile.</p>
+      <p class="subtitle"><strong>Souvenirs, messages, documents : les fonctionnalités ci-dessous marquées « Disponible maintenant » sont déjà utilisables pour une transmission post-mortem familiale claire.</strong> Vous organisez aujourd’hui ce que votre famille recevra demain, sans complexité inutile.</p>
       <a class="cta" href="#demarrer">Créer ma capsule</a>
     </header>
 
@@ -65,16 +69,16 @@
       <h2>Ce que vous pouvez faire dès maintenant</h2>
       <div class="grid">
         <article class="card">
-          <h3>Créer votre capsule</h3>
+          <span class="status-pill status-now">Disponible maintenant</span><h3>Créer votre capsule</h3>
           <p>Rassemblez en un seul espace vos souvenirs, documents et messages importants pour votre famille.</p>
         </article>
         <article class="card">
-          <h3>Désigner vos proches</h3>
+          <span class="status-pill status-now">Disponible maintenant</span><h3>Désigner vos proches</h3>
           <p>Choisissez les personnes concernées et associez-leur les contenus qui leur sont destinés.</p>
         </article>
         <article class="card">
-          <h3>Contrôler la transmission</h3>
-          <p>Définissez qui reçoit quoi, quand et dans quelles conditions, puis modifiez ces règles à tout moment.</p>
+          <span class="status-pill status-now">Disponible maintenant</span><h3>Contrôler la transmission</h3>
+          <p>Définissez les destinataires et les règles de déclenchement manuel de vos messages, puis modifiez ces réglages à tout moment.</p>
         </article>
       </div>
     </section>
@@ -91,14 +95,14 @@
     <section>
       <h2>Ce que vous pouvez préparer dans votre capsule</h2>
       <div class="grid">
-        <article class="card"><h3>Souvenirs structurés</h3><ul><li>Moments de vie importants</li><li>Médias et documents</li><li>Repères chronologiques</li></ul></article>
-        <article class="card"><h3>Messages pour vos proches</h3><ul><li>Messages personnels</li><li>Intentions et conseils</li><li>Informations utiles</li></ul></article>
-        <article class="card"><h3>Valeurs et leçons de vie</h3><ul><li>Convictions marquantes</li><li>Décisions importantes</li><li>Leçons transmissibles</li></ul></article>
+        <article class="card"><span class="status-pill status-now">Disponible maintenant</span><h3>Souvenirs structurés</h3><ul><li>Moments de vie importants</li><li>Médias et documents</li><li>Repères chronologiques</li></ul></article>
+        <article class="card"><span class="status-pill status-now">Disponible maintenant</span><h3>Messages pour vos proches</h3><ul><li>Messages personnels</li><li>Intentions et conseils</li><li>Informations utiles</li></ul></article>
+        <article class="card"><span class="status-pill status-now">Disponible maintenant</span><h3>Valeurs et leçons de vie</h3><ul><li>Convictions marquantes</li><li>Décisions importantes</li><li>Leçons transmissibles</li></ul></article>
       </div>
     </section>
 
     <section>
-      <h2>Principes de confiance</h2>
+      <h2>Principes de confiance <span class="status-pill status-now">Disponible maintenant</span></h2>
       <div class="card">
         <span class="pill">Consentement explicite</span>
         <span class="pill">Révocabilité</span>
@@ -118,9 +122,9 @@
     </section>
 
     <section>
-      <h2 class="secondary-title">Vision long terme (non livrée aujourd’hui)</h2>
+      <h2 class="secondary-title">Vision long terme <span class="status-pill status-later">Prévu plus tard</span> <span class="status-pill status-research">Recherche</span></h2>
       <div class="card">
-        <p>À terme, Capsule pourra explorer des usages élargis autour de la mémoire familiale et de la continuité narrative. Cette partie n’est pas livrée aujourd’hui : la priorité actuelle est une transmission post-mortem simple, utile et maîtrisée.</p>
+        <p>Capsule explore aussi des pistes futures autour de la mémoire familiale et de la continuité narrative. Ces fonctionnalités ne sont pas livrées aujourd’hui : elles restent soit classées « Prévu plus tard », soit classées « Recherche ». La priorité actuelle reste la transmission post-mortem simple, utile et maîtrisée.</p>
       </div>
     </section>
 

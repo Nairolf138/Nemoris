@@ -11,26 +11,26 @@ Nemoris aide un utilisateur à structurer ses contenus clés pour les rendre cla
 - relier convictions, leçons et valeurs,
 - exporter un corpus lisible et portable.
 
-## Ce qui est livré maintenant
+## Fonctionnalités — Disponibilité
 
 Référence canonique : `docs/product-capsule/scope-fonctionnel.md`.
 
-- Authentification : inscription, connexion, déconnexion, session basique.
-- Modules de contenu : mémoire, convictions, leçons, valeurs.
-- Liens manuels inter-objets.
-- Exports PDF et JSON.
+- **[Disponible maintenant]** Authentification : inscription, connexion, déconnexion, session basique.
+- **[Disponible maintenant]** Modules de contenu : mémoire, convictions, leçons, valeurs.
+- **[Disponible maintenant]** Liens manuels inter-objets.
+- **[Disponible maintenant]** Exports PDF et JSON.
 
-## Ce qui viendra ensuite
+## Fonctionnalités prévues / exploratoires
 
-- Recherche avancée (sémantique/filtres complexes).
-- IA complexe conversationnelle/générative.
-- Workflows juridiques post-mortem complets.
-- Transmission post-mortem automatisée.
-- Graphe narratif interactif avancé.
+- **[Prévu plus tard]** Recherche avancée (sémantique/filtres complexes).
+- **[Recherche]** IA complexe conversationnelle/générative.
+- **[Recherche]** Workflows juridiques post-mortem complets.
+- **[Prévu plus tard]** Transmission post-mortem automatisée.
+- **[Prévu plus tard]** Graphe narratif interactif avancé.
 
 ## Vision cognitive (à long terme)
 
-La vision cognitive reste une trajectoire secondaire à long terme, séparée du scope de livraison actuel : `docs/vision-cognitive/VISION.md`.
+La vision cognitive reste une trajectoire secondaire à long terme, séparée du scope de livraison actuel. Les éléments de cette piste sont marqués **[Recherche]** ou **[Prévu plus tard]** dans leur documentation dédiée : `docs/vision-cognitive/VISION.md`.
 
 ## Documents de référence
 
