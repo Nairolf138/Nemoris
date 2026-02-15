@@ -31,6 +31,7 @@ Toutes les erreurs applicatives renvoient un payload JSON standard :
 - `INVALID_QUERY_PARAMS` : query params invalides (`limit`, `offset`, `sort`, etc.).
 - `OWNER_SCOPE_REQUIRED` : endpoint protégé appelé sans `owner_id` résolu.
 - `DOMAIN_VALIDATION_ERROR` : violation de règle métier provenant du domaine `@capsule/core`.
+- `RECOVERY_PROOF_REQUIRED` : preuves de récupération absentes/insuffisantes.
 
 ### 401 Unauthorized
 - `UNAUTHENTICATED` : token manquant/invalide/expiré.
@@ -40,6 +41,7 @@ Toutes les erreurs applicatives renvoient un payload JSON standard :
 
 ### 403 Forbidden
 - `FORBIDDEN` : utilisateur authentifié mais non autorisé (ex: `owner_id` ≠ utilisateur courant).
+- `RECOVERY_SENSITIVE_ACTION_BLOCKED` : action sensible temporairement bloquée après récupération de compte (détail `sensitive_action_unlocked_at`).
 
 ### 404 Not Found
 - `NOT_FOUND` : route inexistante.

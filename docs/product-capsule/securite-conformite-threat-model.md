@@ -62,6 +62,31 @@
 - **Scénario** : rotation cassant sessions actives ou rendant des payloads illisibles.
 - **Mitigation** : keyring multi-clés + migration lazy sur lecture + stratégie de retrait progressif.
 
+
+## Récupération de compte
+
+### Scénarios pris en charge
+- **Perte d'accès standard** : utilisateur légitime sans session active, récupération avec preuve(s) de possession.
+- **Suspicion de compromission** : récupération déclenchée après signalement de tentative d'accès anormale.
+- **Escalade support** : vérification renforcée quand le canal primaire est indisponible ou ambigu.
+
+### Délais
+- Prise en charge support: objectif < 4h ouvrées.
+- Récupération standard: < 24h ouvrées.
+- Vérification renforcée: 24–72h ouvrées.
+- **Gel de sécurité post-recovery**: blocage temporaire des actions sensibles pendant `CAPSULE_RECOVERY_SENSITIVE_ACTION_DELAY_MS` (30 min par défaut).
+
+### Preuves demandées
+- Au moins un justificatif fort (ticket vérifié, preuve de maîtrise du canal primaire, code de récupération).
+- Au moins un élément contextuel corroborant (activité récente, données de contexte non sensibles).
+- Toute preuve est journalisée et reliée à un ticket support/incident.
+
+### Limitations fonctionnelles
+- Après recovery, les endpoints sensibles retournent `RECOVERY_SENSITIVE_ACTION_BLOCKED` avec `sensitive_action_unlocked_at`.
+- Les contraintes de consentement restent obligatoires (`data_export`, `posthumous_visibility`, etc.).
+- Les demandes sans preuve valide retournent `RECOVERY_PROOF_REQUIRED`.
+- Les événements de récupération sont audités (`auth.recovery.completed`).
+
 ## Recommandations (prochaine itération)
 - Brancher `security.alert.triggered` sur canal externe (webhook/PagerDuty/Slack).
 - Ajouter métriques explicites de progression de migration (`% sessions key-active`, `% payloads key-active`).

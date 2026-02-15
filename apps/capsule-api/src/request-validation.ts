@@ -12,6 +12,13 @@ interface ExportPayload {
   owner_id?: string;
 }
 
+
+export interface RecoveryCompletionPayload {
+  email: string;
+  password: string;
+  proofs: string[];
+}
+
 export interface VaultUploadPayload {
   owner_id: string;
   filename: string;
@@ -148,6 +155,31 @@ export const parseCredentials = (body: unknown): Credentials => {
   return { email, password };
 };
 
+
+
+export const parseRecoveryCompletionPayload = (body: unknown): RecoveryCompletionPayload => {
+  if (!isRecord(body)) {
+    throw new ValidationError('INVALID_PAYLOAD');
+  }
+
+  assertAllowedKeys(body, ['email', 'password', 'proofs']);
+
+  const credentials = parseCredentials({ email: body.email, password: body.password });
+  if (!Array.isArray(body.proofs) || body.proofs.some((entry) => typeof entry !== 'string' || entry.trim().length < 6)) {
+    throw new ValidationError('RECOVERY_PROOF_REQUIRED', { message: 'At least one recovery proof token is required.' });
+  }
+
+  const proofs = [...new Set(body.proofs.map((entry) => entry.trim()))];
+  if (proofs.length === 0) {
+    throw new ValidationError('RECOVERY_PROOF_REQUIRED', { message: 'At least one recovery proof token is required.' });
+  }
+
+  return {
+    email: credentials.email,
+    password: credentials.password,
+    proofs,
+  };
+};
 export const parseExportPayload = (body: unknown): ExportPayload => {
   if (body === undefined || body === null) {
     return { format: 'json' };

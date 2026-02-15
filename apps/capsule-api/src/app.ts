@@ -68,6 +68,7 @@ import {
   parseCredentials,
   parseDataListQuery,
   parseExportPayload,
+  parseRecoveryCompletionPayload,
   parseVaultDownloadQuery,
   parseVaultListQuery,
   parseVaultUploadPayload,
@@ -271,7 +272,11 @@ export class CapsuleApiApp {
   public constructor(dependencies: CapsuleApiAppDependencies = {}) {
     const providers: PersistenceProviders = createPersistenceProviders();
     this.persistence = dependencies.persistence ?? providers.capsulePersistence;
-    this.authService = dependencies.authService ?? new AuthService(providers.authStore, this.securityConfig.sessionTokenSecret);
+    this.authService = dependencies.authService ?? new AuthService(
+      providers.authStore,
+      this.securityConfig.sessionTokenSecret,
+      this.securityConfig.recoverySensitiveActionDelayMs,
+    );
     this.exportAggregator = new ExportAggregator({
       memories: this.persistence.memories,
       beliefs: this.persistence.beliefs,
@@ -330,6 +335,33 @@ export class CapsuleApiApp {
           metadata: buildEventMetadata(request, 'success', Date.now() - requestStartMs),
         });
         return { status: 200, body: auth };
+      }
+
+
+      if (request.method === 'POST' && request.path === '/auth/recovery/complete') {
+        this.enforceAuthRateLimits(request);
+        const recovery = parseRecoveryCompletionPayload(request.body);
+        const auth = await this.authService.completeRecovery(recovery.email, recovery.password);
+        this.observability.emit({
+          event_name: 'auth.recovery.completed',
+          user_id: auth.user.id,
+          entity_id: auth.user.id,
+          metadata: buildEventMetadata(request, 'success', Date.now() - requestStartMs, {
+            proofs_count: recovery.proofs.length,
+            sensitive_action_unlocked_at: auth.user.sensitive_action_unlocked_at,
+          }),
+        });
+        return {
+          status: 200,
+          body: {
+            user: auth.user,
+            session: auth.session,
+            recovery: {
+              proofs_count: recovery.proofs.length,
+              sensitive_actions_blocked_until: auth.user.sensitive_action_unlocked_at,
+            },
+          },
+        };
       }
 
       if (request.method === 'POST' && request.path === '/auth/logout') {
@@ -650,6 +682,7 @@ export class CapsuleApiApp {
       throw new NotFoundError('NOT_FOUND');
     }
 
+    this.assertSensitiveActionAllowed(auth.user, `legacy-message.${route.action}`);
     await this.assertConsentScope(request, auth.user.id, 'post_mortem_transmission');
 
     try {
@@ -1035,6 +1068,8 @@ export class CapsuleApiApp {
       throw new ForbiddenError();
     }
 
+    this.assertSensitiveActionAllowed(auth.user, 'vault.upload');
+
     if (!ALLOWED_VAULT_MIME_TYPES.has(payload.mime)) {
       throw new ValidationError('DOMAIN_VALIDATION_ERROR', { message: 'Unsupported mime type for essential documents vault.' });
     }
@@ -1142,6 +1177,8 @@ export class CapsuleApiApp {
       throw new ForbiddenError();
     }
 
+    this.assertSensitiveActionAllowed(auth.user, 'vault.download');
+
     if (query.purpose === 'data_export') {
       await this.assertConsentScope(request, auth.user.id, 'data_export');
     }
@@ -1173,6 +1210,27 @@ export class CapsuleApiApp {
     };
   }
 
+
+  private assertSensitiveActionAllowed(user: { id: string; sensitive_action_unlocked_at?: string }, action: string): void {
+    if (!user.sensitive_action_unlocked_at) {
+      return;
+    }
+
+    const unlockAtMs = Date.parse(user.sensitive_action_unlocked_at);
+    if (!Number.isFinite(unlockAtMs) || unlockAtMs <= Date.now()) {
+      return;
+    }
+
+    throw new ApiError('RECOVERY_SENSITIVE_ACTION_BLOCKED', 403, {
+      message: 'Action temporairement bloquée après récupération du compte.',
+      details: {
+        action,
+        sensitive_action_unlocked_at: user.sensitive_action_unlocked_at,
+        remaining_delay_ms: unlockAtMs - Date.now(),
+      },
+    });
+  }
+
   private async assertConsentScope(request: RequestLike, userId: string, scope: ConsentScope): Promise<void> {
     const granted = await this.persistence.consents.isGranted(userId, scope);
     if (granted) {
@@ -1197,6 +1255,7 @@ export class CapsuleApiApp {
       throw new AuthError('UNAUTHENTICATED');
     }
     const auth = await this.authService.authenticate(token);
+    this.assertSensitiveActionAllowed(auth.user, 'consent.grant');
     const payload = parseConsentPayload(request.body);
     this.enforceOwnerAccess(request, auth.user.id);
     if (payload.owner_id !== auth.user.id) {
@@ -1226,6 +1285,7 @@ export class CapsuleApiApp {
       throw new AuthError('UNAUTHENTICATED');
     }
     const auth = await this.authService.authenticate(token);
+    this.assertSensitiveActionAllowed(auth.user, 'consent.revoke');
     const payload = parseConsentPayload(request.body);
     this.enforceOwnerAccess(request, auth.user.id);
     if (payload.owner_id !== auth.user.id) {
@@ -1269,6 +1329,7 @@ export class CapsuleApiApp {
     }
 
     const auth = await this.authService.authenticate(token);
+    this.assertSensitiveActionAllowed(auth.user, 'export.generate');
     const exportPayload = parseExportPayload(request.body);
     this.enforceOwnerAccess(request, auth.user.id);
     await this.assertConsentScope(request, auth.user.id, 'data_export');
@@ -1323,6 +1384,7 @@ export class CapsuleApiApp {
     }
 
     const auth = await this.authService.authenticate(token);
+    this.assertSensitiveActionAllowed(auth.user, 'export.download');
     this.enforceOwnerAccess(request, auth.user.id);
     await this.assertConsentScope(request, auth.user.id, 'data_export');
     const exportId = pathWithoutQuery(request.path).replace('/exports/', '').replace('/download', '');
@@ -1358,6 +1420,7 @@ export class CapsuleApiApp {
     }
 
     const auth = await this.authService.authenticate(token);
+    this.assertSensitiveActionAllowed(auth.user, 'export.audit');
     this.enforceOwnerAccess(request, auth.user.id);
     await this.assertConsentScope(request, auth.user.id, 'data_export');
     const entries = this.exportService.listAuditByOwner(auth.user.id);

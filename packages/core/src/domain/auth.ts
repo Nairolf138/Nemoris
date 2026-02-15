@@ -4,6 +4,8 @@ export interface AuthUser {
   password_hash: string;
   created_at: string;
   updated_at: string;
+  recovery_last_completed_at?: string;
+  sensitive_action_unlocked_at?: string;
 }
 
 export interface Session {
@@ -14,6 +16,6 @@ export interface Session {
 }
 
 export interface AuthContext {
-  user: Pick<AuthUser, 'id' | 'email' | 'created_at' | 'updated_at'>;
+  user: Pick<AuthUser, 'id' | 'email' | 'created_at' | 'updated_at' | 'recovery_last_completed_at' | 'sensitive_action_unlocked_at'>;
   session: Session;
 }

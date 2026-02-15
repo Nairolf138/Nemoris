@@ -6,6 +6,7 @@ import type {
   ExportFormat,
   ExportJob,
   RefreshResponse,
+  RecoveryCompletionResponse,
 } from './models/contracts.js';
 
 
@@ -61,6 +62,11 @@ export class CapsuleApiClient {
 
   public login(email: string, password: string): Promise<AuthSessionResponse> {
     return this.request('/auth/login', { method: 'POST', body: { email, password } });
+  }
+
+
+  public completeRecovery(email: string, password: string, proofs: string[]): Promise<RecoveryCompletionResponse> {
+    return this.request('/auth/recovery/complete', { method: 'POST', body: { email, password, proofs } });
   }
 
   public logout(token: string): Promise<void> {

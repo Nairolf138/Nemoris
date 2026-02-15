@@ -32,6 +32,22 @@ const buildTransmissionRules = (legacyMessages: CapsuleExportPayloadV1['legacy_m
   });
 };
 
+
+const formatUiError = (error: CapsuleApiError): string => {
+  if (error.code === 'RECOVERY_SENSITIVE_ACTION_BLOCKED') {
+    const unlockAt = typeof error.details?.sensitive_action_unlocked_at === 'string' ? error.details.sensitive_action_unlocked_at : undefined;
+    return unlockAt
+      ? `Action indisponible après récupération du compte jusqu'au ${unlockAt}.`
+      : 'Action indisponible temporairement après récupération du compte.';
+  }
+
+  if (error.code === 'RECOVERY_PROOF_REQUIRED') {
+    return 'Récupération refusée: une preuve de récupération valide est requise.';
+  }
+
+  return `${error.code}${error.retryAfterMs ? ` (retry in ${error.retryAfterMs}ms)` : ''}`;
+};
+
 export interface FrontendArchitecture {
   store: CapsuleStore;
   apiClient: CapsuleApiClient;
@@ -175,7 +191,7 @@ export const createCapsuleFrontend = (baseUrl: string, storage: SessionStorageLi
           store.setState({
             ui: {
               status: 'error',
-              error: `${error.code}${error.retryAfterMs ? ` (retry in ${error.retryAfterMs}ms)` : ''}`,
+              error: formatUiError(error),
             },
           });
         } else {

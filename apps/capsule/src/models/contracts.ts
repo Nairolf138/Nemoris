@@ -32,6 +32,14 @@ export interface ApiErrorPayload {
 
 export interface AuthSessionResponse extends AuthContext {}
 
+
+export interface RecoveryCompletionResponse extends AuthSessionResponse {
+  recovery: {
+    proofs_count: number;
+    sensitive_actions_blocked_until?: string;
+  };
+}
+
 export interface RefreshResponse {
   session: AuthContext['session'];
 }

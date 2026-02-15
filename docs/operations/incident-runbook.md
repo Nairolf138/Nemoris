@@ -1,5 +1,11 @@
 # Incident runbook (incluant rollback & restauration)
 
+
+## 0. Référence récupération de compte
+
+- Pour tout incident impliquant une perte d'accès, une compromission de session ou une contestation d'identité, appliquer aussi `docs/operations/account-recovery-policy.md`.
+- Le ticket incident doit contenir le lien vers les preuves de récupération et l'horodatage de la fin de gel post-récupération.
+
 ## 1. Détection et qualification
 
 1. Identifier la source d'alerte (monitoring, logs, support).
