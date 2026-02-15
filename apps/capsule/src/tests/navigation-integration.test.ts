@@ -30,16 +30,19 @@ const createMemoryStorage = (): Storage => {
 const runRouteGuardsTest = (): void => {
   assert(getRouteNameByPath('/unknown') === 'dashboard', 'unknown path should fallback to dashboard route');
   assert(
-    resolveRoute('beliefs', { hasSession: false, hasCompletedOnboarding: true }) === appRoutes.login,
+    resolveRoute('beliefs', { hasSession: false, hasCompletedOnboarding: true, onboardingStep: 'identityContact' }) === appRoutes.login,
     'beliefs route should redirect to login when session is missing',
   );
   assert(
-    resolveRoute('lessons', { hasSession: true, hasCompletedOnboarding: false }) === appRoutes.onboarding,
-    'lessons route should redirect to onboarding when onboarding is not complete',
+    resolveRoute('lessons', { hasSession: true, hasCompletedOnboarding: false, onboardingStep: 'documents' }) === appRoutes.onboardingDocuments,
+    'lessons route should redirect to current onboarding step when onboarding is not complete',
   );
 
   const frontend = createCapsuleFrontend('http://localhost:4000', createMemoryStorage());
-  assert(frontend.navigate('dashboard') === appRoutes.onboarding, 'navigate should enforce onboarding before dashboard access');
+  assert(
+    frontend.navigate('dashboard') === appRoutes.onboardingIdentityContact,
+    'navigate should enforce onboarding before dashboard access',
+  );
 
   frontend.store.setState({ onboardingCompleted: true });
   assert(frontend.navigate('dashboard') === appRoutes.login, 'navigate should enforce login after onboarding completion');

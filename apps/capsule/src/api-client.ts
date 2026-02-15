@@ -15,6 +15,7 @@ const collectionPath: Record<CollectionName, string> = {
   lessons: 'lessons',
   valueProfiles: 'value-profiles',
   legacyMessages: 'legacy-messages',
+  beneficiaries: 'beneficiaries',
   narrativeNodes: 'narrative-nodes',
   narrativeEdges: 'narrative-edges',
 };

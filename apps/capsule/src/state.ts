@@ -1,8 +1,11 @@
-import type { AuthSessionResponse, CapsuleCollections, ExportJob } from './models/contracts.js';
+import type { AuthSessionResponse, CapsuleCollections, ExportJob, OnboardingDraft, OnboardingStepKey } from './models/contracts.js';
 
 export interface CapsuleState {
   session: AuthSessionResponse | null;
   onboardingCompleted: boolean;
+  onboardingStep: OnboardingStepKey;
+  onboardingDraft: OnboardingDraft;
+  completedSteps: OnboardingStepKey[];
   data: CapsuleCollections;
   exports: ExportJob[];
   ui: {
@@ -16,6 +19,9 @@ export interface CapsuleState {
 export interface CapsuleStatePatch {
   session?: CapsuleState['session'];
   onboardingCompleted?: boolean;
+  onboardingStep?: CapsuleState['onboardingStep'];
+  onboardingDraft?: Partial<CapsuleState['onboardingDraft']>;
+  completedSteps?: CapsuleState['completedSteps'];
   data?: Partial<CapsuleCollections>;
   exports?: ExportJob[];
   ui?: Partial<CapsuleState['ui']>;
@@ -31,12 +37,34 @@ export class CapsuleStore {
     this.state = {
       session: null,
       onboardingCompleted: false,
+      onboardingStep: 'identityContact',
+      onboardingDraft: {
+        identityContact: {
+          identity: '',
+          channel: 'email',
+          contact: '',
+        },
+        messages: {
+          title: '',
+          message: '',
+          triggerType: 'manual',
+        },
+        documents: {
+          links: [],
+        },
+        beneficiariesRules: {
+          beneficiaries: [],
+          minimumBeneficiaries: 1,
+        },
+      },
+      completedSteps: [],
       data: {
         memories: [],
         beliefs: [],
         lessons: [],
         valueProfiles: [],
         legacyMessages: [],
+        beneficiaries: [],
         narrativeNodes: [],
         narrativeEdges: [],
       },
@@ -57,6 +85,10 @@ export class CapsuleStore {
       ui: {
         ...this.state.ui,
         ...(patch.ui ?? {}),
+      },
+      onboardingDraft: {
+        ...this.state.onboardingDraft,
+        ...(patch.onboardingDraft ?? {}),
       },
       data: {
         ...this.state.data,
