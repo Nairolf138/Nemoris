@@ -2,123 +2,104 @@
 
 > Architecture strictement alignée sur le scope canonique : `docs/product-capsule/scope-fonctionnel.md`.
 
-## Objectif MVP
+## Canon d’architecture MVP
 
-Livrer une première version exploitable permettant à un utilisateur de :
-- s’authentifier,
-- créer et structurer ses contenus (Mémoire, Convictions, Leçons, Valeurs),
-- relier ces contenus,
-- exporter en PDF et JSON.
+Architecture centrée sur une **capsule posthume non-cognitive**.
 
-## Modules applicatifs in scope
+### Tags de scope (canon commun)
+- **[MVP v1]**
+- **[Phase 2]**
+- **[Research]**
+
+## Modules applicatifs [MVP v1]
 
 ### 1) Authentification & session
 
 **Fonctionnalités MVP**
-- Inscription, connexion, déconnexion.
-- Session utilisateur basique.
+- Inscription, connexion, déconnexion, refresh de session.
+- Contrôle d’accès minimal par utilisateur.
 
-**Données clés**
-- `user_id`
-- `email`
-- `password_hash`
-- `session_token`
-- `created_at`, `updated_at`
-
-### 2) Module Mémoire
+### 2) Coffre chiffré (documents/messages)
 
 **Fonctionnalités MVP**
-- CRUD mémoire.
-- Consultation chronologique simple.
+- Stockage de contenus de transmission.
+- CRUD de messages/documents dans le coffre.
+- Protection d’accès et isolation par propriétaire.
 
-**Données clés**
-- `memory_id`
-- `owner_id`
-- `title`, `description`
-- `event_date`, `created_at`, `updated_at`
+**Surfaces clés**
+- `/data/legacy_messages`
 
-### 3) Module Convictions
+### 3) Héritiers / contacts de confiance
 
 **Fonctionnalités MVP**
-- Création et édition de convictions.
-- Liaison optionnelle à des mémoires.
+- CRUD des bénéficiaires.
+- Gestion des statuts actif/vérifié.
 
-**Données clés**
-- `belief_id`
-- `owner_id`
-- `statement`
-- `linked_memory_ids[]`
+**Surfaces clés**
+- `/data/beneficiaries`
 
-### 4) Module Leçons
+### 4) Déclenchement contrôlé posthume
 
 **Fonctionnalités MVP**
-- Ajout, mise à jour, archivage simple.
+- Armement, déclenchement, révocation, remise.
+- Workflow avec signal décès + validation avant remise.
 
-**Données clés**
-- `lesson_id`
-- `owner_id`
-- `context`, `lesson_learned`
-- `is_archived`
+**Surfaces clés**
+- `/legacy-messages/{id}/{arm|trigger|revoke|deliver}`
 
-### 5) Module Valeurs
+### 5) Journalisation / traçabilité
 
 **Fonctionnalités MVP**
-- Définition et priorisation des valeurs.
-- Liaison avec convictions/leçons.
+- Audit des actions critiques.
+- Historique des tentatives de remise.
+- Observabilité minimale pour opérations de transmission.
 
-**Données clés**
-- `value_id`
-- `owner_id`
-- `label`
-- `priority`
-- `linked_belief_ids[]`, `linked_lesson_ids[]`
+**Surfaces clés**
+- `/observability/audit`
+- `/legacy-messages/{id}/delivery-attempts`
+- `/exports/audit`
 
-### 6) Liens inter-objets
-
-**Fonctionnalités MVP**
-- Création manuelle de liens entre objets de domaine.
-- Navigation basique entre éléments liés.
-
-**Données clés**
-- `link_id`
-- `owner_id`
-- `source_type`, `source_id`
-- `target_type`, `target_id`
-- `created_at`
-
-### 7) Export
+### 6) Export / remise sécurisée
 
 **Fonctionnalités MVP**
-- Export PDF lisible.
-- Export JSON structuré.
+- Génération d’export utilisateur.
+- Téléchargement sécurisé et remise aux destinataires autorisés.
 
-**Données clés**
-- `export_id`
-- `owner_id`
-- `format` (`pdf`/`json`)
-- `status`
-- `created_at`
+**Surfaces clés**
+- `/exports`
+- `/exports/{id}/download`
 
-## Capacités transverses minimales
+### 7) Consent management
 
-- Autorisations minimales par utilisateur.
-- Journalisation d’erreurs applicatives.
-- Instrumentation des KPI MVP (onboarding, activité, liens, exports, rétention).
+**Fonctionnalités MVP**
+- Grant/revoke/history pour transmission et export.
 
-## Out of scope (architecture MVP)
+**Surfaces clés**
+- `/consent/grant`, `/consent/revoke`, `/consent/history`
 
-- Recherche avancée sémantique / filtres complexes.
-- IA conversationnelle/générative avancée.
-- Graphe narratif interactif avancé.
-- Transmission post-mortem automatisée.
-- Workflows juridiques post-mortem complets.
+## Capacités hors MVP immédiat
 
-## Definition of Done (rappel)
+### [Phase 2]
+- `memories`, `beliefs`, `lessons`, `value_profiles` (capital personnel structuré, non promu publiquement en v1).
 
-Le MVP est livré quand un utilisateur peut s’authentifier, créer/modifier les quatre types de contenus, les relier et exporter en PDF/JSON sans blocage.
+### [Research]
+- `narrative_nodes`, `narrative_edges`.
+- `BeliefVersion`, `ValueProfileVersion`.
+- Recherche avancée, IA avancée, workflows juridiques complets.
+
+## Definition of Done (DoD) — canon commun
+
+Le MVP est **Done** quand un utilisateur peut, de bout en bout :
+1. s’authentifier,
+2. déposer et gérer un coffre chiffré de documents/messages de transmission,
+3. enregistrer des héritiers/contacts de confiance,
+4. initier un déclenchement posthume contrôlé (signal décès + validation + remise),
+5. disposer d’une traçabilité complète des actions critiques,
+6. exporter et remettre le contenu de façon sécurisée aux destinataires autorisés.
 
 ## Decision log
 
 | Date | Owner | Décision |
 | --- | --- | --- |
-| 2026-02-12 | Product + Tech | Simplification de l’architecture MVP aux seuls modules in scope du document canonique. |
+| 2026-02-12 | Product + Tech | Simplification initiale de l’architecture MVP aux modules canoniques. |
+| 2026-02-17 | Product + Tech | Adoption de l’arbitrage **“MVP posthume non-cognitif”** : architecture recentrée sur coffre/héritiers/déclenchement/audit/remise ; briques cognitives reclassées en **[Phase 2]** et **[Research]**. |
