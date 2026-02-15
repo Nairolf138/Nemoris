@@ -3,81 +3,75 @@
 Ce document est la **source canonique** du périmètre MVP.
 Tout autre document produit/technique doit s’y aligner.
 
-## Inventaire harmonisé des fonctionnalités réellement exposées
+## Canon MVP — posthume non-cognitif
+
+Le MVP v1 est explicitement limité à une **capsule posthume non-cognitive** autour de 5 piliers :
+
+1. **Coffre chiffré** (documents et messages).
+2. **Héritiers / contacts de confiance** (gestion et validation).
+3. **Déclenchement contrôlé** (signal décès + validation avant remise).
+4. **Journalisation / traçabilité** (audit des actions critiques).
+5. **Export / remise sécurisée** (paquet transmis aux destinataires autorisés).
+
+## Inventaire harmonisé des fonctionnalités
 
 Inventaire établi depuis :
 - `packages/core/src/domain/entities.ts` (modèle métier).
 - `apps/capsule-api/src/app.ts` (surfaces API exposées).
 
-> Règle de classement : toute feature est classée **[Disponible maintenant]** ou **[Prévu plus tard]**.
-> Les capacités techniques existantes mais non destinées à la communication commerciale v1 sont marquées **non promue publiquement**.
+> Tags de scope canoniques (à réutiliser dans tous les documents) :
+> - **[MVP v1]**
+> - **[Phase 2]**
+> - **[Research]**
+>
+> Les éléments **[Phase 2]** et **[Research]** sont **non promus publiquement** en communication v1.
 
-| Feature | Source code | Classification | Statut de communication | Détail de périmètre |
+| Feature | Source code | Tag scope | Statut public v1 | Détail de périmètre |
 | --- | --- | --- | --- | --- |
-| Auth (register/login/logout/refresh) | API | **[Disponible maintenant]** | Promue publiquement | `/auth/register`, `/auth/login`, `/auth/logout`, `/auth/refresh`. |
-| Memories | Domaine + API | **[Disponible maintenant]** | Promue publiquement | CRUD `/data/memories` (+ tri/pagination). |
-| Beliefs | Domaine + API | **[Disponible maintenant]** | Promue publiquement | CRUD `/data/beliefs` + liens de preuves mémoire. |
-| Lessons | Domaine + API | **[Disponible maintenant]** | Promue publiquement | CRUD `/data/lessons`. |
-| Value profiles | Domaine + API | **[Disponible maintenant]** | Promue publiquement | CRUD `/data/value_profiles`. |
-| Beneficiaries | Domaine + API | **[Disponible maintenant]** | Promue publiquement | CRUD `/data/beneficiaries`, validation actif/vérifié pour transmission. |
-| Legacy messages | Domaine + API | **[Disponible maintenant]** | Promue publiquement | CRUD `/data/legacy_messages` + orchestration `/legacy-messages/{id}/{arm\|trigger\|revoke\|deliver}`. |
-| Narrative nodes | Domaine + API | **[Disponible maintenant]** | Promue publiquement | CRUD `/data/narrative_nodes` avec validation des références. |
-| Narrative edges | Domaine + API | **[Disponible maintenant]** | Promue publiquement | CRUD `/data/narrative_edges` avec contraintes de cohérence. |
-| Consent management | Domaine + API | **[Disponible maintenant]** | Promue publiquement | `/consent/grant`, `/consent/revoke`, `/consent/history` pour `data_export`, `post_mortem_transmission`, `posthumous_visibility`. |
-| Export utilisateur | API | **[Disponible maintenant]** | Promue publiquement | `/exports`, `/exports/{id}/download` sous consentement `data_export`. |
-| Journal d’audit export (`/exports/audit`) | API | **[Prévu plus tard]** | **Non promue publiquement** | Capacité technique déjà disponible, réservée au pilotage interne/ops. |
-| Observability audit/dashboard | API | **[Prévu plus tard]** | **Non promue publiquement** | Endpoints `/observability/audit` et `/observability/dashboard` conservés comme surface technique. |
-| Historique des tentatives de delivery (`/legacy-messages/{id}/delivery-attempts`) | API | **[Prévu plus tard]** | **Non promue publiquement** | Surface technique de suivi opérationnel, pas un argument marketing v1. |
-| Belief versions / Value profile versions | Domaine | **[Prévu plus tard]** | **Non promue publiquement** | Entités présentes dans le modèle (`BeliefVersion`, `ValueProfileVersion`) sans surface API publique v1 dédiée. |
-| Recherche avancée | Produit (non exposé) | **[Prévu plus tard]** | Non communiqué v1 | Filtres riches, indexation avancée, sémantique. |
-| Graphe narratif interactif avancé | Produit (non exposé) | **[Prévu plus tard]** | Non communiqué v1 | Visualisation/édition avancée au-delà du CRUD nodes/edges. |
-| Déclenchement post-mortem automatisé bout-en-bout | Produit (non exposé) | **[Prévu plus tard]** | Non communiqué v1 | Automatisation complète événementielle et runbooks production. |
-| Workflows juridiques complets | Produit (non exposé) | **[Prévu plus tard]** | Non communiqué v1 | Parcours notarial intégré, conformité automatisée complète. |
-| IA conversationnelle/génération avancée | Produit (non exposé) | **[Prévu plus tard]** | Non communiqué v1 | Hors capsule v1. |
-
+| Auth (register/login/logout/refresh) | API | **[MVP v1]** | Promue publiquement | `/auth/register`, `/auth/login`, `/auth/logout`, `/auth/refresh`. |
+| Coffre chiffré — documents/messages | Domaine + API | **[MVP v1]** | Promue publiquement | Stockage et CRUD de contenus de transmission (`/data/legacy_messages`, documents liés) avec protection d’accès. |
+| Héritiers / contacts de confiance | Domaine + API | **[MVP v1]** | Promue publiquement | CRUD `/data/beneficiaries`, statut actif/vérifié pour remise. |
+| Déclenchement contrôlé | Domaine + API | **[MVP v1]** | Promue publiquement | `/legacy-messages/{id}/{arm\|trigger\|revoke\|deliver}` + validation avant remise effective. |
+| Journalisation / traçabilité | API | **[MVP v1]** | Promue publiquement | Journal d’audit et suivi opérationnel (`/observability/audit`, `/legacy-messages/{id}/delivery-attempts`). |
+| Export / remise sécurisée | API | **[MVP v1]** | Promue publiquement | `/exports`, `/exports/{id}/download`, `/exports/audit` pour paquet de remise. |
+| Consent management | API | **[MVP v1]** | Promue publiquement | `/consent/grant`, `/consent/revoke`, `/consent/history` pour `data_export`, `post_mortem_transmission`, `posthumous_visibility`. |
+| Memories | Domaine + API | **[Phase 2]** | **Non promue publiquement** | CRUD `/data/memories` conservé techniquement, retiré du canon MVP public. |
+| Beliefs | Domaine + API | **[Phase 2]** | **Non promue publiquement** | CRUD `/data/beliefs` et liens de preuves mémoire hors promesse MVP. |
+| Lessons | Domaine + API | **[Phase 2]** | **Non promue publiquement** | CRUD `/data/lessons` hors promesse MVP. |
+| Value profiles | Domaine + API | **[Phase 2]** | **Non promue publiquement** | CRUD `/data/value_profiles` hors promesse MVP. |
+| Narrative nodes | Domaine + API | **[Research]** | **Non promue publiquement** | CRUD `/data/narrative_nodes` réservé exploration produit/UX. |
+| Narrative edges | Domaine + API | **[Research]** | **Non promue publiquement** | CRUD `/data/narrative_edges` réservé exploration produit/UX. |
+| Belief versions / Value profile versions | Domaine | **[Research]** | **Non promue publiquement** | Entités présentes dans le modèle sans engagement produit v1. |
+| Recherche avancée / IA avancée / workflows juridiques complets | Produit (non exposé) | **[Research]** | Non communiqué v1 | Hors capsule v1. |
 
 ## Phasage produit (communication et delivery)
 
-Le scope MVP reste techniquement disponible côté API/app, mais le **phasage d'exposition produit** suit désormais cet ordre:
-
-1. **Phase 1 — Capsule simple**: onboarding 4 étapes, messages, documents, bénéficiaires/règles et résumé capsule exportable.
-2. **Phase 2 — Leçons**: activation progressive du module `lessons` pour enrichir la transmission familiale.
-3. **Phase 3 — Convictions et valeurs**: activation de `beliefs` puis `value_profiles` dans l'expérience avancée.
-4. **Phase 4 — Graphe narratif**: montée en puissance de `narrative_nodes`/`narrative_edges` vers une expérience de graphe plus riche.
+1. **MVP v1 — Capsule posthume non-cognitive** : coffre chiffré, héritiers, déclenchement contrôlé, audit, export/remise.
+2. **Phase 2 — Capital personnel structuré** : `memories`, `beliefs`, `lessons`, `value_profiles` (activation progressive, non promue publiquement avant arbitrage).
+3. **Research — Narratif & cognition** : `narrative_nodes`, `narrative_edges`, versions, recherche/IA avancées.
 
 ## Definition of Done (DoD)
 
 Le MVP est **Done** quand un utilisateur peut, de bout en bout :
 1. s’authentifier,
-2. créer/modifier des contenus (`memories`, `beliefs`, `lessons`, `value_profiles`),
-3. gérer les entités de transmission (`beneficiaries`, `legacy_messages`) et leurs actions d’orchestration,
-4. gérer le graphe narratif basique (`narrative_nodes`, `narrative_edges`),
-5. piloter les consentements (`grant/revoke/history`) et exporter les données sans blocage.
+2. déposer et gérer un coffre chiffré de documents/messages de transmission,
+3. enregistrer des héritiers/contacts de confiance,
+4. initier un déclenchement posthume contrôlé (signal décès + validation + remise),
+5. disposer d’une traçabilité complète des actions critiques,
+6. exporter et remettre le contenu de façon sécurisée aux destinataires autorisés.
 
 ## KPI de succès MVP
 
-- Taux d’onboarding terminé.
-- Nombre moyen d’entrées créées par utilisateur actif (30 jours).
-- Taux de création de liens entre éléments.
-- Taux d’export réussi.
-- Rétention à J+7.
-
-## KPI -> métriques techniques (MVP)
-
-| KPI produit | Métrique technique cible | Source d'instrumentation |
-| --- | --- | --- |
-| Taux d’onboarding terminé | `onboarding_completion_rate` | `onboarding.started`, `onboarding.completed` |
-| Nombre moyen d’entrées créées par utilisateur actif (30 jours) | `entries_per_active_user_30d` | `memory.created`, `belief.created`, `lesson.created`, `value_profile.created` + utilisateurs actifs 30j |
-| Taux de création de liens entre éléments | `link_creation_rate` | `link.created`, `entries_created_total` |
-| Taux d’export réussi | `export_success_rate` | `export.created`, `export.failed` |
-| Rétention à J+7 | `retention_j7_rate` | `retention.weekly`, `onboarding.completed` |
+- Taux de configuration complète d’une capsule posthume.
+- Taux de désignation d’au moins un héritier vérifié.
+- Taux de déclenchements validés sans incident.
+- Taux d’export/remise réussis.
+- Couverture de journalisation des actions critiques.
 
 ## Decision log
 
 | Date | Owner | Décision |
 | --- | --- | --- |
 | 2026-02-12 | Product + Tech | Ce document devient la référence canonique du scope MVP. |
-| 2026-02-15 | Product + Tech | Harmonisation du scope avec les surfaces réellement exposées: legacy messages, beneficiaries, narrative nodes/edges, consent scopes passent explicitement **In scope v1**. |
-| 2026-02-15 | Product + Tech | Le hors-scope est recentré sur l’automatisation avancée, les workflows juridiques complets et l’IA avancée. |
-| 2026-02-16 | Product + Tech | Arbitrage explicite **[Disponible maintenant]** vs **[Prévu plus tard]** pour toutes les surfaces issues de `app.ts` et `entities.ts`, avec marquage **non promue publiquement** des features techniques (observability, export audit, delivery attempts, versions). |
-| 2026-02-16 | Product + Tech | Clarification du phasage d'exposition: Phase 1 capsule simple, puis leçons, puis convictions/valeurs, puis graphe narratif. |
+| 2026-02-16 | Product + Tech | Harmonisation initiale des surfaces API/domaine avec classement disponible vs plus tard. |
+| 2026-02-17 | Product + Tech | **Arbitrage “MVP posthume non-cognitif”** : recentrage canonique sur coffre chiffré, héritiers, déclenchement contrôlé, traçabilité et export/remise sécurisée ; `memories`, `beliefs`, `lessons`, `value_profiles` passent en **[Phase 2]** et `narrative_*` en **[Research]** (non promus publiquement). |
