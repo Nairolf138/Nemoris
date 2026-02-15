@@ -1,5 +1,5 @@
 import { createCapsuleFrontend } from '../app.js';
-import { appRoutes, getRouteNameByPath, resolveRoute } from '../routes.js';
+import { appRoutes, getRouteNameByPath, navigationSections, resolveRoute } from '../routes.js';
 
 const assert = (condition: unknown, message: string): void => {
   if (!condition) {
@@ -29,6 +29,13 @@ const createMemoryStorage = (): Storage => {
 
 const runRouteGuardsTest = (): void => {
   assert(getRouteNameByPath('/unknown') === 'dashboard', 'unknown path should fallback to dashboard route');
+
+  const advancedSection = navigationSections.find((section) => section.title === 'Avancé');
+  assert(Boolean(advancedSection), 'navigation should expose an Avancé section');
+  assert(
+    JSON.stringify(advancedSection?.routes ?? []) === JSON.stringify(['beliefs', 'lessons', 'values']),
+    'Avancé section should contain beliefs, lessons and values routes',
+  );
   assert(
     resolveRoute('beliefs', { hasSession: false, hasCompletedOnboarding: true, onboardingStep: 'identityContact' }) === appRoutes.login,
     'beliefs route should redirect to login when session is missing',
@@ -118,6 +125,18 @@ const runRouteGuardsTest = (): void => {
   assert(summary.messages.length === 1, 'summary should include existing messages');
   assert(summary.documentLinks.length >= 1, 'summary should include document links');
   assert(summary.triggerRules[0]?.beneficiaries[0]?.identity === 'Alex', 'summary should resolve beneficiaries in trigger rules');
+
+  frontend.store.setState({
+    data: {
+      beliefs: [],
+      lessons: [],
+      valueProfiles: [],
+    },
+  });
+
+  const summaryWithoutCognitiveData = frontend.getCapsuleSummary();
+  assert(summaryWithoutCognitiveData.messages.length === 1, 'summary should remain available without cognitive data');
+  assert(summaryWithoutCognitiveData.beneficiaries.length === 1, 'summary beneficiaries should not depend on cognitive data');
 
   const printMode = frontend.getCapsuleSummaryPrintMode();
   assert(printMode.route === appRoutes.capsuleSummary, 'print mode should target capsule summary route');

@@ -22,9 +22,17 @@ Référence canonique : `docs/product-capsule/scope-fonctionnel.md`.
 - **[Disponible maintenant]** Authentification : inscription, connexion, déconnexion, session basique.
 - **[Disponible maintenant]** Capsule familiale : messages transmissibles, documents de référence et instructions destinées aux proches.
 - **[Disponible maintenant]** Bénéficiaires : création, association des contenus et pilotage des destinataires.
-- **[Disponible maintenant]** Modules de structuration (mémoire, convictions, leçons, valeurs) pour enrichir la capsule.
+- **[Disponible maintenant]** Modules de structuration disponibles côté plateforme (mémoire, convictions, leçons, valeurs), activés progressivement selon le phasage produit.
 - **[Disponible maintenant]** Liens manuels inter-objets pour relier les contenus.
 - **[Disponible maintenant]** Exports PDF et JSON.
+
+
+## Phasage produit capsule
+
+- **Phase 1 (priorité actuelle)** : capsule simple (onboarding 4 étapes, messages, documents, bénéficiaires/règles, résumé capsule).
+- **Phase 2** : leçons.
+- **Phase 3** : convictions et profils de valeurs.
+- **Phase 4** : graphe narratif.
 
 ## Avancé / plus tard
 
@@ -74,3 +82,4 @@ La vision cognitive reste une trajectoire **secondaire** à long terme, séparé
 | Date | Owner | Décision |
 | --- | --- | --- |
 | 2026-02-12 | Product + Tech | Réalignement de la documentation sur `docs/product-capsule/scope-fonctionnel.md` comme source unique. |
+| 2026-02-16 | Product + Tech | Clarification du phasage: capsule simple -> leçons -> convictions/valeurs -> graphe narratif. |

@@ -20,6 +20,22 @@ export const appRoutes = {
 
 export type AppRouteName = keyof typeof appRoutes;
 
+export interface NavigationSection {
+  title: 'Principal' | 'Avancé';
+  routes: AppRouteName[];
+}
+
+export const navigationSections: NavigationSection[] = [
+  {
+    title: 'Principal',
+    routes: ['dashboard', 'memories', 'messages', 'timeline', 'exports', 'capsuleSummary'],
+  },
+  {
+    title: 'Avancé',
+    routes: ['beliefs', 'lessons', 'values'],
+  },
+];
+
 const onboardingRouteByStep: Record<OnboardingStepKey, AppRouteName> = {
   identityContact: 'onboardingIdentityContact',
   messages: 'onboardingMessages',

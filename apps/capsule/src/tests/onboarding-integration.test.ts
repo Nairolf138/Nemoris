@@ -1,5 +1,6 @@
 import { createCapsuleFrontend } from '../app.js';
 import { appRoutes } from '../routes.js';
+import { ONBOARDING_STEP_ORDER } from '../services/onboarding-service.js';
 
 const assert = (condition: unknown, message: string): void => {
   if (!condition) {
@@ -128,14 +129,19 @@ export const runOnboardingIntegrationTests = async (): Promise<void> => {
   }) as typeof fetch;
 
   try {
+
+    assert(ONBOARDING_STEP_ORDER.length === 4, 'onboarding should keep a strict 4-step flow');
     await frontend.onboarding.saveIdentityAndContact({ identity: 'Alice', channel: 'email', contact: 'alice@example.com' });
     assert(frontend.store.getState().onboardingStep === 'messages', 'identity step should advance to messages');
+    assert(frontend.store.getState().completedSteps.includes('identityContact'), 'identity step should be marked as completed');
 
     await frontend.onboarding.saveMessages({ title: 'Message', message: 'Body', triggerType: 'manual' });
     assert(frontend.store.getState().onboardingStep === 'documents', 'messages step should advance to documents');
+    assert(frontend.store.getState().completedSteps.includes('messages'), 'messages step should be marked as completed');
 
     await frontend.onboarding.saveImportantDocuments({ links: [{ label: 'Notaire', url: 'https://notaire.example/doc', type: 'document', visibility: 'private' }] });
     assert(frontend.store.getState().onboardingStep === 'beneficiariesRules', 'documents step should advance to beneficiaries and rules');
+    assert(frontend.store.getState().completedSteps.includes('documents'), 'documents step should be marked as completed');
 
     await frontend.onboarding.saveBeneficiariesAndRules({
       beneficiaries: [{ identity: 'Bob', channel: 'email', contact: 'bob@example.com' }],
@@ -143,6 +149,7 @@ export const runOnboardingIntegrationTests = async (): Promise<void> => {
     });
 
     assert(frontend.store.getState().onboardingCompleted, 'last step should mark onboarding as complete');
+    assert(frontend.store.getState().completedSteps.length === ONBOARDING_STEP_ORDER.length, 'onboarding completion should not require extra cognitive steps');
     assert(frontend.navigate('dashboard') === appRoutes.dashboard, 'onboarding completion should unlock dashboard route');
 
     const resumed = createCapsuleFrontend('http://localhost:4000', storage);
