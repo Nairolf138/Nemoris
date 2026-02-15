@@ -11,6 +11,11 @@ info:
     - Orchestration legacy messages
     - Gestion des consentements
     - Exports et observabilité read-only
+
+    Limites connues v1 (documentées):
+    - Pas d'endpoint d'upload binaire média dédié; les médias sont représentés via métadonnées/références dans les entités métier.
+    - Les codes/secrets sont pris en charge sous forme de contenu texte au sein des collections existantes (pas de coffre-fort dédié).
+    - Les plafonds MIME/codec/poids fichier ne sont pas contractualisés dans cette version.
 servers:
   - url: https://api.capsule.nemoris.app
     description: Production
@@ -70,12 +75,23 @@ paths:
     get:
       tags: [Data]
       summary: Lister une collection métier
-      description: 'Collections supportées: memories, beliefs, lessons, value_profiles, legacy_messages, beneficiaries, narrative_nodes, narrative_edges.'
+      description: |
+        Collections supportées: memories, beliefs, lessons, value_profiles, legacy_messages, beneficiaries, narrative_nodes, narrative_edges.
+
+        Note périmètre média/secrets v1:
+        - Les contenus photo/vidéo/audio sont représentés via données métier (métadonnées et références textuelles) et non via upload binaire natif.
+        - Les codes/secrets sont stockés comme texte dans les payloads des collections existantes.
       responses:
         '200': { description: Liste paginée }
     post:
       tags: [Data]
       summary: Créer un item dans une collection métier
+      description: |
+        Création JSON d'une ressource métier.
+
+        Limites v1:
+        - Aucun endpoint de transfert de fichier binaire n'est défini dans ce contrat.
+        - Les règles fines de format média (MIME/codec) et de taille par fichier ne sont pas contractualisées.
       responses:
         '201': { description: Ressource créée }
 
