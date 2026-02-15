@@ -1,4 +1,4 @@
-# Contrat d'export MVP (JSON/PDF)
+# Contrat d'export MVP (JSON/PDF/encrypted_zip)
 
 Ce document décrit le **format contractuel** du payload exporté côté MVP, en distinguant:
 
@@ -80,7 +80,36 @@ Objectifs de restitution:
 
 ## Compatibilité API
 
-- `POST /exports` crée un export avec `format: json | pdf`.
+- `POST /exports` crée un export avec `format: json | pdf | encrypted_zip`.
 - `GET /exports/{id}/download` expose :
   - `mime_type`
   - `content_base64` (payload JSON ou binaire PDF en base64)
+
+
+## Export `encrypted_zip`
+
+Le format `encrypted_zip` produit une archive ZIP chiffrée qui contient:
+
+- `payload.json`: le JSON contractuel complet (même structure que l'export JSON),
+- `vault/*`: les fichiers du coffre interne (documents essentiels) au format binaire original,
+- `manifest.json`: manifeste de version (`manifest_version`, `export_schema_version`, inventaire des fichiers inclus).
+
+### Stratégies de chiffrement
+
+Le payload téléchargé (`content_base64`) est une enveloppe texte base64 encodée avec le préfixe:
+
+`enczip1.<strategy>.<key_id>.<iv_b64>.<salt_b64_or_dash>.<iterations>.<ciphertext_b64>`
+
+Stratégies supportées:
+
+- `dedicated_key` (par défaut): clé backend dédiée (`CAPSULE_EXPORT_ENCRYPTION_KEY`, `CAPSULE_EXPORT_ENCRYPTION_KEY_ID`),
+- `user_password`: dérivation PBKDF2-SHA256 (120k itérations par défaut) à partir de `encryption_password` fourni à la création.
+
+Dans les deux cas, l'archive ZIP est chiffrée en AES-256-GCM (IV 12 bytes aléatoire).
+
+### Audit
+
+La création et le téléchargement d'un export `encrypted_zip` sont journalisés de la même façon que les exports `json` et `pdf` dans:
+
+- `GET /exports/audit` (format stocké),
+- `GET /observability/audit` (événements `audit.export.started` et `audit.export.downloaded`).
