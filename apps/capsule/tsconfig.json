@@ -5,8 +5,17 @@
     "outDir": "dist"
   },
   "references": [
-    { "path": "../../packages/core" },
-    { "path": "../../packages/ui" }
+    {
+      "path": "../../packages/core"
+    },
+    {
+      "path": "../../packages/ui"
+    },
+    {
+      "path": "../../packages/export"
+    }
   ],
-  "include": ["src"]
+  "include": [
+    "src"
+  ]
 }

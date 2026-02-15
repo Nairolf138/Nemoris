@@ -71,3 +71,43 @@ export interface OnboardingDraft {
 }
 
 export type CollectionName = keyof CapsuleCollections;
+
+export interface CapsuleSummaryDocumentLink {
+  label: string;
+  url?: string;
+  sourceMemoryId?: string;
+}
+
+export interface CapsuleSummaryTriggerRule {
+  messageId: string;
+  messageTitle: string;
+  triggerType: LegacyMessage['trigger_type'];
+  triggerAt?: string;
+  beneficiaries: Array<{ id: string; identity: string }>;
+}
+
+export interface CapsuleSummaryData {
+  profile: {
+    ownerId: string;
+    ownerEmail?: string;
+    generatedAt: string;
+  };
+  messages: LegacyMessage[];
+  documentLinks: CapsuleSummaryDocumentLink[];
+  beneficiaries: Beneficiary[];
+  triggerRules: CapsuleSummaryTriggerRule[];
+}
+
+export interface CapsuleSummaryPrintMode {
+  route: string;
+  mode: 'browser-print';
+  title: string;
+  subtitle: string;
+  sections: Array<'profile' | 'messages' | 'documents' | 'beneficiaries' | 'triggerRules'>;
+}
+
+export interface CapsuleSummaryPdfExport {
+  fileName: string;
+  mimeType: 'application/pdf';
+  bytes: Uint8Array;
+}

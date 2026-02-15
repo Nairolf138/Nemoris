@@ -13,23 +13,59 @@ const getBeneficiaries = (payload: CapsuleExportPayloadV1): ExportBeneficiary[] 
   });
 };
 
+const documentMemories = (payload: CapsuleExportPayloadV1): CapsuleExportPayloadV1['memories'] =>
+  payload.memories.filter((memory) => memory.memory_type === 'document' || memory.memory_type === 'media');
+
+const formatTrigger = (triggerType: string, triggerAt?: string): string => {
+  if (triggerType === 'date') {
+    return triggerAt ? `Date programmée (${triggerAt})` : 'Date programmée';
+  }
+  if (triggerType === 'inactivity') {
+    return 'Inactivité détectée';
+  }
+  if (triggerType === 'verified_death') {
+    return 'Vérification du décès';
+  }
+  return 'Déclenchement manuel';
+};
+
 const buildLines = (payload: CapsuleExportPayloadV1): string[] => {
   const beneficiaries = getBeneficiaries(payload);
+  const beneficiariesById = new Map(payload.beneficiaries.map((beneficiary) => [beneficiary.id, beneficiary]));
+  const docs = documentMemories(payload);
+
   const lines = [
-    `Export Capsule - owner ${payload.metadata.owner_id}`,
-    `Generated at ${payload.metadata.exported_at}`,
+    'Dossier famille Capsule',
+    `Profil: ${payload.metadata.owner_id}`,
+    `Date de génération: ${payload.metadata.exported_at}`,
     '',
-    'Messages',
-    ...payload.legacy_messages.flatMap((message) => [`- ${message.title}`, `  ${message.message}`]),
+    'Messages à transmettre',
+    ...payload.legacy_messages.flatMap((message) => [
+      `- ${message.title}`,
+      `  Contenu: ${message.message}`,
+      `  Déclenchement: ${formatTrigger(message.trigger_type, message.trigger_at)}`,
+    ]),
     '',
-    'Souvenirs',
-    ...payload.memories.flatMap((memory) => [`- ${memory.title}`, `  ${memory.description ?? ''}`]),
+    'Documents et liens utiles',
+    ...(docs.length > 0
+      ? docs.flatMap((document) => [`- ${document.title}`, `  Référence: ${document.description ?? 'Aucun lien explicite'}`])
+      : ['- Aucun document identifié dans la capsule.']),
     '',
-    'Consignes',
-    ...payload.lessons.flatMap((lesson) => [`- ${lesson.title}`, `  ${lesson.lesson_text}`]),
+    'Bénéficiaires',
+    ...payload.beneficiaries.map(
+      (beneficiary) => `- ${beneficiary.identity} · ${beneficiary.channel} (${beneficiary.contact}) [${beneficiary.verification_status}]`,
+    ),
     '',
-    'Beneficiaires',
-    ...beneficiaries.map((beneficiary) => `- ${beneficiary.identity} [${beneficiary.beneficiary_id}] (${beneficiary.message_count} message(s))`),
+    'Règles de déclenchement',
+    ...payload.legacy_messages.flatMap((message) => {
+      const recipients = message.beneficiary_ids
+        .map((beneficiaryId) => beneficiariesById.get(beneficiaryId)?.identity ?? beneficiaryId)
+        .join(', ');
+      return [`- ${message.title}`, `  ${formatTrigger(message.trigger_type, message.trigger_at)} -> ${recipients || 'Aucun bénéficiaire'}`];
+    }),
+    '',
+    'Répartition synthétique',
+    ...beneficiaries.map((beneficiary) => `- ${beneficiary.identity}: ${beneficiary.message_count} message(s)`),
   ];
 
   return lines.map((line) => escapePdfText(line));
