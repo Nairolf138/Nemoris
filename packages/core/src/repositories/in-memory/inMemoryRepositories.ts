@@ -3,6 +3,7 @@ import type {
   Belief,
   ConsentRecord,
   ConsentScope,
+  ExternalAttachment,
   LegacyMessage,
   LegacyMessageDeliveryAttempt,
   Lesson,
@@ -15,6 +16,7 @@ import type {
   BeneficiaryRepository,
   BeliefRepository,
   ConsentRepository,
+  ExternalAttachmentRepository,
   ListByOwnerQuery,
   LegacyMessageDeliveryAttemptRepository,
   LegacyMessageRepository,
@@ -183,6 +185,8 @@ export class InMemoryNarrativeNodeRepository extends InMemoryEntityStore<Narrati
 
 export class InMemoryNarrativeEdgeRepository extends InMemoryEntityStore<NarrativeEdge> implements NarrativeEdgeRepository {}
 
+export class InMemoryExternalAttachmentRepository extends InMemoryEntityStore<ExternalAttachment> implements ExternalAttachmentRepository {}
+
 export const createInMemoryPersistence = (): CapsulePersistence => ({
   memories: new InMemoryMemoryRepository(),
   beliefs: new InMemoryBeliefRepository(),
@@ -193,5 +197,6 @@ export const createInMemoryPersistence = (): CapsulePersistence => ({
   legacyMessageDeliveryAttempts: new InMemoryLegacyMessageDeliveryAttemptRepository(),
   narrativeNodes: new InMemoryNarrativeNodeRepository(),
   narrativeEdges: new InMemoryNarrativeEdgeRepository(),
+  externalAttachments: new InMemoryExternalAttachmentRepository(),
   consents: new InMemoryConsentRepository(),
 });

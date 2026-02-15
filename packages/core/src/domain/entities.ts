@@ -115,6 +115,15 @@ export interface Beneficiary extends BaseEntity {
   status: 'active' | 'inactive';
 }
 
+export type ExternalAttachmentType = 'document' | 'image' | 'video' | 'audio' | 'link';
+
+export interface ExternalAttachment extends BaseEntity {
+  label: string;
+  url: string;
+  type: ExternalAttachmentType;
+  notes?: string;
+}
+
 export interface LegacyMessageDeliveryAttempt {
   id: string;
   legacy_message_id: string;

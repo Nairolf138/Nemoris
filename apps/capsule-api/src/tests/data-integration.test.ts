@@ -14,7 +14,8 @@ type DataResource =
   | 'legacy_messages'
   | 'beneficiaries'
   | 'narrative_nodes'
-  | 'narrative_edges';
+  | 'narrative_edges'
+  | 'external_attachments';
 
 type PaginatedResponse<T> = {
   items: T[];
@@ -97,6 +98,13 @@ const createPayloadByResource: Record<DataResource, Record<string, unknown>> = {
     belief_ids: [],
     lesson_ids: [],
   },
+  external_attachments: {
+    visibility: 'private',
+    label: 'Notaire',
+    url: 'https://notaire.example/doc',
+    type: 'document',
+    notes: 'Dossier principal',
+  },
 };
 
 const patchPayloadByResource: Record<DataResource, Record<string, unknown>> = {
@@ -108,6 +116,7 @@ const patchPayloadByResource: Record<DataResource, Record<string, unknown>> = {
   legacy_messages: { title: 'Updated final note' },
   narrative_nodes: { label: 'Updated key event' },
   narrative_edges: { relation_type: 'supports' },
+  external_attachments: { notes: 'Note mise à jour' },
 };
 
 const registerAndLogin = async (app: CapsuleApiApp, email: string, password: string, ip: string) => {
@@ -519,7 +528,7 @@ export const runDataIntegrationTests = async (): Promise<void> => {
   const owner = await registerAndLogin(app, 'data-owner@example.com', 'Secret123!', '203.0.113.21');
   const outsider = await registerAndLogin(app, 'data-outsider@example.com', 'Secret123!', '203.0.113.22');
 
-  const resources: DataResource[] = ['memories', 'beliefs', 'lessons', 'value_profiles', 'legacy_messages', 'beneficiaries', 'narrative_nodes'];
+  const resources: DataResource[] = ['memories', 'beliefs', 'lessons', 'value_profiles', 'legacy_messages', 'beneficiaries', 'narrative_nodes', 'external_attachments'];
 
   for (const resource of resources) {
     const body = JSON.parse(JSON.stringify(createPayloadByResource[resource])) as Record<string, unknown>;

@@ -23,7 +23,8 @@ export type DataCollection =
   | 'legacy_messages'
   | 'beneficiaries'
   | 'narrative_nodes'
-  | 'narrative_edges';
+  | 'narrative_edges'
+  | 'external_attachments';
 
 type SortOrder = 'asc' | 'desc';
 
@@ -36,6 +37,7 @@ type DataCollectionSortBy = {
   beneficiaries: 'created_at' | 'updated_at';
   narrative_nodes: 'created_at' | 'updated_at';
   narrative_edges: 'created_at' | 'updated_at';
+  external_attachments: 'created_at' | 'updated_at';
 };
 
 export type DataListSortBy<C extends DataCollection> = DataCollectionSortBy[C];
@@ -64,6 +66,7 @@ const DEFAULT_SORT_BY: { [K in DataCollection]: DataListSortBy<K> } = {
   beneficiaries: 'created_at',
   narrative_nodes: 'created_at',
   narrative_edges: 'created_at',
+  external_attachments: 'created_at',
 };
 
 const allowedSortBy: { [K in DataCollection]: readonly DataListSortBy<K>[] } = {
@@ -75,6 +78,7 @@ const allowedSortBy: { [K in DataCollection]: readonly DataListSortBy<K>[] } = {
   beneficiaries: ['created_at', 'updated_at'],
   narrative_nodes: ['created_at', 'updated_at'],
   narrative_edges: ['created_at', 'updated_at'],
+  external_attachments: ['created_at', 'updated_at'],
 };
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>

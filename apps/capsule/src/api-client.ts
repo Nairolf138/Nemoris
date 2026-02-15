@@ -18,6 +18,7 @@ const collectionPath: Record<CollectionName, string> = {
   beneficiaries: 'beneficiaries',
   narrativeNodes: 'narrative-nodes',
   narrativeEdges: 'narrative-edges',
+  externalAttachments: 'external-attachments',
 };
 
 interface RequestOptions {

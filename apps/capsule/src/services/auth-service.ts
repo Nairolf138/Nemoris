@@ -40,6 +40,7 @@ export class FrontAuthService {
         beneficiaries: [],
         narrativeNodes: [],
         narrativeEdges: [],
+        externalAttachments: [],
       },
       exports: [],
     });

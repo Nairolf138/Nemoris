@@ -2,6 +2,7 @@ import type {
   Beneficiary,
   Belief,
   ConsentRecord,
+  ExternalAttachment,
   ConsentScope,
   LegacyMessage,
   LegacyMessageDeliveryAttempt,
@@ -112,6 +113,15 @@ export interface NarrativeEdgeRepository {
   existsByIds(ids: string[]): Promise<boolean>;
 }
 
+export interface ExternalAttachmentRepository {
+  create(attachment: ExternalAttachment): Promise<ExternalAttachment>;
+  update(id: string, patch: Partial<ExternalAttachment>): Promise<ExternalAttachment | null>;
+  delete(id: string): Promise<boolean>;
+  listByOwner(ownerId: string): Promise<ExternalAttachment[]>;
+  listByOwnerPaginated(ownerId: string, query: ListByOwnerQuery): Promise<PaginatedListResult<ExternalAttachment>>;
+  getById(id: string): Promise<ExternalAttachment | null>;
+}
+
 export interface ConsentRepository {
   grant(input: { owner_id: string; scope: ConsentScope; granted_at: string; legal_basis: string }): Promise<ConsentRecord>;
   revoke(input: { owner_id: string; scope: ConsentScope; revoked_at: string; legal_basis: string }): Promise<ConsentRecord>;
@@ -132,5 +142,6 @@ export interface CapsulePersistence {
   legacyMessageDeliveryAttempts: LegacyMessageDeliveryAttemptRepository;
   narrativeNodes: NarrativeNodeRepository;
   narrativeEdges: NarrativeEdgeRepository;
+  externalAttachments: ExternalAttachmentRepository;
   consents: ConsentRepository;
 }
