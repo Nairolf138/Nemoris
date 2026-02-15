@@ -1,7 +1,8 @@
 # Nemoris
 
-**Nemoris** est un produit de capsule numérique centré sur la structuration d’un héritage cognitif personnel.
-Le périmètre MVP est défini de manière canonique dans `docs/product-capsule/scope-fonctionnel.md`.
+**Nemoris = capsule numérique à transmettre à ses proches.**
+
+Le produit aide à structurer, sécuriser et rendre transmissible ce qui compte (souvenirs, convictions, leçons, valeurs), avec un périmètre MVP défini de manière canonique dans `docs/product-capsule/scope-fonctionnel.md`.
 
 ## Proposition de valeur
 
@@ -10,7 +11,7 @@ Nemoris aide un utilisateur à structurer ses contenus clés pour les rendre cla
 - relier convictions, leçons et valeurs,
 - exporter un corpus lisible et portable.
 
-## Périmètre MVP (shipping)
+## Ce qui est livré maintenant
 
 Référence canonique : `docs/product-capsule/scope-fonctionnel.md`.
 
@@ -19,7 +20,7 @@ Référence canonique : `docs/product-capsule/scope-fonctionnel.md`.
 - Liens manuels inter-objets.
 - Exports PDF et JSON.
 
-## Hors périmètre MVP
+## Ce qui viendra ensuite
 
 - Recherche avancée (sémantique/filtres complexes).
 - IA complexe conversationnelle/générative.
@@ -27,10 +28,25 @@ Référence canonique : `docs/product-capsule/scope-fonctionnel.md`.
 - Transmission post-mortem automatisée.
 - Graphe narratif interactif avancé.
 
-Vision long terme (séparée) : `docs/vision-cognitive/VISION.md`.
+## Vision cognitive (à long terme)
+
+La vision cognitive reste une trajectoire secondaire à long terme, séparée du scope de livraison actuel : `docs/vision-cognitive/VISION.md`.
 
 ## Documents de référence
 
+- `docs/Capsule_Numerique_*` — ensemble des livrables de référence capsule (business, marché, finance, sécurité, UX/UI).
+- `docs/product-capsule/*` — corpus produit canonique (scope, architecture, roadmap, contrats, sécurité, KPI, OpenAPI).
+- `docs/Capsule_Numerique_-_Dossier_Complet.pdf` — dossier maître capsule numérique.
+- `docs/Capsule_Numerique_-_Pitch_Investisseurs_Complete.pptx` — pitch investisseurs.
+- `docs/Capsule_Numerique_Architecture.pdf` — architecture produit capsule.
+- `docs/Capsule_Numerique_BusinessPlan.pdf` — business plan.
+- `docs/Capsule_Numerique_Dossier_Confiance_Ethique_et_Perenite.pdf` — confiance, éthique et pérennité.
+- `docs/Capsule_Numerique_Etude_Marche.pdf` — étude de marché.
+- `docs/Capsule_Numerique_Financier_36mois.xlsx` — modèle financier 36 mois.
+- `docs/Capsule_Numerique_Financier_Graphiques.pdf` — graphiques financiers.
+- `docs/Capsule_Numerique_Secu_Pentest_RGPD.pdf` — sécurité, pentest et RGPD.
+- `docs/Capsule_Numerique_UX_UI.pdf` — référentiel UX/UI.
+- `docs/product-capsule/README.md` — index des documents de référence capsule (produit).
 - `docs/product-capsule/scope-fonctionnel.md` — **source canonique du scope MVP**.
 - `docs/mvp-scope.md` — synthèse de périmètre alignée.
 - `docs/architecture-mvp.md` — architecture cible strictement dans le scope MVP.
