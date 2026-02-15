@@ -5,6 +5,7 @@ export interface AuthStore {
   createUser(user: AuthUser): AuthUser;
   findUserByEmail(email: string): AuthUser | undefined;
   findUserById(id: string): AuthUser | undefined;
+  updateUserRecoveryState(userId: string, recoveryCompletedAt: string, sensitiveActionUnlockedAt: string): AuthUser | undefined;
   saveSession(session: Session): Session;
   findSessionByToken(token: string): Session | undefined;
   revokeSession(token: string, revokedAt: string): Session | undefined;
@@ -107,6 +108,22 @@ export class InMemoryAuthStore implements AuthStore {
     return this.usersById.get(id);
   }
 
+  public updateUserRecoveryState(userId: string, recoveryCompletedAt: string, sensitiveActionUnlockedAt: string): AuthUser | undefined {
+    const current = this.usersById.get(userId);
+    if (!current) {
+      return undefined;
+    }
+    const updated: AuthUser = {
+      ...current,
+      recovery_last_completed_at: recoveryCompletedAt,
+      sensitive_action_unlocked_at: sensitiveActionUnlockedAt,
+      updated_at: recoveryCompletedAt,
+    };
+    this.usersById.set(userId, updated);
+    this.usersByEmail.set(updated.email, updated);
+    return updated;
+  }
+
   public saveSession(session: Session): Session {
     this.sessionsByToken.set(session.token, session);
     return session;
@@ -132,6 +149,7 @@ export class SqliteAuthStore implements AuthStore {
   private readonly createUserStmt;
   private readonly findUserByEmailStmt;
   private readonly findUserByIdStmt;
+  private readonly updateUserRecoveryStateStmt;
   private readonly saveSessionStmt;
   private readonly findSessionByTokenStmt;
   private readonly revokeSessionStmt;
@@ -144,7 +162,9 @@ export class SqliteAuthStore implements AuthStore {
         email TEXT NOT NULL UNIQUE,
         password_hash TEXT NOT NULL,
         created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL
+        updated_at TEXT NOT NULL,
+        recovery_last_completed_at TEXT,
+        sensitive_action_unlocked_at TEXT
       );
       CREATE TABLE IF NOT EXISTS auth_sessions (
         token TEXT PRIMARY KEY,
@@ -154,14 +174,25 @@ export class SqliteAuthStore implements AuthStore {
       );
     `);
 
+    const existingColumns = new Set(this.client.query("PRAGMA table_info(auth_users);").map((row) => row.name ?? ''));
+    if (!existingColumns.has('recovery_last_completed_at')) {
+      this.client.exec('ALTER TABLE auth_users ADD COLUMN recovery_last_completed_at TEXT;');
+    }
+    if (!existingColumns.has('sensitive_action_unlocked_at')) {
+      this.client.exec('ALTER TABLE auth_users ADD COLUMN sensitive_action_unlocked_at TEXT;');
+    }
+
     this.createUserStmt = this.client.prepare(
       'INSERT INTO auth_users (id, email, password_hash, created_at, updated_at) VALUES (?, ?, ?, ?, ?);',
     );
     this.findUserByEmailStmt = this.client.prepare(
-      'SELECT id, email, password_hash, created_at, updated_at FROM auth_users WHERE email = ? LIMIT 1;',
+      'SELECT id, email, password_hash, created_at, updated_at, recovery_last_completed_at, sensitive_action_unlocked_at FROM auth_users WHERE email = ? LIMIT 1;',
     );
     this.findUserByIdStmt = this.client.prepare(
-      'SELECT id, email, password_hash, created_at, updated_at FROM auth_users WHERE id = ? LIMIT 1;',
+      'SELECT id, email, password_hash, created_at, updated_at, recovery_last_completed_at, sensitive_action_unlocked_at FROM auth_users WHERE id = ? LIMIT 1;',
+    );
+    this.updateUserRecoveryStateStmt = this.client.prepare(
+      'UPDATE auth_users SET recovery_last_completed_at = ?, sensitive_action_unlocked_at = ?, updated_at = ? WHERE id = ?;',
     );
     this.saveSessionStmt = this.client.prepare(
       'INSERT INTO auth_sessions (token, user_id, expires_at, revoked_at) VALUES (?, ?, ?, ?);',
@@ -185,6 +216,20 @@ export class SqliteAuthStore implements AuthStore {
   public findUserById(id: string): AuthUser | undefined {
     const row = this.findUserByIdStmt.get([id]);
     return row as AuthUser | undefined;
+  }
+
+  public updateUserRecoveryState(userId: string, recoveryCompletedAt: string, sensitiveActionUnlockedAt: string): AuthUser | undefined {
+    const existing = this.findUserById(userId);
+    if (!existing) {
+      return undefined;
+    }
+    this.updateUserRecoveryStateStmt.run([recoveryCompletedAt, sensitiveActionUnlockedAt, recoveryCompletedAt, userId]);
+    return {
+      ...existing,
+      recovery_last_completed_at: recoveryCompletedAt,
+      sensitive_action_unlocked_at: sensitiveActionUnlockedAt,
+      updated_at: recoveryCompletedAt,
+    };
   }
 
   public saveSession(session: Session): Session {

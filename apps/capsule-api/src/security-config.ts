@@ -7,6 +7,7 @@ export interface SecurityConfig {
   bruteForceMaxFailures: number;
   bruteForceBlockMs: number;
   anomalyAlertThreshold: number;
+  recoverySensitiveActionDelayMs: number;
 }
 
 type RuntimeEnv = Record<string, string | undefined>;
@@ -22,6 +23,14 @@ const parsePositiveInt = (value: string | undefined, key: string): number => {
   return parsed;
 };
 
+
+
+const parseOptionalPositiveInt = (value: string | undefined, fallback: number, key: string): number => {
+  if (!value || value.trim().length === 0) {
+    return fallback;
+  }
+  return parsePositiveInt(value, key);
+};
 const getRequiredEnv = (key: string): string => {
   const value = runtimeEnv[key]?.trim();
   if (!value) {
@@ -45,5 +54,10 @@ export const loadSecurityConfig = (): SecurityConfig => {
     bruteForceMaxFailures: parsePositiveInt(runtimeEnv.CAPSULE_BRUTE_FORCE_MAX_FAILURES, 'CAPSULE_BRUTE_FORCE_MAX_FAILURES'),
     bruteForceBlockMs: parsePositiveInt(runtimeEnv.CAPSULE_BRUTE_FORCE_BLOCK_MS, 'CAPSULE_BRUTE_FORCE_BLOCK_MS'),
     anomalyAlertThreshold: parsePositiveInt(runtimeEnv.CAPSULE_ANOMALY_ALERT_THRESHOLD, 'CAPSULE_ANOMALY_ALERT_THRESHOLD'),
+    recoverySensitiveActionDelayMs: parseOptionalPositiveInt(
+      runtimeEnv.CAPSULE_RECOVERY_SENSITIVE_ACTION_DELAY_MS,
+      1000 * 60 * 30,
+      'CAPSULE_RECOVERY_SENSITIVE_ACTION_DELAY_MS',
+    ),
   };
 };

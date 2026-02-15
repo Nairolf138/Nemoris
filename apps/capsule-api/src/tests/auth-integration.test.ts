@@ -136,6 +136,38 @@ export const runAuthIntegrationTests = async (): Promise<void> => {
   const loginBody = loginOk.body as { user: { id: string }; session: { token: string } };
   const token = loginBody.session.token;
 
+
+
+  const recoveryWithoutProof = await app.handle({
+    method: 'POST',
+    path: '/auth/recovery/complete',
+    body: { email: 'dana@example.com', password: 'Secret123!', proofs: [] },
+    headers: { 'x-forwarded-for': '198.51.100.9' },
+  });
+  assert(recoveryWithoutProof.status === 400, 'recovery without proof should be rejected');
+  assert((recoveryWithoutProof.body as { error: string }).error === 'RECOVERY_PROOF_REQUIRED', 'missing recovery proof should expose RECOVERY_PROOF_REQUIRED');
+
+  const recoveryOk = await app.handle({
+    method: 'POST',
+    path: '/auth/recovery/complete',
+    body: { email: 'dana@example.com', password: 'Secret123!', proofs: ['ticket-123456'] },
+    headers: { 'x-forwarded-for': '198.51.100.9' },
+  });
+  assert(recoveryOk.status === 200, 'recovery with proof should succeed');
+  const recoveryToken = (recoveryOk.body as { session: { token: string } }).session.token;
+  const recoveredUserId = (recoveryOk.body as { user: { id: string } }).user.id;
+
+  const blockedSensitiveAction = await app.handle({
+    method: 'POST',
+    path: '/consent/grant',
+    body: { owner_id: recoveredUserId, scope: 'data_export', legal_basis: 'consent' },
+    headers: { authorization: `Bearer ${recoveryToken}`, 'x-owner-id': recoveredUserId },
+  });
+  assert(blockedSensitiveAction.status === 403, 'sensitive action should be blocked immediately after recovery');
+  assert(
+    (blockedSensitiveAction.body as { error: string }).error === 'RECOVERY_SENSITIVE_ACTION_BLOCKED',
+    'sensitive actions during recovery freeze should expose RECOVERY_SENSITIVE_ACTION_BLOCKED',
+  );
   const observabilityAudit = await app.handle({
     method: 'GET',
     path: '/observability/audit',

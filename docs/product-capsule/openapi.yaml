@@ -52,6 +52,20 @@ paths:
       responses:
         '200': { description: Session ouverte }
 
+
+  /auth/recovery/complete:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Finaliser une récupération de compte
+      description: |
+        Requiert des preuves de récupération et ouvre une nouvelle session.
+        Certaines actions sensibles restent bloquées temporairement après la récupération
+        (renvoi possible de `RECOVERY_SENSITIVE_ACTION_BLOCKED` sur exports/consentements/vault/legacy orchestration).
+      responses:
+        '200': { description: Récupération validée, session créée }
+        '400': { description: Preuves insuffisantes (`RECOVERY_PROOF_REQUIRED`) }
+
   /auth/logout:
     post:
       tags: [Auth]

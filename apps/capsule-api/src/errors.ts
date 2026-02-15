@@ -6,6 +6,8 @@ export type ApiErrorCode =
   | 'SESSION_INVALID'
   | 'SESSION_NOT_FOUND'
   | 'EMAIL_ALREADY_USED'
+  | 'RECOVERY_PROOF_REQUIRED'
+  | 'RECOVERY_SENSITIVE_ACTION_BLOCKED'
   | 'INVALID_PAYLOAD'
   | 'INVALID_EMAIL'
   | 'WEAK_PASSWORD'
@@ -70,6 +72,7 @@ export class ValidationError extends ApiError {
       | 'INVALID_QUERY_PARAMS'
       | 'OWNER_SCOPE_REQUIRED'
       | 'DOMAIN_VALIDATION_ERROR'
+      | 'RECOVERY_PROOF_REQUIRED'
     >,
     options?: { message?: string; details?: Record<string, unknown> },
   ) {
@@ -115,6 +118,7 @@ const legacyToApiError = (error: Error): ApiError | undefined => {
     case 'INVALID_OWNER_SCOPE':
     case 'INVALID_QUERY_PARAMS':
     case 'OWNER_SCOPE_REQUIRED':
+    case 'RECOVERY_PROOF_REQUIRED':
       return new ValidationError(error.message);
     case 'FORBIDDEN':
       return new ForbiddenError();

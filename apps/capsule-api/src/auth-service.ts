@@ -10,6 +10,8 @@ const sanitizeUser = (user: AuthUser): AuthContext['user'] => ({
   email: user.email,
   created_at: user.created_at,
   updated_at: user.updated_at,
+  recovery_last_completed_at: user.recovery_last_completed_at,
+  sensitive_action_unlocked_at: user.sensitive_action_unlocked_at,
 });
 
 const createTimestamps = () => {
@@ -23,7 +25,11 @@ const createTimestamps = () => {
 export class AuthService {
   private readonly tokenManager: SessionTokenManager;
 
-  public constructor(private readonly store: AuthStore = new InMemoryAuthStore(), sessionTokenSecret = 'test-session-secret') {
+  public constructor(
+    private readonly store: AuthStore = new InMemoryAuthStore(),
+    sessionTokenSecret = 'test-session-secret',
+    private readonly recoverySensitiveActionDelayMs = 1000 * 60 * 30,
+  ) {
     this.tokenManager = new SessionTokenManager(sessionTokenSecret);
   }
 
@@ -65,6 +71,29 @@ export class AuthService {
     });
 
     return { user: sanitizeUser(user), session };
+  }
+
+
+
+  public async completeRecovery(email: string, password: string): Promise<AuthContext> {
+    const user = this.store.findUserByEmail(email);
+    if (!user || !(await verifyPassword(password, user.password_hash))) {
+      throw new AuthError('INVALID_CREDENTIALS');
+    }
+
+    const now = new Date();
+    const recoveryCompletedAt = now.toISOString();
+    const sensitiveActionUnlockedAt = new Date(now.getTime() + this.recoverySensitiveActionDelayMs).toISOString();
+    const updatedUser = this.store.updateUserRecoveryState(user.id, recoveryCompletedAt, sensitiveActionUnlockedAt) ?? user;
+
+    const { expiresAt } = createTimestamps();
+    const session = this.store.saveSession({
+      token: await this.tokenManager.mint(),
+      user_id: updatedUser.id,
+      expires_at: expiresAt,
+    });
+
+    return { user: sanitizeUser(updatedUser), session };
   }
 
   public async logout(token: string): Promise<void> {
