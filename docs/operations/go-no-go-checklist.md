@@ -3,6 +3,7 @@
 Références d'alignement :
 - `docs/product-capsule/ROADMAP.md`
 - `docs/product-capsule/roadmap-shipping.md`
+- `docs/operations/partenariats-fr-backlog.md`
 
 ## Règle de validation transverse (obligatoire)
 
@@ -66,12 +67,15 @@ Chaque phase doit être validée explicitement sur le triptyque :
 
 ## P6 — Pilotes partenaires
 
+- [ ] Ligne cible complétée dans `docs/operations/partenariats-fr-backlog.md` (cas d’usage MVP, données minimales, risques juridiques, métriques pilote).
+- [ ] Prérequis conformité/tech de la cible marqués « prêts » avec preuves (contrat, DPA, contrôles techniques, journalisation).
 - [ ] Cadre contractuel partenaire signé (incl. DPA/SLA).
 - [ ] Exigences sécurité partenaire testées en environnement pilote.
 - [ ] RACI d'escalade et rituels de suivi ops actifs.
 - [ ] Validation juridique signée.
 - [ ] Validation sécurité signée.
 - [ ] Validation ops signée.
+- [ ] **Bloquant** : aucun partenariat ne passe en pilote si la ligne backlog n’est pas validée juridiquement.
 
 
 ## Gate conformité obligatoire (beta/public)

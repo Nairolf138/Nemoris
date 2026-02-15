@@ -92,6 +92,25 @@ Valider l'opérabilité en conditions réelles avec partenaires externes.
 | Consent scopes + export + audit conformité | **[Prévu plus tard]** | **Non promue publiquement** | P5 |
 | Pilotes partenaires + observabilité avancée | **[Recherche]** | Non communiqué v1 | P6 |
 
+
+## Pilote M11 — Cadre d’entrée/sortie (P6)
+
+Objectif : démarrer un pilote partenaires en M11 uniquement sur des intégrations juridiquement prêtes et techniquement maîtrisées.
+
+**Critères d’entrée (Go pilote M11)**
+- Backlog partenariats FR complété pour la cible retenue : `docs/operations/partenariats-fr-backlog.md`.
+- Cas d’usage MVP circonscrit + données minimales validées par Legal/Security.
+- Contrat cadre signé (incl. DPA/SLA) et qualification des rôles RGPD (responsable/sous-traitant) formalisée.
+- Contrôles techniques actifs : authentification forte, chiffrement en transit, journal d’audit exploitable, purge testée.
+- KPI pilote instrumentés avant ouverture (succès opérationnel + conformité).
+
+**Critères de sortie (Go industrialisation / No-Go extension)**
+- KPI pilote atteints sur au moins 2 cycles mensuels consécutifs.
+- Aucun incident juridique/sécurité majeur non résolu.
+- Taux de rejet conformité sous seuil défini en comité Legal + Security + Ops.
+- Dossier de preuves (décisions, audits, incidents, actions correctives) archivé.
+- Décision formelle go/no-go consignée dans `docs/operations/go-no-go-decision-log.md`.
+
 ## Decision log
 
 | Date | Owner | Décision |
