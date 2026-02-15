@@ -8,66 +8,132 @@ Référence canonique : `docs/product-capsule/scope-fonctionnel.md`.
 - Toute demande out-of-scope est **explicitement refusée** puis reclassée en **[Prévu plus tard]** ou **[Recherche]**.
 - Chaque arbitrage (acceptation MVP, report, refus) est consigné dans le Decision log ci-dessous.
 
-## Gate de scope (à valider avant chaque lot)
+## Gate de sortie par phase (critères vérifiables)
 
-- [ ] Le lot ne contient **aucun** item marqué out-of-scope dans le document canonique.
-- [ ] Le lot contribue directement à la DoD MVP (auth, contenus, liens, export).
-- [ ] Produit + Tech ont validé le périmètre du lot sans ajout implicite.
-- [ ] Les dépendances non-MVP sont explicitement reportées au backlog **[Prévu plus tard]**/**[Recherche]**.
-- [ ] Le Decision log est mis à jour si une décision de périmètre a été prise.
+> Une phase n'est clôturable que si les 3 validations **Juridique + Sécurité + Ops** sont explicitement cochées.
 
-## [Disponible maintenant] In scope (Capsule v1)
+### P0 — Fondation sécurité
 
-### Lot 0 — Cadrage
+**Sécurité (vérifiable)**
+- [ ] Authentification et session validées sur les cas nominaux/erreur.
+- [ ] Isolation inter-utilisateur prouvée sur routes protégées (401/403 attendus).
+- [ ] Journalisation des événements sécurité activée et consultable.
 
-**Gate de scope (pré-lot)**
-- [ ] Gate validée.
+**Conformité / juridique (vérifiable)**
+- [ ] CGU/politiques d'usage sécurité référencées dans la documentation produit.
+- [ ] Base légale du traitement d'authentification documentée.
+- [ ] Revue juridique signée sur les parcours d'accès et de session.
 
-- Stabiliser périmètre MVP et critères d’acceptation.
-- Confirmer modèle de données cœur et politiques d’accès minimales.
-- Geler la définition de Done MVP.
+**Readiness ops (vérifiable)**
+- [ ] Dashboards/alertes d'authentification disponibles pour l'astreinte.
+- [ ] Runbook incident auth/session publié.
+- [ ] Exercice de rollback auth effectué avec preuve.
 
-### Lot 1 — Fondations produit
+### P1 — Contenu + héritiers
 
-**Gate de scope (pré-lot)**
-- [ ] Gate validée.
+**Sécurité (vérifiable)**
+- [ ] ACL propriétaires appliquées à tous les endpoints de contenu/héritiers.
+- [ ] Validation des entrées (payload invalides) testée et journalisée.
+- [ ] Contrôles anti-exposition de données sensibles validés.
 
-- Auth, session, isolation basique des données utilisateur.
-- CRUD mémoire/convictions/leçons/valeurs.
-- Liaisons manuelles inter-objets.
+**Conformité / juridique (vérifiable)**
+- [ ] Politique de rétention des contenus/héritiers documentée.
+- [ ] Clauses d'information utilisateur sur désignation d'héritiers validées.
+- [ ] Registre de traitements mis à jour (données contenu + héritiers).
 
-### Lot 2 — Valeur utilisateur
+**Readiness ops (vérifiable)**
+- [ ] Procédure de restauration des données de capsule testée.
+- [ ] Backups vérifiés avec test de restauration partielle.
+- [ ] Support ops dispose d'un playbook de diagnostic CRUD.
 
-**Gate de scope (pré-lot)**
-- [ ] Gate validée.
+### P2 — Déclenchement
 
-- Consultation chronologique simple.
-- Exports PDF/JSON.
-- Instrumentation KPI MVP.
+**Sécurité (vérifiable)**
+- [ ] Garde-fous de déclenchement (double contrôle/états) testés.
+- [ ] Toutes les transitions `arm/trigger/revoke` sont auditables.
+- [ ] Blocage des déclenchements non autorisés validé.
 
-### Lot 3 — Hardening avant release
+**Conformité / juridique (vérifiable)**
+- [ ] Conditions de déclenchement revues et validées juridiquement.
+- [ ] Traçabilité de consentement associée au déclenchement disponible.
+- [ ] Modèle de preuve en cas de contestation documenté.
 
-**Gate de scope (pré-lot)**
-- [ ] Gate validée.
+**Readiness ops (vérifiable)**
+- [ ] Procédure d'arrêt d'urgence (`revoke`) testée.
+- [ ] Escalade on-call en cas de déclenchement litigieux documentée.
+- [ ] KPI de déclenchement anormal intégrés à l'observabilité.
 
-- Stabilisation des parcours in-scope.
-- Gel des nouvelles features pendant toute la fenêtre hardening.
-- Validation DoD MVP (Produit + Tech).
-- Go/No-Go basé sur conformité au scope canonique.
+### P3 — Messages conditionnels / remise
 
-## [Prévu plus tard] / [Recherche] Hors scope (MVP)
+**Sécurité (vérifiable)**
+- [ ] Règles conditionnelles testées (autorisé/interdit/expiré).
+- [ ] Historique des tentatives de remise immuable et horodaté.
+- [ ] Contrôles anti-remise multiple involontaire validés.
 
-- Recherche avancée, IA contextuelle complexe.
-- Automatisations juridiques post-mortem.
-- Transmission post-mortem automatisée.
-- Graphe narratif interactif avancé.
+**Conformité / juridique (vérifiable)**
+- [ ] Clauses de remise et d'éligibilité validées par le juridique.
+- [ ] Conservation des preuves de remise conforme aux exigences.
+- [ ] Processus de gestion de litige destinataire documenté.
+
+**Readiness ops (vérifiable)**
+- [ ] Monitoring des échecs de remise opérationnel.
+- [ ] Procédure de relecture manuelle des remises critiques disponible.
+- [ ] Astreinte formée au traitement des incidents de remise.
+
+### P4 — Guide héritiers
+
+**Sécurité (vérifiable)**
+- [ ] Contrôle d'accès héritier bout-en-bout validé.
+- [ ] Protection anti-fuite sur parcours de consultation testée.
+- [ ] Traçabilité des accès héritiers activée.
+
+**Conformité / juridique (vérifiable)**
+- [ ] Contenus d'information héritiers validés juridiquement.
+- [ ] Mentions de droits/limites de consultation conformes.
+- [ ] Processus d'exercice des droits (accès/suppression) documenté.
+
+**Readiness ops (vérifiable)**
+- [ ] FAQ et macros support héritiers prêtes.
+- [ ] Runbook support niveau 1/2 publié.
+- [ ] SLO de réponse incidents héritiers défini et monitoré.
+
+### P5 — Qualif & conformité
+
+**Sécurité (vérifiable)**
+- [ ] Campagne de tests sécurité (authz, abus, exports) clôturée sans blocker.
+- [ ] Alertes sécurité critiques en statut `ok` sur la fenêtre de qualification.
+- [ ] Plan de remédiation des vulnérabilités signé.
+
+**Conformité / juridique (vérifiable)**
+- [ ] Dossier de conformité complet et approuvé (privacy, consent, audit).
+- [ ] Vérification juridique finale de la release signée.
+- [ ] Preuves d'audit export et consent archivées.
+
+**Readiness ops (vérifiable)**
+- [ ] `npm run release:readiness:check` exécuté avec succès.
+- [ ] Runbook release/rollback validé en exercice à blanc.
+- [ ] On-call, support et communication release synchronisés.
+
+### P6 — Pilotes partenaires
+
+**Sécurité (vérifiable)**
+- [ ] Exigences sécurité partenaires contractualisées et testées.
+- [ ] Cloisonnement des environnements pilotes validé.
+- [ ] Journal d'incidents partenaire opérationnel.
+
+**Conformité / juridique (vérifiable)**
+- [ ] Cadre contractuel pilote signé (DPA, responsabilités, SLA).
+- [ ] Matrice de conformité multi-acteurs validée.
+- [ ] Processus de notification incident partenaire approuvé.
+
+**Readiness ops (vérifiable)**
+- [ ] Plan de support pilote (astreinte, escalade, RACI) exécuté.
+- [ ] Rituels de suivi (hebdo KPI + risques) démarrés.
+- [ ] Critères de sortie pilote vers industrialisation documentés.
 
 ## Decision log
 
 | Date | Owner | Décision |
 | --- | --- | --- |
-| 2026-02-12 | Product + Tech | Ajout d’un gate de scope obligatoire avant chaque lot de delivery. |
-| 2026-02-13 | Product + Tech | Le tri backlog doit désormais se baser exclusivement sur `scope-fonctionnel.md` comme référence unique. |
-| 2026-02-13 | Product + Tech | Refus explicite imposé pour toute demande hors scope MVP (IA avancée, recherche complexe, workflows juridiques post-mortem), avec reclassement en **[Prévu plus tard]**/**[Recherche]**. |
-| 2026-02-13 | Product + Tech | Les templates ticket/PR incluent la checklist “In scope MVP” (auth, contenus, liens, export) pour tracer les arbitrages. |
-| 2026-02-13 | Product + Tech | Pendant la fenêtre hardening MVP, aucun développement de nouvelle feature n'est autorisé; seules les corrections in-scope (auth, CRUD, liens, export) sont acceptées. |
+| 2026-02-12 | Product + Tech | Ajout d'un gate de scope obligatoire avant chaque lot de delivery. |
+| 2026-02-16 | Product + Tech + Ops | Remplacement du plan par gates de sortie P0→P6 avec validations vérifiables sécurité, conformité juridique et readiness opérationnelle. |

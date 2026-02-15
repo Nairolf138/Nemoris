@@ -8,75 +8,93 @@
 - **[Prévu plus tard]** : lot planifié pour une version suivante, non livré actuellement.
 - **[Recherche]** : lot exploratoire, sans engagement de livraison.
 
-## Milestones livrables
+## Phases P0 → P6
 
-### M1 — MVP Scope Canonique (**[Disponible maintenant]**)
+### P0 — Fondation sécurité (**[Disponible maintenant]**)
 
 **Objectif**  
-Livrer le parcours complet : authentification → gestion des contenus et liens → transmission encadrée par consentement → export.
+Poser les fondations sécurité, accès et traçabilité minimales avant l'ouverture des parcours métier.
 
 **Livrables clés**
 - Authentification (inscription, connexion, déconnexion, refresh) + session basique.
-- CRUD `memories`, `beliefs`, `lessons`, `value_profiles`.
-- CRUD `beneficiaries` + CRUD `legacy_messages` + orchestration (`arm/trigger/revoke/deliver`).
-- CRUD `narrative_nodes` et `narrative_edges` (graphe narratif basique).
-- Consent management (`grant/revoke/history`) sur `data_export`, `post_mortem_transmission`, `posthumous_visibility`.
-- Export utilisateur (`/exports`, `/exports/{id}/download`).
+- Isolation des données par propriétaire (`owner_id`) et contrôles d'accès minimaux.
+- Journaux de sécurité et événements d'authentification exploitables côté ops.
 
-**Sortie de phase**
-- DoD MVP validée (Produit + Tech).
-- Aucun item **[Prévu plus tard]**/**[Recherche]** intégré au lot.
-
-### M2 — Fiabilisation MVP (**[Prévu plus tard]**)
+### P1 — Contenu + héritiers (**[Disponible maintenant]**)
 
 **Objectif**  
-Stabiliser le MVP sans élargir le périmètre fonctionnel vendu.
+Rendre possible la constitution de capsule et la désignation d'héritiers.
 
 **Livrables clés**
-- Durcissement qualité/performance des endpoints data, consent et orchestration legacy message.
-- Renforcement observabilité et journaux techniques.
-- Renforcement des autorisations minimales et contrôles de cohérence inter-entités.
-- Préparation à l’ouverture éventuelle d’APIs techniques aujourd’hui non promues.
+- CRUD `memories`, `beliefs`, `lessons`, `value_profiles`.
+- CRUD `beneficiaries`.
+- Liaisons manuelles de contenu et cohérence inter-entités.
 
-### M3 — Extensions produit (**[Prévu plus tard]**)
-
-**Objectif**  
-Étendre les usages sans rupture de compatibilité API v1.
-
-**Livrables candidats**
-- Recherche avancée (filtres riches, indexation, sémantique).
-- Graphe narratif interactif avancé (au-delà du CRUD nodes/edges).
-- Déclenchement post-mortem automatisé bout-en-bout.
-- Versionnage public des croyances/profils de valeurs.
-
-### M4 — Recherche (**[Recherche]**)
+### P2 — Déclenchement (**[Disponible maintenant]**)
 
 **Objectif**  
-Explorer les axes à forte incertitude métier/réglementaire.
+Introduire un déclenchement encadré des transmissions.
 
-**Pistes Recherche**
-- Workflows juridiques complets (notarial/compliance automatisée).
-- IA conversationnelle et génération avancée.
+**Livrables clés**
+- Orchestration `legacy_messages` (`arm/trigger/revoke`).
+- Préconditions de déclenchement et garde-fous anti-déclenchement accidentel.
+- Traçabilité des transitions d'état critiques.
 
-## Matrice Feature -> Scope -> Milestone
+### P3 — Messages conditionnels / remise (**[Prévu plus tard]**)
 
-| Feature | Classification | Statut public v1 | Milestone cible |
+**Objectif**  
+Fiabiliser la remise selon des conditions métier explicites.
+
+**Livrables clés**
+- Conditions de diffusion/temporisation des `legacy_messages`.
+- Mécanismes de remise (`deliver`) et historisation des tentatives.
+- Contrôles de cohérence entre consentement et transmission.
+
+### P4 — Guide héritiers (**[Prévu plus tard]**)
+
+**Objectif**  
+Améliorer l'expérience d'appropriation côté héritier.
+
+**Livrables clés**
+- Parcours guidé de consultation pour héritiers.
+- Narratif structuré (nœuds/relations) orienté onboarding.
+- Aides contextuelles sur droits, limites et étapes de récupération.
+
+### P5 — Qualif & conformité (**[Prévu plus tard]**)
+
+**Objectif**  
+Consolider la qualification qualité, la conformité et les preuves d'audit.
+
+**Livrables clés**
+- Consent management renforcé (`grant/revoke/history`) et preuves exploitables.
+- Export utilisateur + audit export (`/exports`, `/exports/{id}/download`, `/exports/audit`).
+- Dossier de conformité (juridique, sécurité, opérations) prêt pour validation de release.
+
+### P6 — Pilotes partenaires (**[Recherche]**)
+
+**Objectif**  
+Valider l'opérabilité en conditions réelles avec partenaires externes.
+
+**Livrables clés**
+- Cadre de pilote (population, métriques de succès, protocole d'escalade).
+- Observabilité étendue (`/observability/audit`, `/observability/dashboard`).
+- Boucle de feedback produit/compliance pour industrialisation.
+
+## Matrice Feature -> Scope -> Phase
+
+| Feature | Classification | Statut public v1 | Phase cible |
 | --- | --- | --- | --- |
-| Auth + contenus cœur (`memories`, `beliefs`, `lessons`, `value_profiles`) | **[Disponible maintenant]** | Promue publiquement | M1 |
-| Beneficiaries + legacy messages + orchestration (`arm/trigger/revoke/deliver`) | **[Disponible maintenant]** | Promue publiquement | M1 |
-| Narrative nodes + narrative edges (CRUD basique) | **[Disponible maintenant]** | Promue publiquement | M1 |
-| Consent scopes + export utilisateur | **[Disponible maintenant]** | Promue publiquement | M1 |
-| Audit export (`/exports/audit`) | **[Prévu plus tard]** | **Non promue publiquement** | M2 |
-| Observability (`/observability/audit`, `/observability/dashboard`) | **[Prévu plus tard]** | **Non promue publiquement** | M2 |
-| Delivery attempts (`/legacy-messages/{id}/delivery-attempts`) | **[Prévu plus tard]** | **Non promue publiquement** | M2 |
-| BeliefVersion / ValueProfileVersion (entités sans API publique dédiée) | **[Prévu plus tard]** | **Non promue publiquement** | M3 |
-| Recherche avancée / graphe avancé / déclenchement automatisé complet | **[Prévu plus tard]** | Non communiqué v1 | M3 |
-| Workflows juridiques complets / IA avancée | **[Prévu plus tard]** | Non communiqué v1 | M4 |
+| Auth + contrôles d'accès + isolation des données | **[Disponible maintenant]** | Promue publiquement | P0 |
+| Contenus cœur (`memories`, `beliefs`, `lessons`, `value_profiles`) + héritiers (`beneficiaries`) | **[Disponible maintenant]** | Promue publiquement | P1 |
+| Orchestration `legacy_messages` (`arm/trigger/revoke`) | **[Disponible maintenant]** | Promue publiquement | P2 |
+| Remise conditionnelle + tentatives de delivery | **[Prévu plus tard]** | **Non promue publiquement** | P3 |
+| Parcours guide héritiers + narration orientée onboarding | **[Prévu plus tard]** | Non communiqué v1 | P4 |
+| Consent scopes + export + audit conformité | **[Prévu plus tard]** | **Non promue publiquement** | P5 |
+| Pilotes partenaires + observabilité avancée | **[Recherche]** | Non communiqué v1 | P6 |
 
 ## Decision log
 
 | Date | Owner | Décision |
 | --- | --- | --- |
-| 2026-02-12 | Product + Tech | Recentrage de la roadmap M1 sur le scope canonique et séparation explicite des extensions en **[Prévu plus tard]**/**[Recherche]**. |
-| 2026-02-15 | Product + Tech | Alignement de M1 avec les surfaces API réellement exposées (legacy messages, beneficiaries, narrative graph basique, consent). |
-| 2026-02-16 | Product + Tech | Arbitrage roadmap : distinction explicite entre **[Disponible maintenant]** et **[Prévu plus tard]** pour toutes les features exposées, avec marquage des surfaces techniques existantes **non promues publiquement**. |
+| 2026-02-12 | Product + Tech | Recentrage de la roadmap sur le scope canonique et séparation explicite des extensions en **[Prévu plus tard]**/**[Recherche]**. |
+| 2026-02-16 | Product + Tech | Remplacement des milestones historiques par un séquencement P0→P6 (sécurité, contenu/héritiers, déclenchement, remise conditionnelle, guide héritiers, qualif/conformité, pilotes partenaires). |
