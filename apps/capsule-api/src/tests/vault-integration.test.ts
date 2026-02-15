@@ -124,4 +124,21 @@ export const runVaultIntegrationTests = async (): Promise<void> => {
     },
   });
   assert(posthumousWithConsent.status === 201, 'posthumous upload should work after consent');
+
+
+  const freeOwner = await registerAndLogin(app);
+  const freeUpload = await app.handle({
+    method: 'POST',
+    path: '/vault/documents/upload',
+    headers: { authorization: `Bearer ${freeOwner.token}`, 'x-owner-id': freeOwner.userId, 'x-capsule-plan': 'free' },
+    body: {
+      owner_id: freeOwner.userId,
+      filename: 'free-document.pdf',
+      mime: 'application/pdf',
+      visibility: 'private',
+      content_base64: content,
+    },
+  });
+  assert(freeUpload.status === 400, 'free tier should not allow internal vault upload');
+
 };

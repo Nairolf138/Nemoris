@@ -1,30 +1,30 @@
 # Offre & Pricing MVP — Capsule familiale
 
-## 1) Offre MVP capsule
+## 1) Grille d’offre explicite (MVP)
 
-### Inclus dans l’offre MVP
+| Palier | Inclus | Limites / Entitlements API |
+| --- | --- | --- |
+| **Gratuit** | 1 capsule, liens externes, export simple | Pas de coffre interne, 1 bénéficiaire max, export `json`/`pdf` uniquement, pas de messages planifiés |
+| **Payant (0,60 €/mois)** | Coffre interne, bénéficiaires avancés, exports avancés, messages planifiés | Quota coffre contrôlé côté API, plafond bénéficiaires configurable, format `encrypted_zip` activé |
 
-L’offre MVP est centrée sur une promesse unique : **structurer et transmettre l’essentiel**.
+Cette grille est alignée avec le modèle économique de référence (Business Plan Capsule Numérique).
 
-- Compte individuel : inscription, connexion, déconnexion.
-- Création, édition et suppression de contenus cœur :
-  - mémoires,
-  - convictions,
-  - leçons,
-  - profils de valeurs.
-- Liens manuels entre contenus pour construire une narration simple.
-- Export de la capsule en **PDF** et **JSON**.
-- Journal d’export minimal pour la traçabilité de base.
+## 2) Traduction produit/API (feature flags & entitlements)
 
-### Exclu du MVP (non vendu / non promis)
+Implémentation recommandée côté API (pilotable par configuration):
 
-- Co-édition en temps réel et gestion multi-titulaires.
-- IA conversationnelle ou génération automatique de contenus.
-- Recherche sémantique avancée.
-- Workflows juridiques post-mortem automatisés.
-- Personnalisation visuelle avancée des exports.
+- `internal_vault`: active l’accès au coffre documentaire interne.
+- `advanced_beneficiaries`: autorise les paliers de bénéficiaires > 1.
+- `advanced_exports`: autorise les formats avancés (`encrypted_zip`).
+- `scheduled_messages`: autorise les déclencheurs planifiés (`date`, `inactivity`, `verified_death`).
 
-## 2) Positionnement prix micro-abonnement (0,60 €/mois)
+Entitlements de contrôle minimum:
+
+- `vaultQuotaBytes` (quota coffre par capsule/compte),
+- `beneficiariesMax` (nombre max de bénéficiaires),
+- `advancedExportFormats` (formats disponibles par palier).
+
+## 3) Positionnement prix micro-abonnement (0,60 €/mois)
 
 ### Positionnement
 
@@ -32,28 +32,19 @@ L’offre MVP est centrée sur une promesse unique : **structurer et transmettre
 - Positionnement : **micro-abonnement d’accessibilité** plutôt qu’offre premium.
 - Intention produit : réduire la friction d’entrée, valider l’usage récurrent et la valeur perçue de la transmission.
 
-### Hypothèses de lancement
-
-| Hypothèse | Valeur initiale | Rationale |
-| --- | --- | --- |
-| Conversion visiteur -> inscription | 8 % | Promesse simple et bénéfice concret (préserver + exporter). |
-| Conversion inscription -> payant (30 j) | 12 % | Prix très bas + valeur continue de conservation. |
-| ARPU mensuel | 0,60 € | Offre unique MVP sans paliers. |
-| Churn mensuel payant | 6 % | Niveau prudent pour un produit personnel en démarrage. |
-
-Hypothèse de pilotage : à ce niveau de prix, la viabilité dépend prioritairement de la **rétention** et de la **discipline de coûts support/opérations**.
-
-## 3) KPI business de lancement
+## 4) KPI business de lancement
 
 ### Activation
 
 - **Activation D0** : % des inscrits qui créent au moins 1 contenu clé le jour de l’inscription.
 - **Activation D7 complète** : % des inscrits qui créent au moins 3 types d’objets différents en 7 jours.
 
-### Conversion
+### Conversion (par palier)
 
 - **Conversion inscription -> payant (30 jours)**.
 - **Temps médian avant premier paiement**.
+- **Upgrade prompts** (tentatives bloquées sur feature payante).
+- **Paid feature adoption** (usage effectif des features payantes après upgrade).
 
 ### Churn
 
@@ -65,7 +56,7 @@ Hypothèse de pilotage : à ce niveau de prix, la viabilité dépend prioritaire
 - **Rétention payante M+1**.
 - **Rétention payante M+3**.
 
-## 4) Règle de décision post-lancement
+## 5) Règle de décision post-lancement
 
 Les évolutions d’offre (annuel, palier famille, options premium) ne sont considérées qu’après stabilisation conjointe de :
 

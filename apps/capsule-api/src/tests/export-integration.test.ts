@@ -261,6 +261,15 @@ export const runExportIntegrationTests = async (): Promise<void> => {
   assert(body.csv.includes('export_rate,'), 'dashboard csv should include export rate metric');
 
 
+  const freeTierEncrypted = await app.handle({
+    method: 'POST',
+    path: '/exports',
+    headers: { authorization: `Bearer ${token}`, 'x-capsule-plan': 'free' },
+    body: { format: 'encrypted_zip', owner_id: ownerId, encryption_password: 'UserPassword123!' },
+  });
+  assert(freeTierEncrypted.status === 400, 'free tier should reject encrypted_zip export');
+
+
   const revokedConsent = await app.handle({
     method: 'POST',
     path: '/consent/revoke',

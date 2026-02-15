@@ -82,4 +82,9 @@ export interface MetricsSnapshotV2 extends MetricsSnapshot {
   auth_rejected_403_total: number;
   auth_rate_limited_429_total: number;
   session_revoked_total: number;
+  conversion_tier_free_assigned_total: number;
+  conversion_tier_paid_assigned_total: number;
+  conversion_upgrade_prompted_total: number;
+  conversion_paid_feature_usage_total: number;
+  conversion_upgrade_activated_total: number;
 }

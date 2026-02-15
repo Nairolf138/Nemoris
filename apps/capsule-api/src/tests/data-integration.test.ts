@@ -777,6 +777,36 @@ export const runDataIntegrationTests = async (): Promise<void> => {
   assert(deleteEdge.status === 204, 'narrative_edges: delete should return 204');
 
 
+  const freePlanOwner = await registerAndLogin(app, 'data-free@example.com', 'Secret123!', '203.0.113.23');
+  const freeBeneficiaryOne = await app.handle({
+    method: 'POST',
+    path: '/data/beneficiaries',
+    headers: { authorization: `Bearer ${freePlanOwner.token}`, 'x-owner-id': freePlanOwner.userId, 'x-capsule-plan': 'free' },
+    body: createPayloadByResource.beneficiaries,
+  });
+  assert(freeBeneficiaryOne.status === 201, 'free plan should allow first beneficiary');
+
+  const freeBeneficiaryTwo = await app.handle({
+    method: 'POST',
+    path: '/data/beneficiaries',
+    headers: { authorization: `Bearer ${freePlanOwner.token}`, 'x-owner-id': freePlanOwner.userId, 'x-capsule-plan': 'free' },
+    body: { ...createPayloadByResource.beneficiaries, identity: 'Bob', contact: 'bob@example.com' },
+  });
+  assert(freeBeneficiaryTwo.status === 400, 'free plan should block advanced beneficiaries');
+
+  const freeScheduledMessage = await app.handle({
+    method: 'POST',
+    path: '/data/legacy_messages',
+    headers: { authorization: `Bearer ${freePlanOwner.token}`, 'x-owner-id': freePlanOwner.userId, 'x-capsule-plan': 'free' },
+    body: {
+      ...createPayloadByResource.legacy_messages,
+      trigger_type: 'date',
+      trigger_at: '2030-01-01T00:00:00.000Z',
+      beneficiary_ids: [(freeBeneficiaryOne.body as { id: string }).id],
+    },
+  });
+  assert(freeScheduledMessage.status === 400, 'free plan should block scheduled messages');
+
   await runPaginationAndSortingTests(app, owner);
 };
 const grantConsent = async (app: CapsuleApiApp, owner: { userId: string; token: string }, scope: 'data_export' | 'post_mortem_transmission' | 'posthumous_visibility'): Promise<void> => {
