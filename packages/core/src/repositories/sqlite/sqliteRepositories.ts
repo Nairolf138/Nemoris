@@ -7,6 +7,7 @@ import type {
   ExternalAttachment,
   LegacyMessage,
   LegacyMessageDeliveryAttempt,
+  TriggerRequest,
   Lesson,
   Memory,
   NarrativeEdge,
@@ -20,6 +21,7 @@ import type {
   ConsentRepository,
   ExternalAttachmentRepository,
   LegacyMessageDeliveryAttemptRepository,
+  TriggerRequestRepository,
   LegacyMessageRepository,
   LessonRepository,
   ListByOwnerQuery,
@@ -201,6 +203,58 @@ export class SqliteLegacyMessageDeliveryAttemptRepository implements LegacyMessa
   };
 }
 
+
+export class SqliteTriggerRequestRepository implements TriggerRequestRepository {
+  private readonly cipher = new PayloadCipher();
+  public constructor(private readonly dbPath: string) {}
+
+  private decode = async (payload: string): Promise<TriggerRequest> => {
+    const decoded = await this.cipher.decode(payload);
+    return JSON.parse(decoded.plain) as TriggerRequest;
+  };
+
+  public create = async (request: TriggerRequest): Promise<TriggerRequest> => {
+    runSql(this.dbPath, `INSERT INTO trigger_requests (id, owner_id, legacy_message_id, requested_at, payload) VALUES (${quote(request.id)}, ${quote(request.owner_id)}, ${quote(request.legacy_message_id)}, ${quote(request.requested_at)}, ${quote(await this.cipher.encode(JSON.stringify(request)))});`);
+    return request;
+  };
+
+  public update = async (id: string, patch: Partial<TriggerRequest>): Promise<TriggerRequest | null> => {
+    const current = await this.getById(id);
+    if (!current) {
+      return null;
+    }
+    const updated = { ...current, ...patch } as TriggerRequest;
+    runSql(this.dbPath, `UPDATE trigger_requests SET owner_id = ${quote(updated.owner_id)}, legacy_message_id = ${quote(updated.legacy_message_id)}, requested_at = ${quote(updated.requested_at)}, payload = ${quote(await this.cipher.encode(JSON.stringify(updated)))} WHERE id = ${quote(id)};`);
+    return updated;
+  };
+
+  public getById = async (id: string): Promise<TriggerRequest | null> => {
+    const row = runSql(this.dbPath, `SELECT payload FROM trigger_requests WHERE id = ${quote(id)} LIMIT 1;`).trim();
+    if (!row) {
+      return null;
+    }
+    return this.decode(row);
+  };
+
+  public listByOwner = async (ownerId: string): Promise<TriggerRequest[]> => {
+    const rows = runSql(this.dbPath, `SELECT payload FROM trigger_requests WHERE owner_id = ${quote(ownerId)} ORDER BY requested_at ASC, id ASC;`).split('\n').filter(Boolean);
+    return Promise.all(rows.map((payload) => this.decode(payload)));
+  };
+
+  public listByLegacyMessageId = async (legacyMessageId: string): Promise<TriggerRequest[]> => {
+    const rows = runSql(this.dbPath, `SELECT payload FROM trigger_requests WHERE legacy_message_id = ${quote(legacyMessageId)} ORDER BY requested_at ASC, id ASC;`).split('\n').filter(Boolean);
+    return Promise.all(rows.map((payload) => this.decode(payload)));
+  };
+
+  public getLatestByLegacyMessageId = async (legacyMessageId: string): Promise<TriggerRequest | null> => {
+    const row = runSql(this.dbPath, `SELECT payload FROM trigger_requests WHERE legacy_message_id = ${quote(legacyMessageId)} ORDER BY requested_at DESC, id DESC LIMIT 1;`).trim();
+    if (!row) {
+      return null;
+    }
+    return this.decode(row);
+  };
+}
+
 export class SqliteConsentRepository implements ConsentRepository {
   private readonly cipher = new PayloadCipher();
   public constructor(private readonly dbPath: string) {}
@@ -246,6 +300,7 @@ const setupSchema = (dbPath: string): void => {
     CREATE TABLE IF NOT EXISTS legacy_messages (id TEXT PRIMARY KEY, owner_id TEXT NOT NULL, payload TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS beneficiaries (id TEXT PRIMARY KEY, owner_id TEXT NOT NULL, payload TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS legacy_message_delivery_attempts (id TEXT PRIMARY KEY, legacy_message_id TEXT NOT NULL, owner_id TEXT NOT NULL, attempted_at TEXT NOT NULL, payload TEXT NOT NULL);
+    CREATE TABLE IF NOT EXISTS trigger_requests (id TEXT PRIMARY KEY, owner_id TEXT NOT NULL, legacy_message_id TEXT NOT NULL, requested_at TEXT NOT NULL, payload TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS narrative_nodes (id TEXT PRIMARY KEY, owner_id TEXT NOT NULL, payload TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS narrative_edges (id TEXT PRIMARY KEY, owner_id TEXT NOT NULL, payload TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS external_attachments (id TEXT PRIMARY KEY, owner_id TEXT NOT NULL, payload TEXT NOT NULL);
@@ -258,6 +313,8 @@ const setupSchema = (dbPath: string): void => {
     CREATE INDEX IF NOT EXISTS idx_legacy_messages_owner ON legacy_messages(owner_id);
     CREATE INDEX IF NOT EXISTS idx_beneficiaries_owner ON beneficiaries(owner_id);
     CREATE INDEX IF NOT EXISTS idx_legacy_message_delivery_attempts_message ON legacy_message_delivery_attempts(legacy_message_id);
+    CREATE INDEX IF NOT EXISTS idx_trigger_requests_owner ON trigger_requests(owner_id);
+    CREATE INDEX IF NOT EXISTS idx_trigger_requests_message ON trigger_requests(legacy_message_id);
     CREATE INDEX IF NOT EXISTS idx_narrative_nodes_owner ON narrative_nodes(owner_id);
     CREATE INDEX IF NOT EXISTS idx_narrative_edges_owner ON narrative_edges(owner_id);
     CREATE INDEX IF NOT EXISTS idx_external_attachments_owner ON external_attachments(owner_id);
@@ -275,6 +332,7 @@ export const createSqlitePersistence = (path: string): CapsulePersistence => {
     legacyMessages: new SqliteLegacyMessageRepository(path, 'legacy_messages'),
     beneficiaries: new SqliteBeneficiaryRepository(path, 'beneficiaries'),
     legacyMessageDeliveryAttempts: new SqliteLegacyMessageDeliveryAttemptRepository(path),
+    triggerRequests: new SqliteTriggerRequestRepository(path),
     narrativeNodes: new SqliteNarrativeNodeRepository(path, 'narrative_nodes'),
     narrativeEdges: new SqliteNarrativeEdgeRepository(path, 'narrative_edges'),
     externalAttachments: new SqliteExternalAttachmentRepository(path, 'external_attachments'),

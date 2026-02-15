@@ -133,6 +133,20 @@ export interface LegacyMessageDeliveryAttempt {
   error_message?: string;
 }
 
+export interface TriggerRequest {
+  id: string;
+  owner_id: string;
+  legacy_message_id: string;
+  beneficiary_id?: string;
+  trusted_contact_id?: string;
+  status: 'requested' | 'validated' | 'rejected' | 'executed';
+  reason?: string;
+  requested_at: string;
+  validated_at?: string;
+  rejected_at?: string;
+  executed_at?: string;
+}
+
 export type ConsentScope = 'data_export' | 'post_mortem_transmission' | 'posthumous_visibility';
 
 export type ConsentStatus = 'granted' | 'revoked';

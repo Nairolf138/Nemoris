@@ -6,6 +6,7 @@ import type {
   ExternalAttachment,
   LegacyMessage,
   LegacyMessageDeliveryAttempt,
+  TriggerRequest,
   Lesson,
   Memory,
   NarrativeEdge,
@@ -20,6 +21,7 @@ import type {
   ListByOwnerQuery,
   LegacyMessageDeliveryAttemptRepository,
   LegacyMessageRepository,
+  TriggerRequestRepository,
   LessonRepository,
   MemoryRepository,
   NarrativeEdgeRepository,
@@ -127,6 +129,47 @@ class InMemoryLegacyMessageDeliveryAttemptRepository implements LegacyMessageDel
 }
 
 
+
+class InMemoryTriggerRequestRepository implements TriggerRequestRepository {
+  private readonly records = new Map<string, TriggerRequest>();
+
+  public create = async (request: TriggerRequest): Promise<TriggerRequest> => {
+    this.records.set(request.id, request);
+    return request;
+  };
+
+  public update = async (id: string, patch: Partial<TriggerRequest>): Promise<TriggerRequest | null> => {
+    const current = this.records.get(id);
+    if (!current) {
+      return null;
+    }
+    const updated = { ...current, ...patch } as TriggerRequest;
+    this.records.set(id, updated);
+    return updated;
+  };
+
+  public getById = async (id: string): Promise<TriggerRequest | null> => {
+    return this.records.get(id) ?? null;
+  };
+
+  public listByOwner = async (ownerId: string): Promise<TriggerRequest[]> => {
+    return asArray(this.records)
+      .filter((entry) => entry.owner_id === ownerId)
+      .sort((left, right) => left.requested_at.localeCompare(right.requested_at));
+  };
+
+  public listByLegacyMessageId = async (legacyMessageId: string): Promise<TriggerRequest[]> => {
+    return asArray(this.records)
+      .filter((entry) => entry.legacy_message_id === legacyMessageId)
+      .sort((left, right) => left.requested_at.localeCompare(right.requested_at));
+  };
+
+  public getLatestByLegacyMessageId = async (legacyMessageId: string): Promise<TriggerRequest | null> => {
+    const entries = await this.listByLegacyMessageId(legacyMessageId);
+    return entries.at(-1) ?? null;
+  };
+}
+
 class InMemoryConsentRepository implements ConsentRepository {
   private readonly records: ConsentRecord[] = [];
 
@@ -195,6 +238,7 @@ export const createInMemoryPersistence = (): CapsulePersistence => ({
   legacyMessages: new InMemoryLegacyMessageRepository(),
   beneficiaries: new InMemoryBeneficiaryRepository(),
   legacyMessageDeliveryAttempts: new InMemoryLegacyMessageDeliveryAttemptRepository(),
+  triggerRequests: new InMemoryTriggerRequestRepository(),
   narrativeNodes: new InMemoryNarrativeNodeRepository(),
   narrativeEdges: new InMemoryNarrativeEdgeRepository(),
   externalAttachments: new InMemoryExternalAttachmentRepository(),

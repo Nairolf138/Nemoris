@@ -277,29 +277,48 @@ const runLegacyMessageOrchestrationScenarios = async (app: CapsuleApiApp, owner:
   });
   assert(armResponse.status === 200, 'arm should return 200');
 
-  const firstTrigger = await app.handle({
+  const requestInitiation = await app.handle({
     method: 'POST',
-    path: `/legacy-messages/${messageId}/trigger`,
+    path: `/legacy-messages/${messageId}/trigger-request/initiate`,
     headers: { authorization: `Bearer ${owner.token}`, 'x-owner-id': owner.userId },
-    body: {},
+    body: { beneficiary_id: beneficiaryId, reason: 'Manual due diligence completed' },
   });
-  assert(firstTrigger.status === 200, 'first trigger should return 200');
+  assert(requestInitiation.status === 201, 'trigger request initiation should return 201');
 
-  const secondTrigger = await app.handle({
+  const requestValidation = await app.handle({
     method: 'POST',
-    path: `/legacy-messages/${messageId}/trigger`,
+    path: `/legacy-messages/${messageId}/trigger-request/validate`,
     headers: { authorization: `Bearer ${owner.token}`, 'x-owner-id': owner.userId },
-    body: {},
+    body: { approved: true },
   });
-  assert(secondTrigger.status === 400, 'double trigger should be rejected');
+  assert(requestValidation.status === 200, 'trigger request validation should return 200');
 
-  const lateRevoke = await app.handle({
+  const requestStatus = await app.handle({
+    method: 'GET',
+    path: `/legacy-messages/${messageId}/trigger-request/status?owner_id=${owner.userId}`,
+    headers: { authorization: `Bearer ${owner.token}` },
+  });
+  assert(requestStatus.status === 200, 'trigger request status should return 200');
+  assert((requestStatus.body as { trigger_request_status: string }).trigger_request_status === 'validated', 'status endpoint should expose validated workflow state');
+
+  const workflowExecution = await app.handle({
     method: 'POST',
-    path: `/legacy-messages/${messageId}/revoke`,
+    path: `/legacy-messages/${messageId}/trigger-request/execute`,
     headers: { authorization: `Bearer ${owner.token}`, 'x-owner-id': owner.userId },
     body: {},
   });
-  assert(lateRevoke.status === 400, 'late revoke after trigger should be rejected');
+  assert(workflowExecution.status === 200, 'trigger request execution should return 200');
+  const executionBody = workflowExecution.body as { delivery: { message: { state: string } }; workflow: { trigger_request_status: string } };
+  assert(executionBody.delivery.message.state === 'sent', 'execution should deliver message on success path');
+  assert(executionBody.workflow.trigger_request_status === 'executed', 'execution should expose readable workflow state');
+
+  const secondExecution = await app.handle({
+    method: 'POST',
+    path: `/legacy-messages/${messageId}/trigger-request/execute`,
+    headers: { authorization: `Bearer ${owner.token}`, 'x-owner-id': owner.userId },
+    body: {},
+  });
+  assert(secondExecution.status === 400, 'executing twice should be rejected');
 
   const createFailureResponse = await app.handle({
     method: 'POST',
@@ -362,8 +381,9 @@ const runLegacyMessageOrchestrationScenarios = async (app: CapsuleApiApp, owner:
   assert(observabilityAudit.status === 200, 'observability audit endpoint should expose sensitive orchestration events');
   const entries = (observabilityAudit.body as { entries: Array<{ event_name: string }> }).entries;
   assert(entries.some((entry) => entry.event_name === 'audit.legacy_message.armed'), 'arming action should be traced in audit events');
-  assert(entries.some((entry) => entry.event_name === 'audit.legacy_message.trigger_requested'), 'trigger request should be traced in audit events');
-  assert(entries.some((entry) => entry.event_name === 'audit.legacy_message.triggered'), 'effective trigger should be traced in audit events');
+  assert(entries.some((entry) => entry.event_name === 'audit.legacy_message.trigger_request.created'), 'trigger request creation should be traced in audit events');
+  assert(entries.some((entry) => entry.event_name === 'audit.legacy_message.trigger_request.validated'), 'trigger request validation should be traced in audit events');
+  assert(entries.some((entry) => entry.event_name === 'audit.legacy_message.trigger_request.executed'), 'trigger request execution should be traced in audit events');
 };
 
 const runLinkIntegrityDeletionScenarios = async (app: CapsuleApiApp, owner: { userId: string; token: string }): Promise<void> => {
