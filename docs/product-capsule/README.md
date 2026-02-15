@@ -37,6 +37,7 @@ Chaque section doit être marquée avec l’un des statuts suivants :
 - [Sécurité & conformité](./securite-conformite-threat-model.md)
 - [Roadmap shipping](./roadmap-shipping.md)
 - [Pricing & go-to-market](./pricing-go-to-market.md)
+- [Offre & pricing MVP](./pricing-offer-mvp.md)
 - [Contrat OpenAPI](./openapi.yaml)
 
 ## Sources MVP consolidées
