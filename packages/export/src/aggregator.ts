@@ -5,6 +5,7 @@ import type {
   LessonRepository,
   MemoryRepository,
   ValueProfileRepository,
+  Visibility,
 } from '@capsule/core';
 import {
   EXPORT_SCHEMA_VERSION_V1,
@@ -18,6 +19,8 @@ declare const Buffer: {
   from(input: string | Uint8Array, encoding?: string): { toString(encoding: string): string };
 };
 
+const textEncoder = new TextEncoder();
+
 export interface ExportAggregatorDependencies {
   memories: MemoryRepository;
   beliefs: BeliefRepository;
@@ -27,11 +30,41 @@ export interface ExportAggregatorDependencies {
   beneficiaries: BeneficiaryRepository;
 }
 
-export type ExportFormat = 'json' | 'pdf';
+export type ExportFormat = 'json' | 'pdf' | 'encrypted_zip';
+
+type ExportMimeType = 'application/json' | 'application/pdf' | 'application/zip+encrypted';
+
+export interface ExportVaultFile {
+  id: string;
+  filename: string;
+  mime: string;
+  size: number;
+  hash: string;
+  created_at: string;
+  visibility: Visibility;
+  content_base64: string;
+}
+
+export type ExportEncryptionStrategy = 'dedicated_key' | 'user_password';
+
+export interface ExportSerializationOptions {
+  vaultFiles?: ExportVaultFile[];
+  encryption?: {
+    strategy: ExportEncryptionStrategy;
+    secret: string;
+    keyId?: string;
+    iterations?: number;
+  };
+}
 
 export interface SerializedExport {
-  mimeType: 'application/json' | 'application/pdf';
+  mimeType: ExportMimeType;
   payloadBase64: string;
+}
+
+interface ZipEntry {
+  path: string;
+  data: Uint8Array;
 }
 
 const encodeBase64 = (content: string | Uint8Array): string => {
@@ -39,6 +72,11 @@ const encodeBase64 = (content: string | Uint8Array): string => {
     return Buffer.from(content, 'utf8').toString('base64');
   }
   return Buffer.from(content).toString('base64');
+};
+
+const decodeBase64 = (content: string): Uint8Array => {
+  const binary = Buffer.from(content, 'base64').toString('latin1');
+  return Uint8Array.from(binary, (char) => char.charCodeAt(0));
 };
 
 const sanitizeSensitiveText = (value?: string): string | undefined => {
@@ -64,12 +102,198 @@ const formatTrigger = (triggerType: string, triggerAt?: string): string => {
   return 'Déclenchement manuel';
 };
 
-export const serializeExportPayload = (payload: CapsuleExportPayloadV1, format: ExportFormat): SerializedExport => {
+const sanitizeArchivePath = (value: string): string => value.replace(/[^a-zA-Z0-9._-]/g, '_');
+
+const crc32 = (data: Uint8Array): number => {
+  let crc = 0xFFFFFFFF;
+  for (const byte of data) {
+    crc ^= byte;
+    for (let bit = 0; bit < 8; bit += 1) {
+      const mask = -(crc & 1);
+      crc = (crc >>> 1) ^ (0xEDB88320 & mask);
+    }
+  }
+  return (crc ^ 0xFFFFFFFF) >>> 0;
+};
+
+const pushUint16LE = (target: number[], value: number): void => {
+  target.push(value & 0xFF, (value >>> 8) & 0xFF);
+};
+
+const pushUint32LE = (target: number[], value: number): void => {
+  target.push(value & 0xFF, (value >>> 8) & 0xFF, (value >>> 16) & 0xFF, (value >>> 24) & 0xFF);
+};
+
+const buildZipArchive = (entries: ZipEntry[]): Uint8Array => {
+  const locals: number[] = [];
+  const centrals: number[] = [];
+  let localOffset = 0;
+
+  for (const entry of entries) {
+    const fileName = textEncoder.encode(entry.path);
+    const crc = crc32(entry.data);
+    const compressedSize = entry.data.length;
+
+    const localHeader: number[] = [];
+    pushUint32LE(localHeader, 0x04034b50);
+    pushUint16LE(localHeader, 20);
+    pushUint16LE(localHeader, 0);
+    pushUint16LE(localHeader, 0);
+    pushUint16LE(localHeader, 0);
+    pushUint16LE(localHeader, 0);
+    pushUint32LE(localHeader, crc);
+    pushUint32LE(localHeader, compressedSize);
+    pushUint32LE(localHeader, compressedSize);
+    pushUint16LE(localHeader, fileName.length);
+    pushUint16LE(localHeader, 0);
+
+    locals.push(...localHeader, ...fileName, ...entry.data);
+
+    const centralHeader: number[] = [];
+    pushUint32LE(centralHeader, 0x02014b50);
+    pushUint16LE(centralHeader, 20);
+    pushUint16LE(centralHeader, 20);
+    pushUint16LE(centralHeader, 0);
+    pushUint16LE(centralHeader, 0);
+    pushUint16LE(centralHeader, 0);
+    pushUint16LE(centralHeader, 0);
+    pushUint32LE(centralHeader, crc);
+    pushUint32LE(centralHeader, compressedSize);
+    pushUint32LE(centralHeader, compressedSize);
+    pushUint16LE(centralHeader, fileName.length);
+    pushUint16LE(centralHeader, 0);
+    pushUint16LE(centralHeader, 0);
+    pushUint16LE(centralHeader, 0);
+    pushUint16LE(centralHeader, 0);
+    pushUint32LE(centralHeader, 0);
+    pushUint32LE(centralHeader, localOffset);
+
+    centrals.push(...centralHeader, ...fileName);
+
+    localOffset += localHeader.length + fileName.length + compressedSize;
+  }
+
+  const centralOffset = locals.length;
+  const end: number[] = [];
+  pushUint32LE(end, 0x06054b50);
+  pushUint16LE(end, 0);
+  pushUint16LE(end, 0);
+  pushUint16LE(end, entries.length);
+  pushUint16LE(end, entries.length);
+  pushUint32LE(end, centrals.length);
+  pushUint32LE(end, centralOffset);
+  pushUint16LE(end, 0);
+
+  return Uint8Array.from([...locals, ...centrals, ...end]);
+};
+
+const deriveAesKeyForDedicatedSecret = async (secret: string): Promise<CryptoKey> => {
+  const digest = await crypto.subtle.digest('SHA-256', textEncoder.encode(secret));
+  return crypto.subtle.importKey('raw', digest, 'AES-GCM', false, ['encrypt']);
+};
+
+const deriveAesKeyFromPassword = async (password: string, salt: Uint8Array, iterations: number): Promise<CryptoKey> => {
+  const baseKey = await crypto.subtle.importKey('raw', textEncoder.encode(password), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey(
+    { name: 'PBKDF2', hash: 'SHA-256', salt: salt.buffer as ArrayBuffer, iterations },
+    baseKey,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt'],
+  );
+};
+
+const serializeEncryptedZip = async (
+  payload: CapsuleExportPayloadV1,
+  options: ExportSerializationOptions,
+): Promise<SerializedExport> => {
+  const vaultFiles = options.vaultFiles ?? [];
+  const manifest = {
+    manifest_version: '1.0.0',
+    export_schema_version: payload.metadata.schema_version,
+    generated_at: payload.metadata.exported_at,
+    owner_id: payload.metadata.owner_id,
+    contents: {
+      structured_json: 'payload.json',
+      vault_file_count: vaultFiles.length,
+      vault_files: vaultFiles.map((file) => ({
+        id: file.id,
+        path: `vault/${file.id}-${sanitizeArchivePath(file.filename)}`,
+        filename: file.filename,
+        mime: file.mime,
+        size: file.size,
+        hash: file.hash,
+        created_at: file.created_at,
+        visibility: file.visibility,
+      })),
+    },
+  };
+
+  const zipEntries: ZipEntry[] = [
+    { path: 'payload.json', data: textEncoder.encode(JSON.stringify(payload, null, 2)) },
+    { path: 'manifest.json', data: textEncoder.encode(JSON.stringify(manifest, null, 2)) },
+    ...vaultFiles.map((file) => ({
+      path: `vault/${file.id}-${sanitizeArchivePath(file.filename)}`,
+      data: decodeBase64(file.content_base64),
+    })),
+  ];
+
+  const archiveBytes = buildZipArchive(zipEntries);
+  const strategy = options.encryption?.strategy ?? 'dedicated_key';
+  const secret = options.encryption?.secret;
+  if (!secret) {
+    throw new Error('MISSING_EXPORT_ENCRYPTION_SECRET');
+  }
+
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const keyId = options.encryption?.keyId ?? 'ez1';
+  let key: CryptoKey;
+  let salt = '-';
+  let iterations = 0;
+
+  if (strategy === 'user_password') {
+    iterations = options.encryption?.iterations ?? 120_000;
+    const randomSalt = crypto.getRandomValues(new Uint8Array(16));
+    salt = encodeBase64(randomSalt);
+    key = await deriveAesKeyFromPassword(secret, randomSalt, iterations);
+  } else {
+    key = await deriveAesKeyForDedicatedSecret(secret);
+  }
+
+  const ciphertext = new Uint8Array(
+    await crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv.buffer as ArrayBuffer }, key, archiveBytes.buffer as ArrayBuffer),
+  );
+
+  const envelope = [
+    'enczip1',
+    strategy,
+    keyId,
+    encodeBase64(iv),
+    salt,
+    String(iterations),
+    encodeBase64(ciphertext),
+  ].join('.');
+
+  return {
+    mimeType: 'application/zip+encrypted',
+    payloadBase64: encodeBase64(envelope),
+  };
+};
+
+export const serializeExportPayload = async (
+  payload: CapsuleExportPayloadV1,
+  format: ExportFormat,
+  options: ExportSerializationOptions = {},
+): Promise<SerializedExport> => {
   if (format === 'pdf') {
     return {
       mimeType: 'application/pdf',
       payloadBase64: encodeBase64(renderExportPdf(payload)),
     };
+  }
+
+  if (format === 'encrypted_zip') {
+    return serializeEncryptedZip(payload, options);
   }
 
   return {

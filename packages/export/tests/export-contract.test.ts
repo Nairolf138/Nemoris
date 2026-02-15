@@ -1,5 +1,5 @@
 declare const Buffer: {
-  from(input: string, encoding: 'base64' | 'utf8'): { toString(encoding: 'utf8'): string };
+  from(input: string, encoding: 'base64' | 'utf8'): { toString(encoding: string): string };
 };
 
 import { ExportAggregator, serializeExportPayload } from '../src/aggregator.js';
@@ -100,12 +100,12 @@ export const runExportContractTests = async (): Promise<void> => {
     'sensitive password-like fields should be redacted from account details',
   );
 
-  const serializedJson = serializeExportPayload(payload, 'json');
+  const serializedJson = await serializeExportPayload(payload, 'json');
   assert(serializedJson.mimeType === 'application/json', 'JSON export should expose JSON mimetype');
   const decodedJson = JSON.parse(Buffer.from(serializedJson.payloadBase64, 'base64').toString('utf8')) as typeof payload;
   assert(decodedJson.family_dossier.messages[0]?.title === 'Message testamentaire', 'JSON serialization should preserve family dossier messages');
 
-  const serializedPdf = serializeExportPayload(payload, 'pdf');
+  const serializedPdf = await serializeExportPayload(payload, 'pdf');
   assert(serializedPdf.mimeType === 'application/pdf', 'PDF export should expose PDF mimetype');
   const pdfText = Buffer.from(serializedPdf.payloadBase64, 'base64').toString('utf8');
   assert(pdfText.startsWith('%PDF-1.4'), 'invalid PDF header');
@@ -116,4 +116,24 @@ export const runExportContractTests = async (): Promise<void> => {
   assert(pdfText.includes('(3. Messages à transmettre) Tj'), 'missing messages section');
   assert(pdfText.includes('(4. Documents et liens) Tj'), 'missing documents section');
   assert(pdfText.includes('(5. Bénéficiaires et règles) Tj'), 'missing beneficiaries/rules section');
+
+
+  const serializedEncryptedZip = await serializeExportPayload(payload, 'encrypted_zip', {
+    vaultFiles: [
+      {
+        id: 'vault-1',
+        filename: 'testament.pdf',
+        mime: 'application/pdf',
+        size: 16,
+        hash: 'hash-vault-1',
+        created_at: '2026-01-01T00:00:00.000Z',
+        visibility: 'private',
+        content_base64: Buffer.from('vault-content', 'utf8').toString('base64'),
+      },
+    ],
+    encryption: { strategy: 'dedicated_key', secret: 'unit-test-export-key' },
+  });
+  assert(serializedEncryptedZip.mimeType === 'application/zip+encrypted', 'encrypted zip should expose encrypted zip mimetype');
+  const envelope = Buffer.from(serializedEncryptedZip.payloadBase64, 'base64').toString('utf8');
+  assert(envelope.startsWith('enczip1.dedicated_key.'), 'encrypted zip should expose expected envelope format');
 };

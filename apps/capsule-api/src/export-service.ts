@@ -1,4 +1,4 @@
-import type { ExportAggregator } from '@capsule/export';
+import type { ExportAggregator, ExportVaultFile } from '@capsule/export';
 import { serializeExportPayload, type ExportFormat } from '@capsule/export';
 import { NotFoundError } from './errors.js';
 import type { ExportRepository } from './export-repository.js';
@@ -12,7 +12,7 @@ export interface ExportRecord {
   format: ExportFormat;
   created_at: string;
   payload: string;
-  mime_type: 'application/json' | 'application/pdf';
+  mime_type: 'application/json' | 'application/pdf' | 'application/zip+encrypted';
   file_name: string;
 }
 
@@ -24,19 +24,36 @@ export interface ExportAuditLog {
   created_at: string;
 }
 
+export interface CreateExportOptions {
+  vaultFiles?: ExportVaultFile[];
+  encryption?: {
+    strategy: 'dedicated_key' | 'user_password';
+    secret: string;
+    keyId?: string;
+    iterations?: number;
+  };
+}
+
 export class ExportService {
   public constructor(
     private readonly aggregator: Pick<ExportAggregator, 'collectByOwner'>,
     private readonly repository: ExportRepository,
   ) {}
 
-  public async createExport(ownerId: string, requestedByUserId: string, format: ExportFormat): Promise<ExportRecord> {
+  public async createExport(ownerId: string, requestedByUserId: string, format: ExportFormat, options: CreateExportOptions = {}): Promise<ExportRecord> {
     const payload = await this.aggregator.collectByOwner(ownerId, requestedByUserId);
-    const serialized = serializeExportPayload(payload, format);
+    const serialized = await serializeExportPayload(payload, format, {
+      vaultFiles: options.vaultFiles,
+      encryption: options.encryption,
+    });
 
     const exportId = crypto.randomUUID();
     const createdAt = new Date().toISOString();
-    const isPdf = format === 'pdf';
+    const extensionByFormat: Record<ExportFormat, string> = {
+      json: 'json',
+      pdf: 'pdf',
+      encrypted_zip: 'zip.enc',
+    };
 
     const record: ExportRecord = {
       id: exportId,
@@ -46,7 +63,7 @@ export class ExportService {
       created_at: createdAt,
       payload: serialized.payloadBase64,
       mime_type: serialized.mimeType,
-      file_name: `capsule-export-${ownerId}-${createdAt}.${isPdf ? 'pdf' : 'json'}`,
+      file_name: `capsule-export-${ownerId}-${createdAt}.${extensionByFormat[format]}`,
     };
 
     return this.repository.create(record);

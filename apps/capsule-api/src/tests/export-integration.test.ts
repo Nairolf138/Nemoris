@@ -1,7 +1,7 @@
 import { CapsuleApiApp } from '../app.js';
 
 declare const Buffer: {
-  from(input: string, encoding: 'base64'): { toString(encoding: 'utf8'): string };
+  from(input: string, encoding: 'base64' | 'utf8'): { toString(encoding: string): string };
 };
 
 type RuntimeEnv = Record<string, string | undefined>;
@@ -97,6 +97,21 @@ export const runExportIntegrationTests = async (): Promise<void> => {
   assert(createdMessage.status === 201, 'legacy message setup should return 201');
   const legacyMessageId = (createdMessage.body as { id: string }).id;
 
+
+  const uploadedVaultFile = await app.handle({
+    method: 'POST',
+    path: '/vault/documents/upload',
+    headers: { authorization: `Bearer ${token}`, 'x-owner-id': ownerId },
+    body: {
+      owner_id: ownerId,
+      filename: 'testament.txt',
+      mime: 'text/plain',
+      visibility: 'private',
+      content_base64: Buffer.from('vault-export-content', 'utf8').toString('base64'),
+    },
+  });
+  assert(uploadedVaultFile.status === 201, 'vault upload setup should return 201');
+
   const denied = await app.handle({ method: 'POST', path: '/exports', body: { format: 'json', owner_id: ownerId } });
   assert(denied.status === 401, 'exports endpoint should require auth');
 
@@ -175,8 +190,39 @@ export const runExportIntegrationTests = async (): Promise<void> => {
 
   assert(audit.status === 200, 'audit route should return 200');
   const entries = (audit.body as { entries: Array<{ format: string }> }).entries;
-  assert(entries.length === 1, 'audit should contain one entry');
-  assert(entries[0]?.format === 'json', 'audit should keep the format');
+  assert(entries.length === 1, 'audit should contain one entry before encrypted export');
+  assert(entries[0]?.format === 'json', 'audit should keep json format');
+
+  const encryptedCreated = await app.handle({
+    method: 'POST',
+    path: '/exports',
+    headers: { authorization: `Bearer ${token}` },
+    body: { format: 'encrypted_zip', owner_id: ownerId, encryption_password: 'UserPassword123!' },
+  });
+  assert(encryptedCreated.status === 201, 'encrypted export creation should return 201');
+  const encryptedExportId = (encryptedCreated.body as { export_id: string }).export_id;
+
+  const encryptedDownloaded = await app.handle({
+    method: 'GET',
+    path: `/exports/${encryptedExportId}/download`,
+    headers: { authorization: `Bearer ${token}`, 'x-owner-id': ownerId },
+  });
+  assert(encryptedDownloaded.status === 200, 'encrypted download should return 200');
+  const encryptedPayload = encryptedDownloaded.body as { mime_type: string; content_base64: string };
+  assert(encryptedPayload.mime_type === 'application/zip+encrypted', 'encrypted export should expose encrypted zip mimetype');
+  const encryptedEnvelope = Buffer.from(encryptedPayload.content_base64, 'base64').toString('utf8');
+  assert(encryptedEnvelope.startsWith('enczip1.user_password.'), 'encrypted export should use user_password strategy when a password is supplied');
+
+
+  const auditAfterEncrypted = await app.handle({
+    method: 'GET',
+    path: '/exports/audit',
+    headers: { authorization: `Bearer ${token}`, 'x-owner-id': ownerId },
+  });
+  assert(auditAfterEncrypted.status === 200, 'audit route should return 200 after encrypted export');
+  const entriesAfterEncrypted = (auditAfterEncrypted.body as { entries: Array<{ format: string }> }).entries;
+  assert(entriesAfterEncrypted.length === 2, 'audit should contain two entries after encrypted export');
+  assert(entriesAfterEncrypted.some((entry) => entry.format === 'encrypted_zip'), 'audit should keep encrypted_zip format');
 
   const observabilityAudit = await app.handle({
     method: 'GET',

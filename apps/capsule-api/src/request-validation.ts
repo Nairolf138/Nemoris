@@ -10,6 +10,7 @@ export interface Credentials {
 interface ExportPayload {
   format?: ExportFormat;
   owner_id?: string;
+  encryption_password?: string;
 }
 
 
@@ -189,10 +190,10 @@ export const parseExportPayload = (body: unknown): ExportPayload => {
     throw new ValidationError('INVALID_PAYLOAD');
   }
 
-  assertAllowedKeys(body, ['format', 'owner_id']);
+  assertAllowedKeys(body, ['format', 'owner_id', 'encryption_password']);
 
   const format = body.format;
-  if (format !== undefined && format !== 'json' && format !== 'pdf') {
+  if (format !== undefined && format !== 'json' && format !== 'pdf' && format !== 'encrypted_zip') {
     throw new ValidationError('INVALID_EXPORT_FORMAT');
   }
 
@@ -201,9 +202,23 @@ export const parseExportPayload = (body: unknown): ExportPayload => {
     throw new ValidationError('INVALID_OWNER_SCOPE');
   }
 
+  const encryptionPassword = body.encryption_password;
+  if (encryptionPassword !== undefined && typeof encryptionPassword !== 'string') {
+    throw new ValidationError('INVALID_PAYLOAD');
+  }
+
+  if (format !== 'encrypted_zip' && typeof encryptionPassword === 'string') {
+    throw new ValidationError('INVALID_PAYLOAD', { message: 'encryption_password is only allowed with encrypted_zip format.' });
+  }
+
+  if (format === 'encrypted_zip' && typeof encryptionPassword === 'string' && encryptionPassword.trim().length < 12) {
+    throw new ValidationError('WEAK_PASSWORD', { message: 'encryption_password must contain at least 12 characters.' });
+  }
+
   return {
     format: format ?? 'json',
     owner_id: typeof ownerId === 'string' ? ownerId.trim() : undefined,
+    encryption_password: typeof encryptionPassword === 'string' ? encryptionPassword.trim() : undefined,
   };
 };
 

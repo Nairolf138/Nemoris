@@ -27,7 +27,7 @@ import {
   type ConsentScope,
   type ExternalAttachment,
 } from '@capsule/core';
-import { ExportAggregator } from '@capsule/export';
+import { ExportAggregator, type ExportVaultFile } from '@capsule/export';
 import { ObservabilityService } from '@capsule/observability';
 import { AuthService } from './auth-service.js';
 import {
@@ -104,6 +104,8 @@ const capsuleQuotaMb = clamp(Number.parseInt(runtimeEnv.CAPSULE_VAULT_CAPSULE_QU
 const CAPSULE_QUOTA_BYTES = capsuleQuotaMb * 1024 * 1024;
 const MAX_SINGLE_FILE_BYTES = 25 * 1024 * 1024;
 const INTERNAL_AUDIT_TOKEN = runtimeEnv.CAPSULE_INTERNAL_AUDIT_TOKEN;
+const EXPORT_ENCRYPTION_KEY = runtimeEnv.CAPSULE_EXPORT_ENCRYPTION_KEY ?? 'capsule-export-key-dev-only';
+const EXPORT_ENCRYPTION_KEY_ID = runtimeEnv.CAPSULE_EXPORT_ENCRYPTION_KEY_ID ?? 'ez1';
 const ALLOWED_VAULT_MIME_TYPES = new Set([
   'application/pdf',
   'text/plain',
@@ -1347,6 +1349,31 @@ export class CapsuleApiApp {
     };
   }
 
+  private async collectVaultFilesForExport(ownerId: string): Promise<ExportVaultFile[]> {
+    const files = this.listVaultFilesByOwner(ownerId);
+    const exportedFiles: ExportVaultFile[] = [];
+
+    for (const file of files) {
+      const object = await this.objectStorage.getObject(file.bucket, file.object_key);
+      if (!object) {
+        continue;
+      }
+
+      exportedFiles.push({
+        id: file.id,
+        filename: file.filename,
+        mime: file.mime,
+        size: file.size,
+        hash: file.hash,
+        created_at: file.created_at,
+        visibility: file.visibility,
+        content_base64: object.bodyBase64,
+      });
+    }
+
+    return exportedFiles;
+  }
+
 
   private assertSensitiveActionAllowed(user: { id: string; sensitive_action_unlocked_at?: string }, action: string): void {
     if (!user.sensitive_action_unlocked_at) {
@@ -1471,6 +1498,17 @@ export class CapsuleApiApp {
     this.enforceOwnerAccess(request, auth.user.id);
     await this.assertConsentScope(request, auth.user.id, 'data_export');
     const format = exportPayload.format ?? 'json';
+    const hasPosthumousVaultFile = this.listVaultFilesByOwner(auth.user.id).some((file) => file.visibility === 'posthumous');
+    if (hasPosthumousVaultFile) {
+      await this.assertConsentScope(request, auth.user.id, 'posthumous_visibility');
+    }
+
+    const vaultFiles = format === 'encrypted_zip' ? await this.collectVaultFilesForExport(auth.user.id) : [];
+    const encryption = format === 'encrypted_zip'
+      ? exportPayload.encryption_password
+        ? { strategy: 'user_password' as const, secret: exportPayload.encryption_password }
+        : { strategy: 'dedicated_key' as const, secret: EXPORT_ENCRYPTION_KEY, keyId: EXPORT_ENCRYPTION_KEY_ID }
+      : undefined;
     this.observability.emit({
       event_name: 'audit.export.started',
       user_id: auth.user.id,
@@ -1479,7 +1517,7 @@ export class CapsuleApiApp {
     });
     let generated;
     try {
-      generated = await this.exportService.createExport(auth.user.id, auth.user.id, format);
+      generated = await this.exportService.createExport(auth.user.id, auth.user.id, format, { vaultFiles, encryption });
     } catch (error) {
       this.observability.emit({
         event_name: 'export.failed',

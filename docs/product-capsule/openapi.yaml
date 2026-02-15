@@ -211,6 +211,12 @@ paths:
       summary: Générer un export
       parameters:
         - $ref: '#/components/parameters/OwnerId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExportCreateRequest'
       responses:
         '201': { description: Export généré }
 
@@ -222,7 +228,12 @@ paths:
         - $ref: '#/components/parameters/Id'
         - $ref: '#/components/parameters/OwnerId'
       responses:
-        '200': { description: Export téléchargé }
+        '200':
+          description: Export téléchargé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExportDownloadResponse'
 
   /exports/audit:
     get:
@@ -357,9 +368,39 @@ components:
       schema:
         type: string
         enum: [standard, data_export]
-      description: `data_export` impose un consentement `data_export` actif.
+      description: "`data_export` impose un consentement `data_export` actif."
 
   schemas:
+
+    ExportCreateRequest:
+      type: object
+      properties:
+        owner_id:
+          type: string
+        format:
+          type: string
+          enum: [json, pdf, encrypted_zip]
+        encryption_password:
+          type: string
+          description: "Mot de passe optionnel (>=12 caractères), utilisé uniquement avec `format=encrypted_zip`."
+
+    ExportDownloadResponse:
+      type: object
+      required: [export_id, file_name, mime_type, content_base64]
+      properties:
+        export_id:
+          type: string
+        file_name:
+          type: string
+        mime_type:
+          type: string
+          enum: [application/json, application/pdf, application/zip+encrypted]
+        content_base64:
+          type: string
+          description: |
+            Payload export encodé en base64.
+            Pour `application/zip+encrypted`, contient une enveloppe `enczip1.<strategy>...` qui protège une archive ZIP (payload.json + vault/* + manifest.json).
+
     VaultUploadRequest:
       type: object
       required: [owner_id, filename, mime, visibility, content_base64]
