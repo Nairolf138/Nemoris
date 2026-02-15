@@ -6,7 +6,12 @@ import type {
   MemoryRepository,
   ValueProfileRepository,
 } from '@capsule/core';
-import { EXPORT_SCHEMA_VERSION_V1, type CapsuleExportPayloadV1, type ExportTransmissionRule } from './schema.js';
+import {
+  EXPORT_SCHEMA_VERSION_V1,
+  type CapsuleExportPayloadV1,
+  type ExportFamilyDossier,
+  type ExportTransmissionRule,
+} from './schema.js';
 import { renderExportPdf } from './pdf.js';
 
 declare const Buffer: {
@@ -34,6 +39,29 @@ const encodeBase64 = (content: string | Uint8Array): string => {
     return Buffer.from(content, 'utf8').toString('base64');
   }
   return Buffer.from(content).toString('base64');
+};
+
+const sanitizeSensitiveText = (value?: string): string | undefined => {
+  if (!value) {
+    return value;
+  }
+
+  return value
+    .replace(/(mot\s*de\s*passe\s*[:=]\s*)([^,;.\n]+)/gi, '$1[REDACTED]')
+    .replace(/(password\s*[:=]\s*)([^,;.\n]+)/gi, '$1[REDACTED]');
+};
+
+const formatTrigger = (triggerType: string, triggerAt?: string): string => {
+  if (triggerType === 'date') {
+    return triggerAt ? `Date programmée (${triggerAt})` : 'Date programmée';
+  }
+  if (triggerType === 'inactivity') {
+    return 'Inactivité détectée';
+  }
+  if (triggerType === 'verified_death') {
+    return 'Vérification du décès';
+  }
+  return 'Déclenchement manuel';
 };
 
 export const serializeExportPayload = (payload: CapsuleExportPayloadV1, format: ExportFormat): SerializedExport => {
@@ -82,6 +110,71 @@ export class ExportAggregator {
     return deduped;
   }
 
+  private static buildFamilyDossier(payload: {
+    lessons: Array<{ id: string; title: string; lesson_text: string; severity?: 'low' | 'medium' | 'high' | 'critical' }>;
+    memories: Array<{ id: string; title: string; description?: string; memory_type?: 'event' | 'document' | 'media' | 'note' }>;
+    legacyMessages: Array<{ id: string; title: string; trigger_type: string; trigger_at?: string; beneficiary_ids: string[] }>;
+    beneficiaries: Array<{ id: string; identity: string; channel: 'email' | 'sms' | 'postal'; contact: string; verification_status: 'pending' | 'verified' | 'rejected' }>;
+    transmissionRules: ExportTransmissionRule[];
+  }): ExportFamilyDossier {
+    const beneficiariesById = new Map(payload.beneficiaries.map((beneficiary) => [beneficiary.id, beneficiary]));
+
+    const practicalInstructions = payload.lessons.map((lesson) => ({
+      lesson_id: lesson.id,
+      title: lesson.title,
+      instruction: lesson.lesson_text,
+      severity: lesson.severity,
+    }));
+
+    const accountCandidates = payload.memories.filter((memory) => {
+      if (memory.memory_type !== 'document' && memory.memory_type !== 'media') {
+        return false;
+      }
+      const haystack = `${memory.title} ${memory.description ?? ''}`.toLowerCase();
+      return ['compte', 'account', 'abonnement', 'assurance', 'banque', 'espace client'].some((term) => haystack.includes(term));
+    });
+
+    const reportableAccounts = accountCandidates.map((memory) => ({
+      memory_id: memory.id,
+      label: memory.title,
+      details: sanitizeSensitiveText(memory.description),
+      password_included: false as const,
+    }));
+
+    const documentsLinks = payload.memories
+      .filter((memory) => memory.memory_type === 'document' || memory.memory_type === 'media')
+      .map((memory) => ({
+        memory_id: memory.id,
+        title: memory.title,
+        reference: sanitizeSensitiveText(memory.description) ?? 'Aucune référence explicite',
+      }));
+
+    const messages = payload.legacyMessages.map((message) => ({
+      legacy_message_id: message.id,
+      title: message.title,
+      trigger: formatTrigger(message.trigger_type, message.trigger_at),
+      beneficiaries: message.beneficiary_ids
+        .map((beneficiaryId) => beneficiariesById.get(beneficiaryId)?.identity ?? beneficiaryId),
+    }));
+
+    return {
+      practical_instructions: practicalInstructions,
+      reportable_accounts: reportableAccounts,
+      messages,
+      documents_links: documentsLinks,
+      beneficiaries_rules: {
+        beneficiaries: payload.beneficiaries.map((beneficiary) => ({
+          beneficiary_id: beneficiary.id,
+          identity: beneficiary.identity,
+          channel: beneficiary.channel,
+          contact: beneficiary.contact,
+          verification_status: beneficiary.verification_status,
+        })),
+        transmission_rules: payload.transmissionRules,
+      },
+    };
+  }
+
   public async collectByOwner(ownerId: string, generatedByUserId: string): Promise<CapsuleExportPayloadV1> {
     const [memories, beliefs, lessons, valueProfiles, legacyMessages, beneficiaries] = await Promise.all([
       this.deps.memories.listByOwner(ownerId),
@@ -91,6 +184,8 @@ export class ExportAggregator {
       this.deps.legacyMessages.listByOwner(ownerId),
       this.deps.beneficiaries.listByOwner(ownerId),
     ]);
+
+    const transmissionRules = ExportAggregator.buildTransmissionRules({ legacyMessages });
 
     return {
       metadata: {
@@ -106,7 +201,14 @@ export class ExportAggregator {
       value_profiles: valueProfiles,
       legacy_messages: legacyMessages,
       beneficiaries,
-      transmission_rules: ExportAggregator.buildTransmissionRules({ legacyMessages }),
+      transmission_rules: transmissionRules,
+      family_dossier: ExportAggregator.buildFamilyDossier({
+        lessons,
+        memories,
+        legacyMessages,
+        beneficiaries,
+        transmissionRules,
+      }),
     };
   }
 }

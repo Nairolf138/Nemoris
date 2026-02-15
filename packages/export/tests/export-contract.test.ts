@@ -15,7 +15,7 @@ const buildFixture = () => {
     memories: [
       {
         id: 'mem-1', owner_id: ownerId, visibility: 'private', created_at: '2026-01-01T00:00:00.000Z', updated_at: '2026-01-01T00:00:00.000Z',
-        occurred_at: '2025-12-31T00:00:00.000Z', title: 'Souvenir A', description: 'Description souvenir A',
+        occurred_at: '2025-12-31T00:00:00.000Z', title: 'Compte assurance vie', description: 'Identifiant dossier A-01, mot de passe: secret', memory_type: 'document',
         related_belief_ids: ['belief-1'], related_lesson_ids: ['lesson-1'], related_value_profile_ids: ['vp-1'], related_narrative_node_ids: [],
       },
     ],
@@ -64,7 +64,7 @@ export const runExportContractTests = async (): Promise<void> => {
   const aggregator = new ExportAggregator(buildFixture() as any);
   const payload = await aggregator.collectByOwner(ownerId, ownerId);
 
-  assert(payload.metadata.schema_version === '1.0.0', 'schema version must be v1');
+  assert(payload.metadata.schema_version === '1.1.0', 'schema version must be v1.1.0');
   assert(payload.metadata.generated_by_user_id === ownerId, 'generator user id should be set in metadata');
   assert(payload.metadata.exported_at.length > 0, 'export timestamp should be set in metadata');
   assert(payload.metadata.timezone.length > 0, 'timezone should be set in metadata');
@@ -79,11 +79,13 @@ export const runExportContractTests = async (): Promise<void> => {
       legacy_messages: payload.legacy_messages.length,
       beneficiaries: payload.beneficiaries.length,
       transmission_rules: payload.transmission_rules.length,
+      practical_instructions: payload.family_dossier.practical_instructions.length,
+      reportable_accounts: payload.family_dossier.reportable_accounts.length,
     },
   });
 
   assert(
-    snapshot === JSON.stringify({ schema_version: '1.0.0', owner_id: 'owner-1', counts: { memories: 1, beliefs: 1, lessons: 1, value_profiles: 1, legacy_messages: 1, beneficiaries: 2, transmission_rules: 2 } }),
+    snapshot === JSON.stringify({ schema_version: '1.1.0', owner_id: 'owner-1', counts: { memories: 1, beliefs: 1, lessons: 1, value_profiles: 1, legacy_messages: 1, beneficiaries: 2, transmission_rules: 2, practical_instructions: 1, reportable_accounts: 1 } }),
     'JSON contract snapshot changed',
   );
   assert(
@@ -92,18 +94,26 @@ export const runExportContractTests = async (): Promise<void> => {
     'transmission rules should be sorted and deduplicated by message and beneficiary',
   );
 
+  assert(payload.family_dossier.reportable_accounts[0]?.password_included === false, 'accounts must not embed passwords');
+  assert(
+    payload.family_dossier.reportable_accounts[0]?.details?.includes('[REDACTED]'),
+    'sensitive password-like fields should be redacted from account details',
+  );
+
   const serializedJson = serializeExportPayload(payload, 'json');
   assert(serializedJson.mimeType === 'application/json', 'JSON export should expose JSON mimetype');
   const decodedJson = JSON.parse(Buffer.from(serializedJson.payloadBase64, 'base64').toString('utf8')) as typeof payload;
-  assert(decodedJson.legacy_messages[0]?.title === 'Message testamentaire', 'JSON serialization should preserve message title');
+  assert(decodedJson.family_dossier.messages[0]?.title === 'Message testamentaire', 'JSON serialization should preserve family dossier messages');
 
   const serializedPdf = serializeExportPayload(payload, 'pdf');
   assert(serializedPdf.mimeType === 'application/pdf', 'PDF export should expose PDF mimetype');
   const pdfText = Buffer.from(serializedPdf.payloadBase64, 'base64').toString('utf8');
   assert(pdfText.startsWith('%PDF-1.4'), 'invalid PDF header');
-  assert(pdfText.includes('(Dossier famille Capsule) Tj'), 'missing family dossier title');
-  assert(pdfText.includes('(Messages à transmettre) Tj'), 'missing messages section');
-  assert(pdfText.includes('(Documents et liens utiles) Tj'), 'missing documents section');
-  assert(pdfText.includes('(Bénéficiaires) Tj'), 'missing beneficiaries section');
-  assert(pdfText.includes('(Règles de déclenchement) Tj'), 'missing trigger rules section');
+  assert(pdfText.includes('(DOSSIER FAMILLE CAPSULE) Tj'), 'missing family dossier title');
+  assert(pdfText.includes('(Sommaire) Tj'), 'missing summary section');
+  assert(pdfText.includes('(1. Instructions pratiques) Tj'), 'missing instructions section');
+  assert(pdfText.includes('(2. Comptes à signaler') && pdfText.includes('sans mots de passe'), 'missing accounts section');
+  assert(pdfText.includes('(3. Messages à transmettre) Tj'), 'missing messages section');
+  assert(pdfText.includes('(4. Documents et liens) Tj'), 'missing documents section');
+  assert(pdfText.includes('(5. Bénéficiaires et règles) Tj'), 'missing beneficiaries/rules section');
 };
