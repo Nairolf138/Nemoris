@@ -63,6 +63,12 @@ export class ProductMetrics {
   private authRejected403 = 0;
   private authRateLimited429 = 0;
   private revokedSessions = 0;
+  private conversionTierFreeAssigned = 0;
+  private conversionTierPaidAssigned = 0;
+  private conversionUpgradePrompted = 0;
+  private conversionPaidFeatureUsage = 0;
+  private conversionUpgradeActivatedUsers = new Set<string>();
+  private conversionPromptedUsers = new Set<string>();
   private rolling30dEvents: RollingEvent[] = [];
 
   public ingest(event: StandardEvent): void {
@@ -149,6 +155,31 @@ export class ProductMetrics {
       this.revokedSessions += 1;
     }
 
+    if (event.event_name === 'conversion.tier.assigned') {
+      const tier = event.metadata.tier;
+      if (tier === 'free') {
+        this.conversionTierFreeAssigned += 1;
+      }
+      if (tier === 'paid') {
+        this.conversionTierPaidAssigned += 1;
+      }
+    }
+
+    if (event.event_name === 'conversion.tier.upgrade_prompted') {
+      this.conversionUpgradePrompted += 1;
+      this.conversionPromptedUsers.add(event.user_id);
+    }
+
+    if (event.event_name === 'conversion.tier.feature_used') {
+      const tier = event.metadata.tier;
+      if (tier === 'paid') {
+        this.conversionPaidFeatureUsage += 1;
+      }
+      if (tier === 'paid' && this.conversionPromptedUsers.has(event.user_id)) {
+        this.conversionUpgradeActivatedUsers.add(event.user_id);
+      }
+    }
+
     const now = Date.now();
     const ageMs = now - eventTimestampMs;
     const withinWeek = ageMs >= 0 && ageMs <= 1000 * 60 * 60 * 24 * 7;
@@ -210,6 +241,11 @@ export class ProductMetrics {
       auth_rejected_403_total: this.authRejected403,
       auth_rate_limited_429_total: this.authRateLimited429,
       session_revoked_total: this.revokedSessions,
+      conversion_tier_free_assigned_total: this.conversionTierFreeAssigned,
+      conversion_tier_paid_assigned_total: this.conversionTierPaidAssigned,
+      conversion_upgrade_prompted_total: this.conversionUpgradePrompted,
+      conversion_paid_feature_usage_total: this.conversionPaidFeatureUsage,
+      conversion_upgrade_activated_total: this.conversionUpgradeActivatedUsers.size,
     };
   }
 

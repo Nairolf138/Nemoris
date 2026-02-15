@@ -64,6 +64,14 @@ import {
 import { createPersistenceProviders, type PersistenceProviders } from './persistence-config.js';
 import { SlidingWindowRateLimiter } from './rate-limiter.js';
 import {
+  assertEntitledFeature,
+  getTierEntitlements,
+  resolvePlanTier,
+  type EntitlementFeature,
+  type PlanTier,
+  type TierEntitlements,
+} from './entitlements.js';
+import {
   getDefaultSortBy,
   parseConsentPayload,
   parseCredentials,
@@ -97,11 +105,7 @@ interface VaultFile {
 const runtimeEnv: Record<string, string | undefined> =
   ((globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env ?? {}) as Record<string, string | undefined>;
 
-const clamp = (value: number, min: number, max: number): number => Math.max(min, Math.min(max, value));
 const VAULT_BUCKET = runtimeEnv.CAPSULE_VAULT_BUCKET ?? 'capsule-essential-documents';
-const DEFAULT_CAPSULE_QUOTA_MB = 100;
-const capsuleQuotaMb = clamp(Number.parseInt(runtimeEnv.CAPSULE_VAULT_CAPSULE_QUOTA_MB ?? `${DEFAULT_CAPSULE_QUOTA_MB}`, 10), 50, 500);
-const CAPSULE_QUOTA_BYTES = capsuleQuotaMb * 1024 * 1024;
 const MAX_SINGLE_FILE_BYTES = 25 * 1024 * 1024;
 const INTERNAL_AUDIT_TOKEN = runtimeEnv.CAPSULE_INTERNAL_AUDIT_TOKEN;
 const EXPORT_ENCRYPTION_KEY = runtimeEnv.CAPSULE_EXPORT_ENCRYPTION_KEY ?? 'capsule-export-key-dev-only';
@@ -271,6 +275,7 @@ export class CapsuleApiApp {
     this.securityConfig.bruteForceBlockMs,
   );
   private readonly securityMonitor = new SecurityMonitor(this.observability, this.securityConfig.anomalyAlertThreshold);
+  private readonly emittedPlanTiers = new Set<string>();
 
   public constructor(dependencies: CapsuleApiAppDependencies = {}) {
     const providers: PersistenceProviders = createPersistenceProviders();
@@ -972,6 +977,10 @@ export class CapsuleApiApp {
           await this.assertConsentScope(request, auth.user.id, 'posthumous_visibility');
         }
         const input = mapCreateLegacyMessageInput(request.body, auth.user.id);
+        const entitlements = this.getEntitlements(request, auth.user.id);
+        if (input.trigger_type !== 'manual') {
+          this.requireFeatureEntitlement(auth.user.id, entitlements, 'scheduled_messages');
+        }
         input.beneficiary_ids = await this.validateLegacyMessageBeneficiaries(auth.user.id, input.beneficiary_ids);
         const created = await createLegacyMessage({ legacyMessageRepository: this.persistence.legacyMessages, memoryRepository: this.persistence.memories, beliefRepository: this.persistence.beliefs, lessonRepository: this.persistence.lessons, valueProfileRepository: this.persistence.valueProfiles, narrativeNodeRepository: this.persistence.narrativeNodes, beneficiaryRepository: this.persistence.beneficiaries, observer: { emitEvent: (event) => this.observability.emit(event) } }, input);
         return { status: 201, body: created };
@@ -982,6 +991,16 @@ export class CapsuleApiApp {
           await this.assertConsentScope(request, auth.user.id, 'posthumous_visibility');
         }
         const input = mapCreateBeneficiaryInput(request.body, auth.user.id);
+        const entitlements = this.getEntitlements(request, auth.user.id);
+        const existingBeneficiaries = await this.persistence.beneficiaries.listByOwner(auth.user.id);
+        if (existingBeneficiaries.length >= entitlements.limits.beneficiariesMax) {
+          if (!entitlements.features.advanced_beneficiaries) {
+            this.requireFeatureEntitlement(auth.user.id, entitlements, 'advanced_beneficiaries');
+          }
+          throw new ValidationError('DOMAIN_VALIDATION_ERROR', {
+            message: `Maximum beneficiaries reached (${entitlements.limits.beneficiariesMax}).`,
+          });
+        }
         const beneficiary: Beneficiary = { ...this.createEntityMetadata(auth.user.id, input.visibility), ...input };
         return { status: 201, body: await this.persistence.beneficiaries.create(beneficiary) };
       }
@@ -1045,6 +1064,10 @@ export class CapsuleApiApp {
         const patch = mapUpdateLegacyMessageInput(request.body);
         if (patch.visibility === 'posthumous') {
           await this.assertConsentScope(request, auth.user.id, 'posthumous_visibility');
+        }
+        if (patch.trigger_type !== undefined && patch.trigger_type !== 'manual') {
+          const entitlements = this.getEntitlements(request, auth.user.id);
+          this.requireFeatureEntitlement(auth.user.id, entitlements, 'scheduled_messages');
         }
         if (patch.beneficiary_ids !== undefined) {
           patch.beneficiary_ids = await this.validateLegacyMessageBeneficiaries(auth.user.id, patch.beneficiary_ids);
@@ -1187,6 +1210,48 @@ export class CapsuleApiApp {
     return value.replace(/[^a-zA-Z0-9._-]/g, '_');
   }
 
+  private getEntitlements(request: RequestLike, userId: string): TierEntitlements {
+    const tier = resolvePlanTier(request, userId);
+    if (!this.emittedPlanTiers.has(`${userId}:${tier}`)) {
+      this.observability.emit({
+        event_name: 'conversion.tier.assigned',
+        user_id: userId,
+        entity_id: userId,
+        metadata: { tier },
+      });
+      this.emittedPlanTiers.add(`${userId}:${tier}`);
+    }
+    return getTierEntitlements(tier);
+  }
+
+  private trackTierFeatureUsage(userId: string, tier: PlanTier, feature: EntitlementFeature): void {
+    this.observability.emit({
+      event_name: 'conversion.tier.feature_used',
+      user_id: userId,
+      entity_id: feature,
+      metadata: { tier, feature },
+    });
+  }
+
+  private requireFeatureEntitlement(userId: string, entitlements: TierEntitlements, feature: EntitlementFeature): void {
+    try {
+      assertEntitledFeature(entitlements, feature);
+      this.trackTierFeatureUsage(userId, entitlements.tier, feature);
+    } catch (error) {
+      this.observability.emit({
+        event_name: 'conversion.tier.upgrade_prompted',
+        user_id: userId,
+        entity_id: feature,
+        metadata: {
+          from_tier: entitlements.tier,
+          required_tier: 'paid',
+          feature,
+        },
+      });
+      throw error;
+    }
+  }
+
   private listVaultFilesByOwner(ownerId: string): VaultFile[] {
     return [...this.vaultFiles.values()]
       .filter((file) => file.owner_id === ownerId)
@@ -1208,6 +1273,8 @@ export class CapsuleApiApp {
     }
 
     this.assertSensitiveActionAllowed(auth.user, 'vault.upload');
+    const entitlements = this.getEntitlements(request, auth.user.id);
+    this.requireFeatureEntitlement(auth.user.id, entitlements, 'internal_vault');
 
     if (!ALLOWED_VAULT_MIME_TYPES.has(payload.mime)) {
       throw new ValidationError('DOMAIN_VALIDATION_ERROR', { message: 'Unsupported mime type for essential documents vault.' });
@@ -1224,8 +1291,9 @@ export class CapsuleApiApp {
     }
 
     const usedBytes = this.listVaultFilesByOwner(auth.user.id).reduce((acc, file) => acc + file.size, 0);
-    if (usedBytes + size > CAPSULE_QUOTA_BYTES) {
-      throw new ValidationError('DOMAIN_VALIDATION_ERROR', { message: `Capsule quota exceeded (${capsuleQuotaMb} MB).` });
+    if (usedBytes + size > entitlements.limits.vaultQuotaBytes) {
+      const maxMb = Math.floor(entitlements.limits.vaultQuotaBytes / (1024 * 1024));
+      throw new ValidationError('DOMAIN_VALIDATION_ERROR', { message: `Capsule quota exceeded (${maxMb} MB).` });
     }
 
     if (payload.visibility === 'posthumous') {
@@ -1275,6 +1343,7 @@ export class CapsuleApiApp {
       throw new ForbiddenError();
     }
 
+    const entitlements = this.getEntitlements(request, auth.user.id);
     const files = this.listVaultFilesByOwner(auth.user.id);
     const results: VaultFile[] = [];
     for (const file of files) {
@@ -1290,8 +1359,8 @@ export class CapsuleApiApp {
         items: results,
         quota: {
           used_bytes: files.reduce((acc, file) => acc + file.size, 0),
-          max_bytes: CAPSULE_QUOTA_BYTES,
-          max_mb: capsuleQuotaMb,
+          max_bytes: entitlements.limits.vaultQuotaBytes,
+          max_mb: Math.floor(entitlements.limits.vaultQuotaBytes / (1024 * 1024)),
         },
       },
     };
@@ -1498,6 +1567,14 @@ export class CapsuleApiApp {
     this.enforceOwnerAccess(request, auth.user.id);
     await this.assertConsentScope(request, auth.user.id, 'data_export');
     const format = exportPayload.format ?? 'json';
+    const entitlements = this.getEntitlements(request, auth.user.id);
+    if (format === 'encrypted_zip') {
+      if (!entitlements.limits.advancedExportFormats.has(format)) {
+        this.requireFeatureEntitlement(auth.user.id, entitlements, 'advanced_exports');
+      } else {
+        this.trackTierFeatureUsage(auth.user.id, entitlements.tier, 'advanced_exports');
+      }
+    }
     const hasPosthumousVaultFile = this.listVaultFilesByOwner(auth.user.id).some((file) => file.visibility === 'posthumous');
     if (hasPosthumousVaultFile) {
       await this.assertConsentScope(request, auth.user.id, 'posthumous_visibility');

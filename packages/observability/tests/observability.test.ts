@@ -35,13 +35,17 @@ export const runObservabilityTests = (): void => {
   service.emit({ event_name: 'security.auth_rejected_403', user_id: 'user-1', entity_id: '/capsules/cap-1', timestamp: now });
   service.emit({ event_name: 'security.auth_rate_limited_429', user_id: 'user-1', entity_id: '/auth/login', timestamp: now });
   service.emit({ event_name: 'security.session_revoked', user_id: 'user-1', entity_id: 'session-1', timestamp: now });
+  service.emit({ event_name: 'conversion.tier.assigned', user_id: 'user-1', entity_id: 'user-1', timestamp: now, metadata: { tier: 'free' } });
+  service.emit({ event_name: 'conversion.tier.upgrade_prompted', user_id: 'user-1', entity_id: 'advanced_exports', timestamp: now, metadata: { from_tier: 'free' } });
+  service.emit({ event_name: 'conversion.tier.assigned', user_id: 'user-1', entity_id: 'user-1', timestamp: now, metadata: { tier: 'paid' } });
+  service.emit({ event_name: 'conversion.tier.feature_used', user_id: 'user-1', entity_id: 'advanced_exports', timestamp: now, metadata: { tier: 'paid', feature: 'advanced_exports' } });
 
   const events = service.listEvents();
-  assert(events.length === 12, 'should capture emitted events');
+  assert(events.length === 16, 'should capture emitted events');
 
   const audit = service.listAuditLog();
-  assert(audit.length === 12, 'should append immutable audit entries');
-  assert(audit[0]?.sequence === 1 && audit[11]?.sequence === 12, 'audit log should be append-only sequence');
+  assert(audit.length === 16, 'should append immutable audit entries');
+  assert(audit[0]?.sequence === 1 && audit[15]?.sequence === 16, 'audit log should be append-only sequence');
 
   const dashboard = service.dashboardJson();
   assert(dashboard.metrics.schema_version === 1, 'dashboard json schema version should be stable');
@@ -70,6 +74,11 @@ export const runObservabilityTests = (): void => {
   assert(dashboardV2.metrics.auth_rejected_403_total === 1, '403 rejects should be tracked in KPI metrics');
   assert(dashboardV2.metrics.auth_rate_limited_429_total === 1, '429 auth rejects should be tracked in KPI metrics');
   assert(dashboardV2.metrics.session_revoked_total === 1, 'session revocations should be tracked in KPI metrics');
+  assert(dashboardV2.metrics.conversion_tier_free_assigned_total === 1, 'free tier assignment should be tracked');
+  assert(dashboardV2.metrics.conversion_tier_paid_assigned_total === 1, 'paid tier assignment should be tracked');
+  assert(dashboardV2.metrics.conversion_upgrade_prompted_total === 1, 'upgrade prompts should be tracked');
+  assert(dashboardV2.metrics.conversion_paid_feature_usage_total === 1, 'paid feature usage should be tracked');
+  assert(dashboardV2.metrics.conversion_upgrade_activated_total === 1, 'upgrade activation should be tracked after prompt');
 
   const csv = service.dashboardCsv();
   const parsedCsv = parseCsv(csv);

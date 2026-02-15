@@ -4,6 +4,18 @@
 
 Définir un positionnement simple, lisible et mesurable pour le lancement de la **Capsule familiale** en MVP.
 
+## Grille d’offre MVP (explicite)
+
+| Palier | Proposition de valeur | Entitlements / feature flags API |
+| --- | --- | --- |
+| **Gratuit** | Démarrer une capsule personnelle et partager des liens externes avec export basique | `internal_vault=false`, `advanced_beneficiaries=false`, `advanced_exports=false`, `scheduled_messages=false` |
+| **Payant — 0,60 €/mois** | Continuité de service + coffre interne + transmission enrichie | `internal_vault=true`, `advanced_beneficiaries=true`, `advanced_exports=true`, `scheduled_messages=true` |
+
+### Détail fonctionnel par palier
+
+- **Gratuit**: 1 capsule, liens externes, export simple (`json`/`pdf`).
+- **Payant**: coffre interne, bénéficiaires avancés, exports avancés (`encrypted_zip`), messages planifiés.
+
 ## Offre MVP : Capsule familiale
 
 ### Promesse de valeur
@@ -11,26 +23,6 @@ Définir un positionnement simple, lisible et mesurable pour le lancement de la 
 > **Préserver et transmettre l’essentiel d’une vie familiale, sans complexité.**
 
 La Capsule familiale permet à une personne de structurer ses repères (souvenirs, convictions, leçons, valeurs) et de les exporter dans un format lisible et durable pour ses proches.
-
-### Fonctionnalités incluses (MVP)
-
-- Compte utilisateur simple (inscription, connexion, déconnexion).
-- Création/édition/suppression des objets de base :
-  - mémoires,
-  - convictions,
-  - leçons,
-  - profils de valeurs.
-- Liens manuels entre objets pour donner du contexte narratif.
-- Export PDF et JSON de la capsule.
-- Journal d’export minimum côté back-end (audit basique).
-
-### Limites produit assumées au lancement
-
-- 1 capsule = 1 titulaire de compte (pas de co-édition temps réel).
-- Pas d’IA générative/conversationnelle.
-- Pas de recherche sémantique avancée.
-- Pas de workflow juridique post-mortem automatisé.
-- Pas de personnalisation graphique avancée des exports.
 
 ## Tarif MVP
 
@@ -40,24 +32,29 @@ La Capsule familiale permet à une personne de structurer ses repères (souvenir
 - Positionnement : tarif symbolique de continuité de service, accessible au plus grand nombre.
 - Objectif : valider la traction et la rétention avant toute montée en gamme.
 
-## Hypothèses économiques de pilotage (MVP)
+## Pilotage API: quotas et garde-fous par palier
 
-Hypothèses de départ pour les 3 à 6 premiers mois, à recalibrer selon les données réelles.
+À brancher sur des entitlements centralisés:
 
-| Indicateur | Hypothèse de départ | Commentaire |
-| --- | --- | --- |
-| Conversion visiteur -> inscription | 8 % | Landing simple orientée bénéfice + preuve d’export. |
-| Conversion inscrit -> payant | 12 % | Déblocage valeur sur la durée via conservation et export. |
-| Churn mensuel payant | 6 % | Cible prudente pour un usage personnel/familial naissant. |
-| ARPU mensuel | 0,60 € | Monoproduit MVP, une seule offre active. |
+- **Quota coffre** (`vaultQuotaBytes`) : contrôle upload et affichage du quota restant.
+- **Nombre de bénéficiaires** (`beneficiariesMax`) : blocage + signal d’upgrade quand seuil atteint.
+- **Formats d’export avancés** (`advancedExportFormats`) : contrôle des formats autorisés.
+- **Messages planifiés** (`scheduled_messages`) : restriction des triggers avancés.
 
-### Lecture rapide des hypothèses
+## Instrumentation conversion par palier (observability)
 
-- Le modèle MVP privilégie la **simplicité** (1 plan, 1 prix, 1 promesse).
-- La viabilité initiale dépend surtout de :
-  - la conversion inscription -> payant,
-  - la réduction du churn les 90 premiers jours,
-  - la maîtrise du coût de support par abonné.
+Événements à suivre pour piloter adoption/upgrade:
+
+- `conversion.tier.assigned` (tier `free`/`paid`),
+- `conversion.tier.upgrade_prompted` (feature demandée mais non incluse),
+- `conversion.tier.feature_used` (adoption réelle des features payantes).
+
+KPIs minimum dans dashboard V2:
+
+- volume utilisateurs par palier,
+- nombre de prompts d’upgrade,
+- usage des features payantes,
+- activations d’upgrade (utilisateur prompté puis usage payant).
 
 ## KPI business minimum à suivre dès le lancement
 
@@ -70,6 +67,7 @@ Hypothèses de départ pour les 3 à 6 premiers mois, à recalibrer selon les do
 
 - **Conversion inscrit -> payant (30 jours)**.
 - **Temps médian avant premier paiement**.
+- **Conversion par palier** (free -> paid) via instrumentation upgrade.
 
 ### 3) Rétention
 
@@ -80,16 +78,6 @@ Hypothèses de départ pour les 3 à 6 premiers mois, à recalibrer selon les do
 
 - **Tickets support / 100 abonnés payants / mois**.
 - **Coût support moyen par abonné payant**.
-
-## Encadré — Ce qui n’est pas inclus aujourd’hui
-
-> Pour protéger la clarté du positionnement MVP, les éléments suivants ne sont pas vendus ni promis aujourd’hui :
->
-> - plan multi-utilisateur familial collaboratif,
-> - IA de rédaction automatique,
-> - coffre-fort juridique complet avec orchestration notariale,
-> - assistant conversationnel avancé,
-> - options "premium" de personnalisation visuelle.
 
 ## Cadre d’évolution post-MVP (non engagé)
 
