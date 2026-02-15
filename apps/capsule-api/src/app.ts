@@ -101,6 +101,7 @@ const DEFAULT_CAPSULE_QUOTA_MB = 100;
 const capsuleQuotaMb = clamp(Number.parseInt(runtimeEnv.CAPSULE_VAULT_CAPSULE_QUOTA_MB ?? `${DEFAULT_CAPSULE_QUOTA_MB}`, 10), 50, 500);
 const CAPSULE_QUOTA_BYTES = capsuleQuotaMb * 1024 * 1024;
 const MAX_SINGLE_FILE_BYTES = 25 * 1024 * 1024;
+const INTERNAL_AUDIT_TOKEN = runtimeEnv.CAPSULE_INTERNAL_AUDIT_TOKEN;
 const ALLOWED_VAULT_MIME_TYPES = new Set([
   'application/pdf',
   'text/plain',
@@ -200,6 +201,20 @@ const buildEventMetadata = (
   ...metadata,
 });
 
+const buildSensitiveAuditMetadata = (
+  actor: string,
+  action: string,
+  target: string,
+  result: 'success' | 'failure' | 'requested',
+  metadata: Record<string, unknown> = {},
+): Record<string, unknown> => ({
+  actor,
+  action,
+  target,
+  result,
+  ...metadata,
+});
+
 const parseDataRoute = (path: string): { collection: DataCollection; id?: string } | null => {
   const cleanPath = pathWithoutQuery(path);
   const parts = cleanPath.split('/').filter(Boolean);
@@ -287,6 +302,12 @@ export class CapsuleApiApp {
           user_id: auth.user.id,
           entity_id: auth.user.id,
           metadata: buildEventMetadata(request, 'success', Date.now() - requestStartMs, { email: auth.user.email }),
+        });
+        this.observability.emit({
+          event_name: 'audit.capsule.created',
+          user_id: auth.user.id,
+          entity_id: auth.user.id,
+          metadata: buildSensitiveAuditMetadata(auth.user.id, 'capsule.create', auth.user.id, 'success', { route: '/auth/register' }),
         });
         return { status: 201, body: auth };
       }
@@ -384,6 +405,10 @@ export class CapsuleApiApp {
 
       if (request.method === 'GET' && request.path === '/observability/audit') {
         return this.getObservabilityAuditLog(request);
+      }
+
+      if (request.method === 'GET' && pathWithoutQuery(request.path) === '/internal/audit/events') {
+        return this.getInternalAuditLog(request);
       }
 
       if (request.method === 'GET' && request.path === '/observability/dashboard') {
@@ -629,19 +654,47 @@ export class CapsuleApiApp {
 
     try {
       if (route.action === 'arm') {
-        return { status: 200, body: await armLegacyMessage({ legacyMessageRepository: this.persistence.legacyMessages }, route.id) };
+        const armed = await armLegacyMessage({ legacyMessageRepository: this.persistence.legacyMessages, observer: { emitEvent: (event) => this.observability.emit(event) } }, route.id);
+        this.observability.emit({
+          event_name: 'audit.legacy_message.armed',
+          user_id: auth.user.id,
+          entity_id: route.id,
+          metadata: buildSensitiveAuditMetadata(auth.user.id, 'legacy_message.arm', route.id, 'success'),
+        });
+        return { status: 200, body: armed };
       }
       if (route.action === 'trigger') {
-        return { status: 200, body: await triggerLegacyMessage({ legacyMessageRepository: this.persistence.legacyMessages }, route.id) };
+        this.observability.emit({
+          event_name: 'audit.legacy_message.trigger_requested',
+          user_id: auth.user.id,
+          entity_id: route.id,
+          metadata: buildSensitiveAuditMetadata(auth.user.id, 'legacy_message.trigger_request', route.id, 'requested'),
+        });
+        const triggered = await triggerLegacyMessage({ legacyMessageRepository: this.persistence.legacyMessages, observer: { emitEvent: (event) => this.observability.emit(event) } }, route.id);
+        this.observability.emit({
+          event_name: 'audit.legacy_message.triggered',
+          user_id: auth.user.id,
+          entity_id: route.id,
+          metadata: buildSensitiveAuditMetadata(auth.user.id, 'legacy_message.trigger', route.id, 'success'),
+        });
+        return { status: 200, body: triggered };
       }
       if (route.action === 'revoke') {
-        return { status: 200, body: await revokeLegacyMessage({ legacyMessageRepository: this.persistence.legacyMessages }, route.id) };
+        const revoked = await revokeLegacyMessage({ legacyMessageRepository: this.persistence.legacyMessages, observer: { emitEvent: (event) => this.observability.emit(event) } }, route.id);
+        this.observability.emit({
+          event_name: 'audit.legacy_message.revoked',
+          user_id: auth.user.id,
+          entity_id: route.id,
+          metadata: buildSensitiveAuditMetadata(auth.user.id, 'legacy_message.revoke', route.id, 'success'),
+        });
+        return { status: 200, body: revoked };
       }
 
       const result = await deliverLegacyMessage(
         {
           legacyMessageRepository: this.persistence.legacyMessages,
           legacyMessageDeliveryAttemptRepository: this.persistence.legacyMessageDeliveryAttempts,
+          observer: { emitEvent: (event) => this.observability.emit(event) },
           deliver: async (message) => {
             if (message.message.includes('[FAIL_DELIVERY]')) {
               throw new Error('Simulated delivery failure');
@@ -1220,6 +1273,12 @@ export class CapsuleApiApp {
     this.enforceOwnerAccess(request, auth.user.id);
     await this.assertConsentScope(request, auth.user.id, 'data_export');
     const format = exportPayload.format ?? 'json';
+    this.observability.emit({
+      event_name: 'audit.export.started',
+      user_id: auth.user.id,
+      entity_id: auth.user.id,
+      metadata: buildSensitiveAuditMetadata(auth.user.id, 'export.start', auth.user.id, 'requested', { format }),
+    });
     let generated;
     try {
       generated = await this.exportService.createExport(auth.user.id, auth.user.id, format);
@@ -1237,6 +1296,12 @@ export class CapsuleApiApp {
       user_id: auth.user.id,
       entity_id: generated.id,
       metadata: buildEventMetadata(request, 'success', Date.now() - requestStartMs, { format: generated.format }),
+    });
+    this.observability.emit({
+      event_name: 'audit.export.started',
+      user_id: auth.user.id,
+      entity_id: generated.id,
+      metadata: buildSensitiveAuditMetadata(auth.user.id, 'export.start', generated.id, 'success', { format: generated.format }),
     });
 
     return {
@@ -1267,6 +1332,12 @@ export class CapsuleApiApp {
       user_id: auth.user.id,
       entity_id: record.id,
       metadata: buildEventMetadata(request, 'success', Date.now() - requestStartMs, { format: record.format }),
+    });
+    this.observability.emit({
+      event_name: 'audit.export.downloaded',
+      user_id: auth.user.id,
+      entity_id: record.id,
+      metadata: buildSensitiveAuditMetadata(auth.user.id, 'export.download', record.id, 'success', { format: record.format }),
     });
 
     return {
@@ -1302,6 +1373,29 @@ export class CapsuleApiApp {
     const auth = await this.authService.authenticate(token);
     this.enforceOwnerAccess(request, auth.user.id);
     return { status: 200, body: { entries: this.observability.listAuditLog() } };
+  }
+
+  private async getInternalAuditLog(request: RequestLike): Promise<ResponseLike> {
+    const token = request.headers?.['x-internal-audit-token'];
+    if (!INTERNAL_AUDIT_TOKEN || token !== INTERNAL_AUDIT_TOKEN) {
+      throw new ForbiddenError();
+    }
+
+    const params = new URLSearchParams(request.path.split('?')[1] ?? '');
+    const limit = Number.parseInt(params.get('limit') ?? '250', 10);
+
+    return {
+      status: 200,
+      body: {
+        entries: this.observability.listAuditLog({
+          limit: Number.isFinite(limit) && limit > 0 ? Math.min(limit, 1_000) : 250,
+          actor: params.get('actor') ?? undefined,
+          action: params.get('action') ?? undefined,
+          target: params.get('target') ?? undefined,
+          result: params.get('result') ?? undefined,
+        }),
+      },
+    };
   }
 
   private async getDashboard(request: RequestLike): Promise<ResponseLike> {

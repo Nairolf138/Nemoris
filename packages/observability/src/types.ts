@@ -8,6 +8,18 @@ export interface StandardEvent {
 
 export interface AuditLogEntry extends StandardEvent {
   sequence: number;
+  actor: string;
+  action: string;
+  target: string;
+  result: string;
+}
+
+export interface AuditLogQuery {
+  limit?: number;
+  actor?: string;
+  action?: string;
+  target?: string;
+  result?: string;
 }
 
 export interface DashboardSnapshot {

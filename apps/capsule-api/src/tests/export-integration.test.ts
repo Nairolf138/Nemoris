@@ -188,6 +188,8 @@ export const runExportIntegrationTests = async (): Promise<void> => {
   const obsEntries = (observabilityAudit.body as { entries: Array<{ event_name: string }> }).entries;
   assert(obsEntries.some((entry) => entry.event_name === 'export.created'), 'export created event should be emitted');
   assert(obsEntries.some((entry) => entry.event_name === 'export.downloaded'), 'export downloaded event should be emitted');
+  assert(obsEntries.some((entry) => entry.event_name === 'audit.export.started'), 'export start should be traced as sensitive audit event');
+  assert(obsEntries.some((entry) => entry.event_name === 'audit.export.downloaded'), 'export download should be traced as sensitive audit event');
 
   const dashboard = await app.handle({
     method: 'GET',

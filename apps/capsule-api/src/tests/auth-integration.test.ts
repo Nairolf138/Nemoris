@@ -144,6 +144,7 @@ export const runAuthIntegrationTests = async (): Promise<void> => {
   const entries = (observabilityAudit.body as { entries: Array<{ event_name: string }> }).entries;
 
   assert(entries.some((entry) => entry.event_name === 'onboarding.completed'), 'register should emit onboarding event');
+  assert(entries.some((entry) => entry.event_name === 'audit.capsule.created'), 'register should emit capsule creation audit event');
   assert(entries.some((entry) => entry.event_name === 'auth.login'), 'login should emit auth.login event');
   assert(entries.some((entry) => entry.event_name === 'auth.logout'), 'logout should emit auth.logout event');
   assert(entries.some((entry) => entry.event_name === 'security.alert.triggered'), 'repeated anomalies should trigger alert');
