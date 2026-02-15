@@ -10,6 +10,25 @@ Chaque section doit être marquée avec l’un des statuts suivants :
 - **Phase 2** : prévu après la capsule v1, déjà cadré.
 - **Research** : piste exploratoire, non engagée.
 
+## Tableau de référence — Feature -> Statut -> Surface API
+
+| Feature | Statut | Surface API principale |
+| --- | --- | --- |
+| Auth | In scope v1 | `/auth/register`, `/auth/login`, `/auth/logout`, `/auth/refresh` |
+| Memories | In scope v1 | `/data/memories` |
+| Beliefs | In scope v1 | `/data/beliefs` |
+| Lessons | In scope v1 | `/data/lessons` |
+| Value profiles | In scope v1 | `/data/value_profiles` |
+| Legacy messages | In scope v1 | `/data/legacy_messages`, `/legacy-messages/{id}/{arm|trigger|revoke|deliver|delivery-attempts}` |
+| Beneficiaries | In scope v1 | `/data/beneficiaries` |
+| Narrative nodes | In scope v1 | `/data/narrative_nodes` |
+| Narrative edges | In scope v1 | `/data/narrative_edges` |
+| Consent scopes | In scope v1 | `/consent/grant`, `/consent/revoke`, `/consent/history` |
+| Exports | In scope v1 | `/exports`, `/exports/{id}/download`, `/exports/audit` |
+| Graphe narratif interactif avancé | Phase 2 | N/A v1 |
+| Workflows juridiques complets | Research | N/A v1 |
+| IA avancée | Research | N/A v1 |
+
 ## Index
 
 - [Scope fonctionnel](./scope-fonctionnel.md)
@@ -17,6 +36,7 @@ Chaque section doit être marquée avec l’un des statuts suivants :
 - [Modèle de données](./modele-de-donnees.md)
 - [Sécurité & conformité](./securite-conformite-threat-model.md)
 - [Roadmap shipping](./roadmap-shipping.md)
+- [Contrat OpenAPI](./openapi.yaml)
 
 ## Sources MVP consolidées
 
