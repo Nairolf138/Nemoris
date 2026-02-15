@@ -11,11 +11,12 @@ info:
     - Orchestration legacy messages
     - Gestion des consentements
     - Exports et observabilité read-only
+    - Stockage objet S3-compatible ciblé "documents essentiels" (`/vault/documents`)
 
     Limites connues v1 (documentées):
-    - Pas d'endpoint d'upload binaire média dédié; les médias sont représentés via métadonnées/références dans les entités métier.
-    - Les codes/secrets sont pris en charge sous forme de contenu texte au sein des collections existantes (pas de coffre-fort dédié).
-    - Les plafonds MIME/codec/poids fichier ne sont pas contractualisés dans cette version.
+    - Pas de galerie média complète ni pipeline multimédia (transcodage, previews, streaming).
+    - Le module objet est ciblé sur les documents essentiels uniquement (PDF/TXT/JPEG/PNG/DOC/DOCX).
+    - Poids max par fichier: 25 Mo. Quota capsule configurable: 50–500 Mo (`CAPSULE_VAULT_CAPSULE_QUOTA_MB`).
 servers:
   - url: https://api.capsule.nemoris.app
     description: Production
@@ -32,6 +33,7 @@ tags:
   - name: Consent
   - name: Exports
   - name: Observability
+  - name: Vault
 
 paths:
   /auth/register:
@@ -217,6 +219,41 @@ paths:
       responses:
         '200': { description: Journal d'audit export }
 
+
+  /vault/documents:
+    get:
+      tags: [Vault]
+      summary: Lister les documents essentiels stockés
+      parameters:
+        - $ref: '#/components/parameters/OwnerId'
+      responses:
+        '200': { description: Liste des fichiers + quota capsule }
+  /vault/documents/upload:
+    post:
+      tags: [Vault]
+      summary: Upload d'un document essentiel (S3-compatible en backend)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VaultUploadRequest'
+      responses:
+        '201': { description: Fichier stocké }
+        '400': { description: Format/MIME/poids invalide ou quota dépassé }
+        '403': { description: Consentement manquant (posthumous_visibility) }
+  /vault/documents/{id}/download:
+    get:
+      tags: [Vault]
+      summary: Télécharger un document essentiel
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/OwnerId'
+        - $ref: '#/components/parameters/Purpose'
+      responses:
+        '200': { description: Métadonnées fichier + payload base64 }
+        '403': { description: Consentement manquant (`data_export` ou `posthumous_visibility`) }
+
   /observability/audit:
     get:
       tags: [Observability]
@@ -299,3 +336,36 @@ components:
       schema:
         type: string
         enum: [asc, desc]
+    Purpose:
+      in: query
+      name: purpose
+      required: false
+      schema:
+        type: string
+        enum: [standard, data_export]
+      description: `data_export` impose un consentement `data_export` actif.
+
+  schemas:
+    VaultUploadRequest:
+      type: object
+      required: [owner_id, filename, mime, visibility, content_base64]
+      properties:
+        owner_id:
+          type: string
+        filename:
+          type: string
+        mime:
+          type: string
+          enum:
+            - application/pdf
+            - text/plain
+            - image/jpeg
+            - image/png
+            - application/msword
+            - application/vnd.openxmlformats-officedocument.wordprocessingml.document
+        visibility:
+          type: string
+          enum: [private, trusted_circle, public, posthumous]
+        content_base64:
+          type: string
+          description: Fichier encodé en base64 (25 Mo max avant encodage).

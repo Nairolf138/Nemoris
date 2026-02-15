@@ -68,12 +68,65 @@ import {
   parseCredentials,
   parseDataListQuery,
   parseExportPayload,
+  parseVaultDownloadQuery,
+  parseVaultListQuery,
+  parseVaultUploadPayload,
   parseOwnerScope,
   type DataCollection,
 } from './request-validation.js';
 import { loadSecurityConfig } from './security-config.js';
 import { SecurityMonitor } from './security-monitor.js';
 import type { RequestLike, ResponseLike } from './types.js';
+import { InMemoryObjectStorageAdapter, type ObjectStorageAdapter } from './object-storage.js';
+
+interface VaultFile {
+  id: string;
+  owner_id: string;
+  filename: string;
+  mime: string;
+  size: number;
+  hash: string;
+  created_at: string;
+  visibility: Visibility;
+  bucket: string;
+  object_key: string;
+}
+
+const runtimeEnv: Record<string, string | undefined> =
+  ((globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env ?? {}) as Record<string, string | undefined>;
+
+const clamp = (value: number, min: number, max: number): number => Math.max(min, Math.min(max, value));
+const VAULT_BUCKET = runtimeEnv.CAPSULE_VAULT_BUCKET ?? 'capsule-essential-documents';
+const DEFAULT_CAPSULE_QUOTA_MB = 100;
+const capsuleQuotaMb = clamp(Number.parseInt(runtimeEnv.CAPSULE_VAULT_CAPSULE_QUOTA_MB ?? `${DEFAULT_CAPSULE_QUOTA_MB}`, 10), 50, 500);
+const CAPSULE_QUOTA_BYTES = capsuleQuotaMb * 1024 * 1024;
+const MAX_SINGLE_FILE_BYTES = 25 * 1024 * 1024;
+const ALLOWED_VAULT_MIME_TYPES = new Set([
+  'application/pdf',
+  'text/plain',
+  'image/jpeg',
+  'image/png',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+]);
+
+
+const BASE64_REGEX = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
+
+const isValidBase64 = (value: string): boolean => value.length > 0 && value.length % 4 === 0 && BASE64_REGEX.test(value);
+
+const calculateBase64Bytes = (value: string): number => {
+  const padding = value.endsWith('==') ? 2 : value.endsWith('=') ? 1 : 0;
+  return (value.length * 3) / 4 - padding;
+};
+
+const sha256Hex = async (value: string): Promise<string> => {
+  const bytes = new TextEncoder().encode(value);
+  const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', bytes));
+  return Array.from(digest)
+    .map((entry) => entry.toString(16).padStart(2, '0'))
+    .join('');
+};
 
 const parseBearer = (authorization?: string): string | undefined => {
   if (!authorization) {
@@ -163,10 +216,20 @@ const parseDataRoute = (path: string): { collection: DataCollection; id?: string
   return { collection, id: parts[2] };
 };
 
+const parseVaultDownloadRoute = (path: string): { id: string } | null => {
+  const cleanPath = pathWithoutQuery(path);
+  const parts = cleanPath.split('/').filter(Boolean);
+  if (parts[0] !== 'vault' || parts[1] !== 'documents' || !parts[2] || parts[3] !== 'download') {
+    return null;
+  }
+  return { id: parts[2] };
+};
+
 export interface CapsuleApiAppDependencies {
   authService?: AuthService;
   persistence?: CapsulePersistence;
   exportRepository?: ExportRepository;
+  objectStorage?: ObjectStorageAdapter;
 }
 
 export class CapsuleApiApp {
@@ -175,6 +238,8 @@ export class CapsuleApiApp {
   private readonly persistence: CapsulePersistence;
   private readonly exportAggregator: ExportAggregator;
   private readonly exportService: ExportService;
+  private readonly objectStorage: ObjectStorageAdapter;
+  private readonly vaultFiles = new Map<string, VaultFile>();
   private readonly securityConfig = loadSecurityConfig();
   private readonly authRateLimiter = new SlidingWindowRateLimiter(
     this.securityConfig.authRateLimitMaxAttempts,
@@ -201,6 +266,7 @@ export class CapsuleApiApp {
       beneficiaries: this.persistence.beneficiaries,
     });
     this.exportService = new ExportService(this.exportAggregator, dependencies.exportRepository ?? providers.exportRepository);
+    this.objectStorage = dependencies.objectStorage ?? new InMemoryObjectStorageAdapter();
   }
 
   public async handle(request: RequestLike): Promise<ResponseLike> {
@@ -302,6 +368,18 @@ export class CapsuleApiApp {
 
       if (request.method === 'GET' && request.path === '/exports/audit') {
         return await this.listExportAuditLogs(request);
+      }
+
+      if (request.method === 'POST' && request.path === '/vault/documents/upload') {
+        return await this.uploadVaultDocument(request);
+      }
+
+      if (request.method === 'GET' && pathWithoutQuery(request.path).startsWith('/vault/documents/') && pathWithoutQuery(request.path).endsWith('/download')) {
+        return await this.downloadVaultDocument(request);
+      }
+
+      if (request.method === 'GET' && pathWithoutQuery(request.path) === '/vault/documents') {
+        return await this.listVaultDocuments(request);
       }
 
       if (request.method === 'GET' && request.path === '/observability/audit') {
@@ -879,6 +957,168 @@ export class CapsuleApiApp {
     throw new NotFoundError('NOT_FOUND');
   }
 
+
+  private sanitizeFileName(value: string): string {
+    return value.replace(/[^a-zA-Z0-9._-]/g, '_');
+  }
+
+  private listVaultFilesByOwner(ownerId: string): VaultFile[] {
+    return [...this.vaultFiles.values()]
+      .filter((file) => file.owner_id === ownerId)
+      .sort((left, right) => left.created_at.localeCompare(right.created_at));
+  }
+
+  private async uploadVaultDocument(request: RequestLike): Promise<ResponseLike> {
+    const token = parseBearer(request.headers?.authorization);
+    if (!token) {
+      throw new AuthError('UNAUTHENTICATED');
+    }
+
+    const auth = await this.authService.authenticate(token);
+    const payload = parseVaultUploadPayload(request.body);
+    this.enforceOwnerAccess(request, auth.user.id);
+
+    if (payload.owner_id !== auth.user.id) {
+      throw new ForbiddenError();
+    }
+
+    if (!ALLOWED_VAULT_MIME_TYPES.has(payload.mime)) {
+      throw new ValidationError('DOMAIN_VALIDATION_ERROR', { message: 'Unsupported mime type for essential documents vault.' });
+    }
+
+    if (!isValidBase64(payload.content_base64)) {
+      throw new ValidationError('INVALID_PAYLOAD', { message: 'content_base64 must be valid base64.' });
+    }
+
+    const size = calculateBase64Bytes(payload.content_base64);
+
+    if (size > MAX_SINGLE_FILE_BYTES) {
+      throw new ValidationError('DOMAIN_VALIDATION_ERROR', { message: 'File exceeds maximum size (25 MB).' });
+    }
+
+    const usedBytes = this.listVaultFilesByOwner(auth.user.id).reduce((acc, file) => acc + file.size, 0);
+    if (usedBytes + size > CAPSULE_QUOTA_BYTES) {
+      throw new ValidationError('DOMAIN_VALIDATION_ERROR', { message: `Capsule quota exceeded (${capsuleQuotaMb} MB).` });
+    }
+
+    if (payload.visibility === 'posthumous') {
+      await this.assertConsentScope(request, auth.user.id, 'posthumous_visibility');
+    }
+
+    const hash = await sha256Hex(payload.content_base64);
+    const id = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    const objectKey = `${auth.user.id}/${id}/${this.sanitizeFileName(payload.filename)}`;
+    await this.objectStorage.putObject({
+      bucket: VAULT_BUCKET,
+      key: objectKey,
+      contentType: payload.mime,
+      bodyBase64: payload.content_base64,
+      etag: hash,
+    });
+
+    const createdAt = new Date().toISOString();
+    const file: VaultFile = {
+      id,
+      owner_id: auth.user.id,
+      filename: payload.filename,
+      mime: payload.mime,
+      size,
+      hash,
+      created_at: createdAt,
+      visibility: payload.visibility,
+      bucket: VAULT_BUCKET,
+      object_key: objectKey,
+    };
+    this.vaultFiles.set(file.id, file);
+
+    return { status: 201, body: file };
+  }
+
+  private async listVaultDocuments(request: RequestLike): Promise<ResponseLike> {
+    const token = parseBearer(request.headers?.authorization);
+    if (!token) {
+      throw new AuthError('UNAUTHENTICATED');
+    }
+
+    const auth = await this.authService.authenticate(token);
+    const query = parseVaultListQuery(request.path);
+    this.enforceOwnerAccess(request, auth.user.id);
+
+    if (query.owner_id !== auth.user.id) {
+      throw new ForbiddenError();
+    }
+
+    const files = this.listVaultFilesByOwner(auth.user.id);
+    const results: VaultFile[] = [];
+    for (const file of files) {
+      if (file.visibility === 'posthumous') {
+        await this.assertConsentScope(request, auth.user.id, 'posthumous_visibility');
+      }
+      results.push(file);
+    }
+
+    return {
+      status: 200,
+      body: {
+        items: results,
+        quota: {
+          used_bytes: files.reduce((acc, file) => acc + file.size, 0),
+          max_bytes: CAPSULE_QUOTA_BYTES,
+          max_mb: capsuleQuotaMb,
+        },
+      },
+    };
+  }
+
+  private async downloadVaultDocument(request: RequestLike): Promise<ResponseLike> {
+    const token = parseBearer(request.headers?.authorization);
+    if (!token) {
+      throw new AuthError('UNAUTHENTICATED');
+    }
+
+    const auth = await this.authService.authenticate(token);
+    const route = parseVaultDownloadRoute(request.path);
+    const query = parseVaultDownloadQuery(request.path);
+    this.enforceOwnerAccess(request, auth.user.id);
+
+    if (!route) {
+      throw new NotFoundError('NOT_FOUND');
+    }
+
+    if (query.owner_id !== auth.user.id) {
+      throw new ForbiddenError();
+    }
+
+    if (query.purpose === 'data_export') {
+      await this.assertConsentScope(request, auth.user.id, 'data_export');
+    }
+
+    const file = this.vaultFiles.get(route.id);
+    if (!file) {
+      throw new NotFoundError('RESOURCE_NOT_FOUND');
+    }
+
+    if (file.owner_id !== auth.user.id) {
+      throw new ForbiddenError();
+    }
+
+    if (file.visibility === 'posthumous') {
+      await this.assertConsentScope(request, auth.user.id, 'posthumous_visibility');
+    }
+
+    const object = await this.objectStorage.getObject(file.bucket, file.object_key);
+    if (!object) {
+      throw new NotFoundError('RESOURCE_NOT_FOUND');
+    }
+
+    return {
+      status: 200,
+      body: {
+        ...file,
+        content_base64: object.bodyBase64,
+      },
+    };
+  }
 
   private async assertConsentScope(request: RequestLike, userId: string, scope: ConsentScope): Promise<void> {
     const granted = await this.persistence.consents.isGranted(userId, scope);

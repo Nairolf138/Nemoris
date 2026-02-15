@@ -1,4 +1,4 @@
-import type { ConsentScope } from '@capsule/core';
+import type { ConsentScope, Visibility } from '@capsule/core';
 import { type ExportFormat } from './export-service.js';
 import { ValidationError } from './errors.js';
 
@@ -12,8 +12,26 @@ interface ExportPayload {
   owner_id?: string;
 }
 
+export interface VaultUploadPayload {
+  owner_id: string;
+  filename: string;
+  mime: string;
+  visibility: Visibility;
+  content_base64: string;
+}
+
+export interface VaultListQuery {
+  owner_id: string;
+}
+
+export interface VaultDownloadQuery {
+  owner_id: string;
+  purpose: 'standard' | 'data_export';
+}
+
 
 const CONSENT_SCOPES: ConsentScope[] = ['data_export', 'post_mortem_transmission', 'posthumous_visibility'];
+const VISIBILITIES: Visibility[] = ['private', 'trusted_circle', 'public', 'posthumous'];
 
 export type DataCollection =
   | 'memories'
@@ -243,6 +261,70 @@ export const parseDataListQuery = <C extends DataCollection>(collection: C, path
     cursor: cursorParam ?? undefined,
     sort,
     order: orderParam ?? 'desc',
+  };
+};
+
+export const parseVaultUploadPayload = (body: unknown): VaultUploadPayload => {
+  if (!isRecord(body)) {
+    throw new ValidationError('INVALID_PAYLOAD');
+  }
+
+  assertAllowedKeys(body, ['owner_id', 'filename', 'mime', 'visibility', 'content_base64']);
+  const owner_id = parseOwnerScope(body.owner_id);
+  if (!owner_id) {
+    throw new ValidationError('OWNER_SCOPE_REQUIRED');
+  }
+
+  if (typeof body.filename !== 'string' || body.filename.trim().length === 0) {
+    throw new ValidationError('INVALID_PAYLOAD');
+  }
+
+  if (typeof body.mime !== 'string' || body.mime.trim().length === 0) {
+    throw new ValidationError('INVALID_PAYLOAD');
+  }
+
+  if (typeof body.visibility !== 'string' || !VISIBILITIES.includes(body.visibility as Visibility)) {
+    throw new ValidationError('INVALID_PAYLOAD');
+  }
+
+  if (typeof body.content_base64 !== 'string' || body.content_base64.trim().length === 0) {
+    throw new ValidationError('INVALID_PAYLOAD');
+  }
+
+  return {
+    owner_id,
+    filename: body.filename.trim(),
+    mime: body.mime.trim().toLowerCase(),
+    visibility: body.visibility as Visibility,
+    content_base64: body.content_base64.trim(),
+  };
+};
+
+export const parseVaultListQuery = (path: string): VaultListQuery => {
+  const [, queryString] = path.split('?');
+  const params = new URLSearchParams(queryString ?? '');
+  const owner_id = parseOwnerScope(params.get('owner_id') ?? undefined);
+  if (!owner_id) {
+    throw new ValidationError('OWNER_SCOPE_REQUIRED');
+  }
+  return { owner_id };
+};
+
+export const parseVaultDownloadQuery = (path: string): VaultDownloadQuery => {
+  const [, queryString] = path.split('?');
+  const params = new URLSearchParams(queryString ?? '');
+  const owner_id = parseOwnerScope(params.get('owner_id') ?? undefined);
+  if (!owner_id) {
+    throw new ValidationError('OWNER_SCOPE_REQUIRED');
+  }
+  const purposeParam = params.get('purpose');
+  if (purposeParam !== null && purposeParam !== 'standard' && purposeParam !== 'data_export') {
+    throw new ValidationError('INVALID_QUERY_PARAMS');
+  }
+
+  return {
+    owner_id,
+    purpose: purposeParam === 'data_export' ? 'data_export' : 'standard',
   };
 };
 
