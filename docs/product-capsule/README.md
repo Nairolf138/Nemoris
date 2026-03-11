@@ -1,6 +1,6 @@
 # Product Capsule — Index documentaire
 
-Ce dossier centralise les documents de référence MVP sous une structure unique « product capsule », avec une entrée produit centrée sur une **capsule familiale transmissible** (messages + documents + instructions + bénéficiaires).
+Ce dossier centralise les documents de référence MVP sous une structure unique « product capsule », avec une entrée produit centrée sur une **capsule familiale transmissible** (messages + documents + instructions + héritiers).
 
 ## Convention de marquage
 
@@ -24,22 +24,23 @@ Chaque fonctionnalité doit afficher un tag explicite, sans ambiguïté :
 | Messages transmissibles | **[Disponible maintenant]** | `/data/legacy_messages`, `/legacy-messages/{id}/{arm|trigger|revoke|deliver|delivery-attempts}` |
 | Documents & souvenirs capsule | **[Disponible maintenant]** | `/data/memories` |
 | Instructions & repères personnels (beliefs/lessons/values) | **[Disponible maintenant]** | `/data/beliefs`, `/data/lessons`, `/data/value_profiles` |
-| Beneficiaries | **[Disponible maintenant]** | `/data/beneficiaries` |
+| Héritiers et contacts de confiance | **[Disponible maintenant]** | `/data/beneficiaries` |
 | Narrative nodes | **[Disponible maintenant]** | `/data/narrative_nodes` |
 | Narrative edges | **[Disponible maintenant]** | `/data/narrative_edges` |
 | Consent scopes | **[Disponible maintenant]** | `/consent/grant`, `/consent/revoke`, `/consent/history` |
 | Exports | **[Disponible maintenant]** | `/exports`, `/exports/{id}/download` (audit interne non promu en v1) |
-| Graphe narratif interactif avancé | **[Prévu plus tard]** | N/A v1 |
+| Orchestration avancée de remise sécurisée | **[Prévu plus tard]** | N/A v1 |
 | Workflows juridiques complets | **[Recherche]** | N/A v1 |
 | IA avancée | **[Recherche]** | N/A v1 |
 
 ## Avancé / plus tard
 
-Les capacités cognitives et d'automatisation avancée sont **secondaires** à ce stade : elles restent dans les catégories **[Prévu plus tard]** ou **[Recherche]** et ne constituent pas le cœur de l'entrée produit.
+Les capacités R&D hors périmètre sont **secondaires** à ce stade : elles restent dans les catégories **[Prévu plus tard]** ou **[Recherche]** et ne constituent pas le cœur de l'entrée produit.
 
 ## Index
 
 - [Scope fonctionnel](./scope-fonctionnel.md)
+- [Glossaire métier canonique](./glossaire-metier.md)
 - [Architecture](./architecture.md)
 - [Modèle de données](./modele-de-donnees.md)
 - [Sécurité & conformité](./securite-conformite-threat-model.md)
@@ -61,5 +62,5 @@ Les capacités cognitives et d'automatisation avancée sont **secondaires** à c
 
 - Cette documentation concerne uniquement la **piste Capsule** (shipping).
 - Toute projection future doit être taguée **[Prévu plus tard]** ou **[Recherche]** et formulée comme non livrée.
-- Toute vision cognitive détaillée doit rester dans `docs/vision-cognitive/`.
+- Toute vision R&D détaillée doit rester dans `docs/vision-cognitive/`.
 - En PR, préciser explicitement la piste impactée : **Capsule** ou **Cognitive R&D**.

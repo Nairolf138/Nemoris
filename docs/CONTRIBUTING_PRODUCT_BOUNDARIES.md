@@ -21,9 +21,15 @@ Ce document définit les frontières produit à respecter dans tout le dépôt.
      - `Capsule` (shipping produit), ou
      - `Cognitive R&D` (vision/recherche).
 
+
+5. **Terminologie canonique obligatoire**
+   - Tout nouveau document doit respecter `docs/product-capsule/glossaire-metier.md`.
+   - Toute terminologie hors glossaire (ex. formulations ambiguës) est considérée non conforme tant qu’elle n’est pas remplacée.
+
 ## Application en revue
 
 Une contribution peut être refusée si elle :
 - brouille la séparation Capsule vs Cognitive R&D,
 - présente une piste R&D comme une fonctionnalité déjà disponible,
-- omet les tags de scope attendus.
+- omet les tags de scope attendus,
+- utilise une terminologie hors glossaire métier canonique (`docs/product-capsule/glossaire-metier.md`).

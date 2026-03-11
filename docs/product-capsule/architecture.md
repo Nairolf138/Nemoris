@@ -1,5 +1,7 @@
 # Architecture — Capsule v1
 
+Référentiel de terminologie : `docs/product-capsule/glossaire-metier.md`.
+
 ## [Disponible maintenant] In scope (Capsule v1)
 
 ### Modules cœur
@@ -7,8 +9,8 @@
 - Évolution des convictions : versioning simple par période.
 - Erreurs & leçons : modèle structuré contexte → décision → conséquence → leçon.
 - Valeurs par âge/période : profil de valeurs versionné.
-- Graphe narratif : nœuds + arêtes causales.
-- Transmission posthume : messages conditionnels avec statut.
+- Remise sécurisée : orchestration des contenus à transmettre.
+- Déclenchement : messages conditionnels avec statut et période de grâce.
 
 ### Gouvernance technique minimale
 - Auth robuste, autorisations minimales, séparation des données par propriétaire.
@@ -51,10 +53,10 @@
 - Mécanismes de recommandation intelligents sur corpus personnel.
 - Résilience multi-régions renforcée avec bascule automatisée.
 
-## [Recherche] Research
+## [Recherche] R&D
 
-- Graphe cognitif auto-enrichi semi-automatique.
-- Détection de patterns narratifs/faiblesses cognitives par IA explicable.
+- Automatisation avancée du déclenchement (non engagée).
+- Assistance IA à la préparation de capsule (non engagée).
 - Interopérabilité notariale/assurantielle normalisée (à valider juridiquement).
 
 ## Clarification produit/commercial — état actuel vs cible vs roadmap
@@ -63,6 +65,6 @@
 | --- | --- | --- | --- |
 | Protection des données | Chiffrement applicatif serveur des payloads SQLite sensibles. | Chiffrement côté client généralisé (zéro connaissance serveur). | MVP durci → Phase 2 sécurité avancée. |
 | Gestion des clés | Keyring de rotation applicatif (`kid`) côté backend. | Service de clés dédié (KEK/DEK), séparation stricte plan clés/plan data. | Phase 2. |
-| Déverrouillage héritiers | Transmission posthume conditionnelle métier (statuts/workflows). | Partage de secret `k-of-n` avec quorum et gouvernance juridique. | Recherche → pilote contrôlé. |
+| Déverrouillage héritiers | Déclenchement conditionnel métier (statuts/workflows + période de grâce). | Partage de secret `k-of-n` avec quorum et gouvernance juridique. | Recherche → pilote contrôlé. |
 | Audit & traçabilité | Journal d’audit interne des actions sensibles. | Journal append-only chaîné + horodatage externe vérifiable. | MVP durci → Phase 2 conformité. |
 | Offre commerciale | Positionnement "MVP sécurisé" pour usages personnels guidés. | Positionnement "coffre patrimonial vérifiable" pour usages sensibles/réglementés. | Ajustement GTM progressif selon preuves de conformité. |

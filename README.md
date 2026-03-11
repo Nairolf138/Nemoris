@@ -12,7 +12,7 @@ Promesse cœur produit :
 - rédiger des **messages** personnels,
 - déposer des **documents** utiles,
 - expliciter des **instructions** concrètes,
-- désigner les **bénéficiaires** concernés,
+- désigner les **héritiers** concernés,
 - conserver un ensemble clair, exportable et révisable.
 
 ## Fonctionnalités — Disponibilité
@@ -21,7 +21,7 @@ Référence canonique : `docs/product-capsule/scope-fonctionnel.md`.
 
 - **[Disponible maintenant]** Authentification : inscription, connexion, déconnexion, session basique.
 - **[Disponible maintenant]** Capsule familiale : messages transmissibles, documents de référence et instructions destinées aux proches.
-- **[Disponible maintenant]** Bénéficiaires : création, association des contenus et pilotage des destinataires.
+- **[Disponible maintenant]** Héritiers et contacts de confiance : création, association des contenus et pilotage des destinataires.
 - **[Disponible maintenant]** Modules de structuration disponibles côté plateforme (mémoire, convictions, leçons, valeurs), activés progressivement selon le phasage produit.
 - **[Disponible maintenant]** Liens manuels inter-objets pour relier les contenus.
 - **[Disponible maintenant]** Exports PDF et JSON.
@@ -29,20 +29,20 @@ Référence canonique : `docs/product-capsule/scope-fonctionnel.md`.
 
 ## Phasage produit capsule
 
-- **Phase 1 (priorité actuelle)** : capsule simple (onboarding 4 étapes, messages, documents, bénéficiaires/règles, résumé capsule).
+- **Phase 1 (priorité actuelle)** : capsule simple (onboarding 4 étapes, messages, documents, héritiers/règles, résumé capsule).
 - **Phase 2** : leçons.
 - **Phase 3** : convictions et profils de valeurs.
-- **Phase 4** : graphe narratif.
+- **Phase 4** : extension du dispositif de remise sécurisée.
 
 ## Avancé / plus tard
 
 - **[Prévu plus tard]** Recherche avancée (sémantique/filtres complexes).
-- **[Recherche]** IA complexe conversationnelle/générative (piste cognitive secondaire).
+- **[Recherche]** Assistance automatisée de préparation de capsule (piste R&D hors périmètre).
 - **[Recherche]** Workflows juridiques post-mortem complets.
 - **[Prévu plus tard]** Transmission post-mortem automatisée.
-- **[Prévu plus tard]** Graphe narratif interactif avancé.
+- **[Prévu plus tard]** Orchestration avancée de déclenchement et de remise sécurisée.
 
-La vision cognitive reste une trajectoire **secondaire** à long terme, séparée de l’entrée produit capsule familiale transmissible. Les éléments de cette piste sont marqués **[Recherche]** ou **[Prévu plus tard]** dans leur documentation dédiée : `docs/vision-cognitive/VISION.md`.
+La piste R&D hors périmètre reste une trajectoire **secondaire** à long terme, séparée de l’entrée produit capsule familiale transmissible. Les éléments de cette piste sont marqués **[Recherche]** ou **[Prévu plus tard]** dans leur documentation dédiée : `docs/vision-cognitive/VISION.md`.
 
 
 ## Avertissement légal
@@ -98,4 +98,4 @@ Le service peut compléter la préparation personnelle et documentaire, mais ne 
 | Date | Owner | Décision |
 | --- | --- | --- |
 | 2026-02-12 | Product + Tech | Réalignement de la documentation sur `docs/product-capsule/scope-fonctionnel.md` comme source unique. |
-| 2026-02-16 | Product + Tech | Clarification du phasage: capsule simple -> leçons -> convictions/valeurs -> graphe narratif. |
+| 2026-02-16 | Product + Tech | Clarification du phasage: capsule simple -> leçons -> convictions/valeurs -> extension de remise sécurisée. |

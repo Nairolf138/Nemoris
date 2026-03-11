@@ -30,3 +30,4 @@
 - [ ] Message marketing centré capsule
 - [ ] Aucune fonctionnalité R&D présentée comme disponible
 - [ ] Tags de scope correctement appliqués
+- [ ] Terminologie validée selon `docs/product-capsule/glossaire-metier.md`
