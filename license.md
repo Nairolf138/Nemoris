@@ -1,0 +1,2 @@
+Liscence propriétaire - Tous droits réservés.
+Copyright : 2026 Florian Ribes (NairolfConcept)
